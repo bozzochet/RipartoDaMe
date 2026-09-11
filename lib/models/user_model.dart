@@ -3,6 +3,7 @@ class UserModel {
   String name;
   double currentWeight;
   double targetWeight;
+  double height;
   int currentHearts;     // Cuori attuali riempiti oggi
   int maxHearts;        // Cuori totali / cap giornaliero
   int coins;            // Monete/Rupie per comprare abiti e mobili
@@ -14,6 +15,7 @@ class UserModel {
     required this.name,
     required this.currentWeight,
     required this.targetWeight,
+    this.height = 165.0,
     this.currentHearts = 4,
     this.maxHearts = 10,
     this.coins = 0,
@@ -32,6 +34,7 @@ class UserModel {
       'name': name,
       'currentWeight': currentWeight,
       'targetWeight': targetWeight,
+      'height': height,
       'currentHearts': currentHearts,
       'maxHearts': maxHearts,
       'coins': coins,
@@ -46,6 +49,7 @@ class UserModel {
       name: map['name'] ?? 'Giada',
       currentWeight: (map['currentWeight'] ?? 94.0).toDouble(),
       targetWeight: (map['targetWeight'] ?? 80.0).toDouble(),
+      height: (map['height'] ?? 165.0).toDouble(),
       currentHearts: map['currentHearts'] ?? 4,
       maxHearts: map['maxHearts'] ?? 10,
       coins: map['coins'] ?? 0,

@@ -4,6 +4,7 @@ import '../theme/app_theme.dart';
 import '../theme/cozy_widgets.dart';
 import '../services/local_storage_service.dart';
 import '../models/user_model.dart';
+import '../models/body_measurement_entry.dart';
 
 class IlMioCorpoScreen extends StatefulWidget {
   const IlMioCorpoScreen({super.key});
@@ -12,13 +13,24 @@ class IlMioCorpoScreen extends StatefulWidget {
   State<IlMioCorpoScreen> createState() => _IlMioCorpoScreenState();
 }
 
-class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with SingleTickerProviderStateMixin {
+class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProviderStateMixin {
   final LocalStorageService _storageService = LocalStorageService();
   late UserModel _user;
-  late TabController _tabController;
+  late TabController _mainTabController;
+  late TabController _measurementsTabController;
 
+  // Controllers Peso e Altezza
   final TextEditingController _weightController = TextEditingController();
   final TextEditingController _targetController = TextEditingController();
+  final TextEditingController _heightController = TextEditingController();
+
+  // Controllers Misure Corporee
+  final TextEditingController _waistController = TextEditingController();
+  final TextEditingController _hipsController = TextEditingController();
+  final TextEditingController _armsController = TextEditingController();
+  final TextEditingController _legsController = TextEditingController();
+
+  // Controllers Referti
   final TextEditingController _glycemiaController = TextEditingController();
   final TextEditingController _insulinController = TextEditingController();
 
@@ -26,20 +38,59 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with SingleTickerPr
   void initState() {
     super.initState();
     _user = _storageService.getUser();
-    _weightController.text = _user.currentWeight?.toString() ?? '';
-    _targetController.text = _user.targetWeight.toString() ?? '';
-    _tabController = TabController(length: 3, vsync: this);
+    _weightController.text = _user.currentWeight > 0 ? _user.currentWeight.toString() : '';
+    _targetController.text = _user.targetWeight > 0 ? _user.targetWeight.toString() : '';
+    _heightController.text = _user.height > 0 ? _user.height.toString() : '';
+
+    _mainTabController = TabController(length: 3, vsync: this);
+    _measurementsTabController = TabController(length: 4, vsync: this);
   }
 
-void _saveWeight() async {
-    // Sostituiamo eventuale virgola con il punto prima del parsing
+  // --- LOGICA BMI ---
+  double? get _calculatedBMI {
+    if (_user.height <= 0 || _user.currentWeight <= 0) return null;
+    final heightInMeters = _user.height / 100.0;
+    return _user.currentWeight / (heightInMeters * heightInMeters);
+  }
+
+  String _getBMICategory(double bmi) {
+    if (bmi < 18.5) return 'Sottopeso';
+    if (bmi < 25.0) return 'Normopeso';
+    if (bmi < 30.0) return 'Sovrappeso';
+    return 'Obesità';
+  }
+
+  Color _getBMIColor(double bmi) {
+    if (bmi < 18.5) return Colors.orange;
+    if (bmi < 25.0) return AppColors.success;
+    if (bmi < 30.0) return Colors.orangeAccent;
+    return AppColors.heartRed;
+  }
+
+  void _saveHeight() async {
+    final cleanText = _heightController.text.replaceAll(',', '.');
+    final newHeight = double.tryParse(cleanText);
+    if (newHeight != null && newHeight > 0) {
+      setState(() {
+        _user.height = newHeight;
+      });
+      await _storageService.saveUser(_user);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: AppColors.success,
+          content: Text('📏 Altezza e BMI aggiornati!'),
+        ),
+      );
+    }
+  }
+
+  // --- LOGICA SALVATAGGIO PESO ---
+  void _saveWeight() async {
     final cleanText = _weightController.text.replaceAll(',', '.');
     final newWeight = double.tryParse(cleanText);
-
     if (newWeight != null && newWeight > 0) {
-      // Salva sia lo storico delle date che l'utente aggiornato
       await _storageService.addWeightEntry(newWeight);
-      
       setState(() {
         _user = _storageService.getUser();
       });
@@ -51,18 +102,39 @@ void _saveWeight() async {
           content: Text('✨ Rilevazione peso aggiornata!'),
         ),
       );
-    } else {
-      // Opzionale: mostra un avviso se il formato non è valido
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          backgroundColor: AppColors.heartRed,
-          content: Text('⚠️ Inserisci un valore numerico valido.'),
-        ),
-      );
     }
   }
-  
-  // Finestra di dialogo per modificare l'obiettivo di peso
+
+  // --- LOGICA SALVATAGGIO MISURE CORPOREE ---
+  void _saveMeasurement({
+      double? waist,
+      double? hips,
+      double? arms,
+      double? thighs,
+      double? legs,
+      double? chest,
+  }) async {
+    final entry = BodyMeasurementEntry(
+      date: DateTime.now(),
+      waist: waist,
+      hips: hips,
+      arms: arms,
+      thighs: thighs ?? legs, // <--- Se viene passato legs, usalo per thighs
+      chest: chest,
+    );
+    
+    await _storageService.addBodyMeasurement(entry);
+    setState(() {});
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        backgroundColor: AppColors.success,
+        content: Text('📐 Misura registrata con successo!'),
+      ),
+    );
+  }
+
   void _showEditTargetDialog() {
     _targetController.text = _user.targetWeight.toString();
     showDialog(
@@ -71,6 +143,7 @@ void _saveWeight() async {
         return AlertDialog(
           title: const Text('Modifica Obiettivo Peso'),
           content: TextField(
+            key: const ValueKey('target_input_field'),
             controller: _targetController,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             decoration: const InputDecoration(
@@ -118,48 +191,44 @@ void _saveWeight() async {
       appBar: AppBar(
         title: const Text('Il Mio Corpo'),
         bottom: TabBar(
-          controller: _tabController,
+          controller: _mainTabController,
           indicatorColor: AppColors.woodAccent,
           labelColor: AppColors.textPrimary,
           unselectedLabelColor: AppColors.textSecondary,
           tabs: const [
-            Tab(icon: Icon(Icons.monitor_weight), text: 'Peso'),
+            Tab(icon: Icon(Icons.monitor_weight), text: 'Peso & BMI'),
+            Tab(icon: Icon(Icons.straighten), text: 'Misure'),
             Tab(icon: Icon(Icons.bloodtype), text: 'Valori & Referti'),
-            Tab(icon: Icon(Icons.photo_library), text: 'Foto'),
           ],
         ),
       ),
       body: TabBarView(
-        controller: _tabController,
+        controller: _mainTabController,
         children: [
-          // 1. DIARIO PESO & PROGRESSI
-          _buildWeightTab(),
-
-          // 2. VALORI EMATICI & REFERTI MEDICI
+          _buildWeightAndBMITab(),
+          _buildBodyMeasurementsTab(),
           _buildBloodTab(),
-
-          // 3. DIARIO FOTOGRAFICO PROGRESSI
-          _buildPhotosTab(),
         ],
       ),
     );
   }
 
-  // TAB 1: Peso & Grafico
-  Widget _buildWeightTab() {
+  // TAB 1: PESO E BMI
+  Widget _buildWeightAndBMITab() {
+    final bmi = _calculatedBMI;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // CARD OBIETTIVI E PESO ATTUALE
           CozyCard(
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _buildMetricColumn('Attuale', '${_user.currentWeight} kg'),
                 const Icon(Icons.arrow_forward, color: AppColors.woodAccent),
-                
-                // Obiettivo reso Cliccabile
                 InkWell(
                   onTap: _showEditTargetDialog,
                   borderRadius: BorderRadius.circular(8),
@@ -179,11 +248,87 @@ void _saveWeight() async {
             ),
           ),
           const SizedBox(height: 16),
+
+          // SEZIONE ALTEZZA E BMI
+          CozyCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Calcolo BMI (Indice di Massa Corporea)',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.textPrimary),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        key: const ValueKey('height_input_field'),
+                        controller: _heightController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: const InputDecoration(
+                          labelText: 'Altezza (cm)',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    CozyButton(
+                      text: 'Aggiorna',
+                      icon: Icons.height,
+                      onPressed: _saveHeight,
+                    ),
+                  ],
+                ),
+                if (bmi != null) ...[
+                  const Divider(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Il tuo BMI:', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                          Text(
+                            bmi.toStringAsFixed(1),
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: _getBMIColor(bmi),
+                            ),
+                          ),
+                        ],
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: _getBMIColor(bmi).withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: _getBMIColor(bmi)),
+                        ),
+                        child: Text(
+                          _getBMICategory(bmi),
+                          style: TextStyle(
+                            color: _getBMIColor(bmi),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // REGISTRAZIONE NUOVO PESO
           CozyCard(
             child: Row(
               children: [
                 Expanded(
                   child: TextField(
+                    key: const ValueKey('weight_input_field'),
                     controller: _weightController,
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     decoration: const InputDecoration(
@@ -202,6 +347,8 @@ void _saveWeight() async {
             ),
           ),
           const SizedBox(height: 20),
+
+          // GRAFICO PESO
           const Text(
             'Andamento Peso',
             style: TextStyle(fontFamily: 'Serif', fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
@@ -219,6 +366,259 @@ void _saveWeight() async {
     );
   }
 
+  // TAB 2: MISURE CORPOREE (VITA, FIANCHI, BRACCIA, GAMBE)
+  Widget _buildBodyMeasurementsTab() {
+    final List<BodyMeasurementEntry> history = _storageService.getBodyMeasurementsHistory();
+
+    return Column(
+      children: [
+        Container(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          child: TabBar(
+            controller: _measurementsTabController,
+            indicatorColor: AppColors.woodAccent,
+            labelColor: AppColors.woodAccent,
+            unselectedLabelColor: AppColors.textSecondary,
+            tabs: const [
+              Tab(text: 'Vita'),
+              Tab(text: 'Fianchi'),
+              Tab(text: 'Braccia'),
+              Tab(text: 'Gambe'),
+            ],
+          ),
+        ),
+        Expanded(
+          child: TabBarView(
+            controller: _measurementsTabController,
+            children: [
+              _buildSingleMeasurementView('Vita', _waistController, history, (val) => _saveMeasurement(waist: val), (e) => e.waist),
+              _buildSingleMeasurementView('Fianchi', _hipsController, history, (val) => _saveMeasurement(hips: val), (e) => e.hips),
+              _buildSingleMeasurementView('Braccia', _armsController, history, (val) => _saveMeasurement(arms: val), (e) => e.arms),
+              _buildSingleMeasurementView('Gambe', _legsController, history, (val) => _saveMeasurement(legs: val), (e) => e.legs),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // SCHERMATA SINGOLA MISURA
+  Widget _buildSingleMeasurementView(
+    String title,
+    TextEditingController controller,
+    List<BodyMeasurementEntry> history,
+    Function(double) onSave,
+    double? Function(BodyMeasurementEntry) valueExtractor,
+  ) {
+    // Estrae i punti validi per questa specifica misura
+    final List<FlSpot> spots = [];
+    final List<DateTime> dates = [];
+
+    for (var entry in history) {
+      final val = valueExtractor(entry);
+      if (val != null && val > 0) {
+        dates.add(entry.date);
+      }
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CozyCard(
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    key: ValueKey('input_$title'),
+                    controller: controller,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: InputDecoration(
+                      labelText: 'Misura $title (cm)',
+                      border: const OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                CozyButton(
+                  text: 'Salva',
+                  icon: Icons.add,
+                  onPressed: () {
+                    final cleanText = controller.text.replaceAll(',', '.');
+                    final val = double.tryParse(cleanText);
+                    if (val != null && val > 0) {
+                      onSave(val);
+                      controller.clear();
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            'Andamento $title',
+            style: const TextStyle(fontFamily: 'Serif', fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+          ),
+          const SizedBox(height: 8),
+          CozyCard(
+            child: Container(
+              height: 220,
+              padding: const EdgeInsets.only(top: 16, right: 16, bottom: 8, left: 8),
+              child: _buildMeasurementGraph(history, valueExtractor, title),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // GRAFICO GENERICO PER LE MISURE CORPOREE
+  Widget _buildMeasurementGraph(
+    List<BodyMeasurementEntry> history,
+    double? Function(BodyMeasurementEntry) valueExtractor,
+    String unitLabel,
+  ) {
+    // Filtra ed ordina le registrazioni che hanno questa misura presente
+    final validEntries = history
+        .where((e) => valueExtractor(e) != null && valueExtractor(e)! > 0)
+        .toList();
+
+    validEntries.sort((a, b) => a.date.compareTo(b.date));
+
+    if (validEntries.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.show_chart, size: 36, color: AppColors.textSecondary),
+            const SizedBox(height: 8),
+            Text(
+              'Nessuna misurazione di $unitLabel presente.\nInserisci il primo valore per attivare il grafico!',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final DateTime startDate = validEntries.first.date;
+    final DateTime endDate = validEntries.last.date;
+
+    final List<FlSpot> spots = validEntries.map((entry) {
+      final double xValue = entry.date.difference(startDate).inHours / 24.0;
+      return FlSpot(xValue, valueExtractor(entry)!);
+    }).toList();
+
+    final double totalDaysDifference = endDate.difference(startDate).inHours / 24.0;
+    final double minX = -1.0;
+    final double maxX = totalDaysDifference + 1.0;
+
+    final List<double> values = validEntries.map((e) => valueExtractor(e)!).toList();
+    final double minValue = values.reduce((a, b) => a < b ? a : b);
+    final double maxValue = values.reduce((a, b) => a > b ? a : b);
+
+    final double minY = (minValue == maxValue) ? minValue - 5.0 : minValue - 2.0;
+    final double maxY = (minValue == maxValue) ? maxValue + 5.0 : maxValue + 2.0;
+
+    return LineChart(
+      LineChartData(
+        minX: minX,
+        maxX: maxX,
+        minY: minY,
+        maxY: maxY,
+        lineTouchData: LineTouchData(
+          touchTooltipData: LineTouchTooltipData(
+            getTooltipItems: (touchedSpots) {
+              return touchedSpots.map((spot) {
+                final entry = validEntries.reduce((a, b) {
+                  final diffA = (a.date.difference(startDate).inHours / 24.0 - spot.x).abs();
+                  final diffB = (b.date.difference(startDate).inHours / 24.0 - spot.x).abs();
+                  return diffA < diffB ? a : b;
+                });
+                final dateStr = '${entry.date.day}/${entry.date.month}';
+                return LineTooltipItem(
+                  '${valueExtractor(entry)!.toStringAsFixed(1)} cm\n$dateStr',
+                  const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                );
+              }).toList();
+            },
+          ),
+        ),
+        gridData: const FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          horizontalInterval: 2,
+        ),
+        titlesData: FlTitlesData(
+          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          
+          // ASSE VERTICALE (MISURE IN CM)
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 45,
+              getTitlesWidget: (value, meta) {
+                final String formatted = (value % 1 == 0)
+                    ? value.toInt().toString()
+                    : value.toStringAsFixed(1);
+                return Text(
+                  '$formatted cm',
+                  style: const TextStyle(fontSize: 10, color: AppColors.textSecondary),
+                );
+              },
+            ),
+          ),
+          
+          // ASSE ORIZZONTALE (DATE)
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 28,
+              interval: (maxX - minX) > 10 ? ((maxX - minX) / 5) : 1.0,
+              getTitlesWidget: (value, meta) {
+                final DateTime calculatedDate = startDate.add(Duration(hours: (value * 24).round()));
+                return Padding(
+                  padding: const EdgeInsets.only(top: 6.0),
+                  child: Text(
+                    '${calculatedDate.day}/${calculatedDate.month}',
+                    style: const TextStyle(fontSize: 10, color: AppColors.textSecondary),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+        borderData: FlBorderData(
+          show: true,
+          border: Border.all(color: AppColors.disabled.withOpacity(0.3)),
+        ),
+        lineBarsData: [
+          LineChartBarData(
+            spots: spots,
+            isCurved: validEntries.length > 2,
+            color: AppColors.woodAccent,
+            barWidth: 3,
+            isStrokeCapRound: true,
+            dotData: const FlDotData(show: true),
+            belowBarData: BarAreaData(
+              show: true,
+              color: AppColors.woodAccent.withOpacity(0.15),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // GRAFICO PESO
   Widget _buildWeightGraph() {
     final List<WeightEntry> history = _storageService.getWeightHistory();
 
@@ -239,24 +639,20 @@ void _saveWeight() async {
       );
     }
 
-    // Ordiniamo lo storico per data
     history.sort((a, b) => a.date.compareTo(b.date));
 
     final DateTime startDate = history.first.date;
     final DateTime endDate = history.last.date;
 
-    // Coordinate X basate sui giorni trascorsi dalla prima misurazione (startDate = 0.0)
     final List<FlSpot> spots = history.map((entry) {
-        final double xValue = entry.date.difference(startDate).inHours / 24.0;
-        return FlSpot(xValue, entry.weight);
+      final double xValue = entry.date.difference(startDate).inHours / 24.0;
+      return FlSpot(xValue, entry.weight);
     }).toList();
 
-    // MARGINI ASSE X: -1 giorno rispetto al primo punto, +1 giorno rispetto all'ultimo
     final double totalDaysDifference = endDate.difference(startDate).inHours / 24.0;
     final double minX = -1.0; 
     final double maxX = totalDaysDifference + 1.0;
 
-    // Margini per l'Asse Y (Peso)
     final List<double> weights = history.map((e) => e.weight).toList();
     final double minWeight = weights.reduce((a, b) => a < b ? a : b);
     final double maxWeight = weights.reduce((a, b) => a > b ? a : b);
@@ -274,20 +670,20 @@ void _saveWeight() async {
           touchTooltipData: LineTouchTooltipData(
             getTooltipItems: (touchedSpots) {
               return touchedSpots.map((spot) {
-                  final entry = history.reduce((a, b) {
-                      final diffA = (a.date.difference(startDate).inHours / 24.0 - spot.x).abs();
-                      final diffB = (b.date.difference(startDate).inHours / 24.0 - spot.x).abs();
-                      return diffA < diffB ? a : b;
-                  });
-                  final dateStr = '${entry.date.day}/${entry.date.month}';
-                  return LineTooltipItem(
-                    '${entry.weight.toStringAsFixed(1)} kg\n$dateStr',
-                    const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                    ),
-                  );
+                final entry = history.reduce((a, b) {
+                  final diffA = (a.date.difference(startDate).inHours / 24.0 - spot.x).abs();
+                  final diffB = (b.date.difference(startDate).inHours / 24.0 - spot.x).abs();
+                  return diffA < diffB ? a : b;
+                });
+                final dateStr = '${entry.date.day}/${entry.date.month}';
+                return LineTooltipItem(
+                  '${entry.weight.toStringAsFixed(1)} kg\n$dateStr',
+                  const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                );
               }).toList();
             },
           ),
@@ -301,15 +697,14 @@ void _saveWeight() async {
           topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           
-          // ASSE VERTICALE (PESO IN KG)
           leftTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
               reservedSize: 45,
               getTitlesWidget: (value, meta) {
                 final String formatted = (value % 1 == 0)
-                ? value.toInt().toString()
-                : value.toStringAsFixed(1);
+                    ? value.toInt().toString()
+                    : value.toStringAsFixed(1);
                 return Text(
                   '$formatted kg',
                   style: const TextStyle(fontSize: 10, color: AppColors.textSecondary),
@@ -318,17 +713,13 @@ void _saveWeight() async {
             ),
           ),
           
-          // ASSE ORIZZONTALE (DATE: COMPRESE INIZIO E FINE ASSE)
           bottomTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
               reservedSize: 28,
-              // Mostra un'etichetta ogni 1 giorno (oppure ogni 2 se l'intervallo è lungo)
               interval: (maxX - minX) > 10 ? ((maxX - minX) / 5) : 1.0,
               getTitlesWidget: (value, meta) {
-                // Converte il valore X (giorni trascorsi) nella data calendario corrispondente
                 final DateTime calculatedDate = startDate.add(Duration(hours: (value * 24).round()));
-
                 return Padding(
                   padding: const EdgeInsets.only(top: 6.0),
                   child: Text(
@@ -362,7 +753,7 @@ void _saveWeight() async {
     );
   }
 
-  // TAB 2: Valori Ematici & Referti
+  // TAB 3: VALORI EMATICI E REFERTI
   Widget _buildBloodTab() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
@@ -378,6 +769,7 @@ void _saveWeight() async {
             child: Column(
               children: [
                 TextField(
+                  key: const ValueKey('glycemia_input_field'),
                   controller: _glycemiaController,
                   keyboardType: TextInputType.number,
                   decoration: const InputDecoration(
@@ -387,6 +779,7 @@ void _saveWeight() async {
                 ),
                 const SizedBox(height: 12),
                 TextField(
+                  key: const ValueKey('insulin_input_field'),
                   controller: _insulinController,
                   keyboardType: TextInputType.number,
                   decoration: const InputDecoration(
@@ -420,45 +813,6 @@ void _saveWeight() async {
               subtitle: const Text('Conserva le analisi del sangue in modo sicuro'),
               trailing: const Icon(Icons.upload_file, color: AppColors.woodAccent),
               onTap: () {},
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // TAB 3: Diario Fotografico
-  Widget _buildPhotosTab() {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CozyButton(
-            text: 'Aggiungi Foto Progressi 📸',
-            icon: Icons.camera_alt,
-            onPressed: () {},
-          ),
-          const SizedBox(height: 16),
-          Expanded(
-            child: GridView.count(
-              crossAxisCount: 2,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              children: [
-                CozyCard(
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
-                        Icon(Icons.photo, size: 40, color: AppColors.disabled),
-                        SizedBox(height: 8),
-                        Text('Inizio Percorso', textAlign: TextAlign.center, style: TextStyle(fontSize: 12)),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
             ),
           ),
         ],

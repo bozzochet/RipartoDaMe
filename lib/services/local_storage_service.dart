@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/user_model.dart';
 import '../models/habit_model.dart';
+import '../models/body_measurement_entry.dart';
 
 /// Modello per rappresentare la singola misurazione del peso con la sua data
 class WeightEntry {
@@ -24,6 +26,7 @@ class LocalStorageService {
   final Box _userBox = Hive.box('userBox');
   final Box _habitsBox = Hive.box('habitsBox');
   final Box _weightBox = Hive.box('weightLogsBox');
+  final Box _measurementsBox = Hive.box('measurementsBox');
 
   // --- GESTIONE PROFILO UTENTE & GAMIFICATION ---
 
@@ -142,4 +145,26 @@ class LocalStorageService {
     final String dateKey = date.toIso8601String().split('T')[0];
     await _weightBox.delete(dateKey);
   }
+
+  // --- GESTIONE MISURAZIONI CORPOREE (AGGIUNTA) ---
+
+  Future<void> addBodyMeasurement(BodyMeasurementEntry entry) async {
+    final String dateKey = entry.date.toIso8601String().split('T')[0];
+    await _measurementsBox.put(dateKey, entry.toMap());
+  }
+
+  List<BodyMeasurementEntry> getBodyMeasurementsHistory() {
+    final entries = _measurementsBox.values
+    .map((e) => BodyMeasurementEntry.fromMap(Map<String, dynamic>.from(e)))
+    .toList();
+
+    entries.sort((a, b) => b.date.compareTo(a.date)); // Dalla più recente alla più vecchia
+    return entries;
+  }
+
+  BodyMeasurementEntry? getLatestBodyMeasurement() {
+    final history = getBodyMeasurementsHistory();
+    return history.isNotEmpty ? history.first : null;
+  }
+  
 }
