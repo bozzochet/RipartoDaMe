@@ -1,0 +1,29 @@
+name: riparto_da_me
+description: RIPARTO DA ME - app personale di percorso, cura di sé e avventura.
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.5.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  shared_preferences: ^2.5.3
+  image_picker: ^1.2.0
+  intl: ^0.20.2
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  fl_chart: ^1.2.0 # Per il grafico delle misurazioni e del peso
+  audioplayers: ^6.0.0 # Per gli effetti sonori
+  path_provider: ^2.1.2 # Per gestire le directory locali di salvataggio
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
