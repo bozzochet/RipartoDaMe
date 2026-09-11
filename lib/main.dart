@@ -12,6 +12,7 @@ void main() async {
   await Hive.openBox('weightLogsBox');
   await Hive.openBox('measurementsBox');
   await Hive.openBox('diaryBox');
+  await Hive.openBox('photosBox');
 
   runApp(const RipartoDaMeApp());
 }

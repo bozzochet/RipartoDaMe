@@ -3,6 +3,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import '../models/user_model.dart';
 import '../models/habit_model.dart';
 import '../models/body_measurement_entry.dart';
+import '../models/progress_photo_entry.dart';
 
 /// Modello per rappresentare la singola misurazione del peso con la sua data
 class WeightEntry {
@@ -12,14 +13,14 @@ class WeightEntry {
   WeightEntry({required this.date, required this.weight});
 
   Map<String, dynamic> toMap() => {
-        'date': date.toIso8601String(),
-        'weight': weight,
-      };
+    'date': date.toIso8601String(),
+    'weight': weight,
+  };
 
   factory WeightEntry.fromMap(Map<String, dynamic> map) => WeightEntry(
-        date: DateTime.parse(map['date']),
-        weight: (map['weight'] as num).toDouble(),
-      );
+    date: DateTime.parse(map['date']),
+    weight: (map['weight'] as num).toDouble(),
+  );
 }
 
 class LocalStorageService {
@@ -27,6 +28,29 @@ class LocalStorageService {
   final Box _habitsBox = Hive.box('habitsBox');
   final Box _weightBox = Hive.box('weightLogsBox');
   final Box _measurementsBox = Hive.box('measurementsBox');
+  final Box _photosBox = Hive.box('photosBox');
+
+  // --- GESTIONE FOTO PROGRESSI ---
+
+  // Salva una nuova foto
+  Future<void> addProgressPhoto(ProgressPhotoEntry photo) async {
+    await _photosBox.put(photo.id, photo.toMap());
+  }
+
+  // Recupera lo storico delle foto ordinate per data (dalla più recente)
+  List<ProgressPhotoEntry> getProgressPhotosHistory() {
+    final entries = _photosBox.values
+    .map((e) => ProgressPhotoEntry.fromMap(Map<String, dynamic>.from(e)))
+    .toList();
+
+    entries.sort((a, b) => b.date.compareTo(a.date));
+    return entries;
+  }
+
+  // Elimina una foto dallo storico
+  Future<void> deleteProgressPhoto(String photoId) async {
+    await _photosBox.delete(photoId);
+  }
 
   // --- GESTIONE PROFILO UTENTE & GAMIFICATION ---
 
@@ -93,8 +117,8 @@ class LocalStorageService {
     }
 
     return _habitsBox.values
-        .map((e) => HabitModel.fromMap(Map<String, dynamic>.from(e)))
-        .toList();
+    .map((e) => HabitModel.fromMap(Map<String, dynamic>.from(e)))
+    .toList();
   }
 
   // Spunta/Despunta un'abitudine
@@ -119,8 +143,8 @@ class LocalStorageService {
     final String dateKey = targetDate.toIso8601String().split('T')[0];
 
     await _weightBox.put(dateKey, {
-      'date': targetDate.toIso8601String(),
-      'weight': weight,
+        'date': targetDate.toIso8601String(),
+        'weight': weight,
     });
 
     // Aggiorna anche il peso attuale nel profilo utente
@@ -132,8 +156,8 @@ class LocalStorageService {
   // Recupera lo storico completo ordinato in modo cronologico (dal meno recente al più recente)
   List<WeightEntry> getWeightHistory() {
     final entries = _weightBox.values
-        .map((e) => WeightEntry.fromMap(Map<String, dynamic>.from(e)))
-        .toList();
+    .map((e) => WeightEntry.fromMap(Map<String, dynamic>.from(e)))
+    .toList();
 
     // Ordina le date per il grafico
     entries.sort((a, b) => a.date.compareTo(b.date));
@@ -166,5 +190,5 @@ class LocalStorageService {
     final history = getBodyMeasurementsHistory();
     return history.isNotEmpty ? history.first : null;
   }
-  
+
 }

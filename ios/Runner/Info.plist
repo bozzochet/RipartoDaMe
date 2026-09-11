@@ -66,5 +66,9 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>L'app richiede l'accesso alla fotocamera per scattare foto dei progressi.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>L'app richiede l'accesso alla galleria per selezionare le foto dei progressi.</string>
 </dict>
 </plist>

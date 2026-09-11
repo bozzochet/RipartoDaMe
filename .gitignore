@@ -1,3 +1,8 @@
+# Backup and temporary files
+*~
+*.swp
+*.bak
+
 # Miscellaneous
 *.class
 *.log

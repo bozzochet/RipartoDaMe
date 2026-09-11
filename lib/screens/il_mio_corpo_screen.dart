@@ -1,10 +1,13 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:image_picker/image_picker.dart';
 import '../theme/app_theme.dart';
 import '../theme/cozy_widgets.dart';
 import '../services/local_storage_service.dart';
 import '../models/user_model.dart';
 import '../models/body_measurement_entry.dart';
+import '../models/progress_photo_entry.dart';
 
 class IlMioCorpoScreen extends StatefulWidget {
   const IlMioCorpoScreen({super.key});
@@ -15,6 +18,7 @@ class IlMioCorpoScreen extends StatefulWidget {
 
 class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProviderStateMixin {
   final LocalStorageService _storageService = LocalStorageService();
+  final ImagePicker _picker = ImagePicker();
   late UserModel _user;
   late TabController _mainTabController;
   late TabController _measurementsTabController;
@@ -41,11 +45,34 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
     _weightController.text = _user.currentWeight > 0 ? _user.currentWeight.toString() : '';
     _targetController.text = _user.targetWeight > 0 ? _user.targetWeight.toString() : '';
     _heightController.text = _user.height > 0 ? _user.height.toString() : '';
-
-    _mainTabController = TabController(length: 3, vsync: this);
+    
+    _mainTabController = TabController(length: 4, vsync: this);
     _measurementsTabController = TabController(length: 4, vsync: this);
+    
+    // Aggiungi questo listener per aggiornare la UI al cambio scheda
+    _mainTabController.addListener(() {
+        if (!_mainTabController.indexIsChanging) {
+          setState(() {});
+        }
+    });
   }
 
+  @override
+  void dispose() {
+    _mainTabController.dispose();
+    _measurementsTabController.dispose();
+    _weightController.dispose();
+    _targetController.dispose();
+    _heightController.dispose();
+    _waistController.dispose();
+    _hipsController.dispose();
+    _armsController.dispose();
+    _legsController.dispose();
+    _glycemiaController.dispose();
+    _insulinController.dispose();
+    super.dispose();
+  }
+  
   // --- LOGICA BMI ---
   double? get _calculatedBMI {
     if (_user.height <= 0 || _user.currentWeight <= 0) return null;
@@ -53,20 +80,32 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
     return _user.currentWeight / (heightInMeters * heightInMeters);
   }
 
-  String _getBMICategory(double bmi) {
-    if (bmi < 18.5) return 'Sottopeso';
-    if (bmi < 25.0) return 'Normopeso';
-    if (bmi < 30.0) return 'Sovrappeso';
-    return 'Obesità';
+  /// Ritorna la categoria del BMI secondo le linee guida OMS estese
+  String getBMICategory(double bmi) {
+    if (bmi < 18.5) {
+      return 'Sottopeso';
+    } else if (bmi >= 18.5 && bmi < 25.0) {
+      return 'Normopeso';
+    } else if (bmi >= 25.0 && bmi < 30.0) {
+      return 'Sovrappeso';
+    } else if (bmi >= 30.0 && bmi < 35.0) {
+      return 'Obesità di I Grado (Lieve)';
+    } else if (bmi >= 35.0 && bmi < 40.0) {
+      return 'Obesità di II Grado (Moderata)';
+    } else {
+      return 'Obesità di III Grado (Grave/Elevata)';
+    }
   }
 
-  Color _getBMIColor(double bmi) {
-    if (bmi < 18.5) return Colors.orange;
-    if (bmi < 25.0) return AppColors.success;
-    if (bmi < 30.0) return Colors.orangeAccent;
-    return AppColors.heartRed;
+  Color getBMIColor(double bmi) {
+    if (bmi < 18.5) return Colors.blue;
+    if (bmi < 25.0) return Colors.green;
+    if (bmi < 30.0) return Colors.orange;
+    if (bmi < 35.0) return Colors.deepOrange;
+    if (bmi < 40.0) return Colors.red;
+    return Colors.purple; // Obesità di III Grado
   }
-
+  
   void _saveHeight() async {
     final cleanText = _heightController.text.replaceAll(',', '.');
     final newHeight = double.tryParse(cleanText);
@@ -184,6 +223,64 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
     );
   }
 
+// Metodo per scattare o selezionare una foto
+  Future<void> _pickAndSavePhoto(ImageSource source) async {
+    final XFile? image = await _picker.pickImage(
+      source: source,
+      imageQuality: 80, // Ottimizza lo spazio occupato
+    );
+
+    if (image != null) {
+      final newPhoto = ProgressPhotoEntry(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        date: DateTime.now(),
+        imagePath: image.path,
+      );
+
+      await _storageService.addProgressPhoto(newPhoto);
+      setState(() {}); // Aggiorna la vista della galleria
+    }
+  }
+
+  // Modale per scegliere tra Fotocamera e Galleria
+  void _showImageSourceDialog() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(20),
+        child: Wrap(
+          children: [
+            const ListTile(
+              title: Text(
+                'Aggiungi Foto Progressi',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt, color: Colors.teal),
+              title: const Text('Scatta una foto'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickAndSavePhoto(ImageSource.camera);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library, color: Colors.teal),
+              title: const Text('Scegli dalla galleria'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickAndSavePhoto(ImageSource.gallery);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -196,9 +293,10 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
           labelColor: AppColors.textPrimary,
           unselectedLabelColor: AppColors.textSecondary,
           tabs: const [
-            Tab(icon: Icon(Icons.monitor_weight), text: 'Peso & BMI'),
+            Tab(icon: Icon(Icons.monitor_weight), text: 'Peso'),
             Tab(icon: Icon(Icons.straighten), text: 'Misure'),
-            Tab(icon: Icon(Icons.bloodtype), text: 'Valori & Referti'),
+            Tab(icon: Icon(Icons.bloodtype), text: 'Analisi'),
+            Tab(icon: Icon(Icons.photo_camera_outlined), text: 'Foto'),
           ],
         ),
       ),
@@ -208,14 +306,124 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
           _buildWeightAndBMITab(),
           _buildBodyMeasurementsTab(),
           _buildBloodTab(),
+          _buildPhotoGalleryTab(),
         ],
+      ),
+      floatingActionButton: _mainTabController.index == 3
+      ? FloatingActionButton.extended(
+        onPressed: _showImageSourceDialog,
+        icon: const Icon(Icons.add_a_photo),
+        label: const Text('Nuova Foto'),
+        backgroundColor: AppColors.woodAccent,
+        foregroundColor: Colors.white,
+      )
+      : null, // Nasconde il FAB nelle altre Tab
+    );
+  }
+  
+  // --- TAB GALLERIA FOTO ---
+  Widget _buildPhotoGalleryTab() {
+    final List<ProgressPhotoEntry> photos = _storageService.getProgressPhotosHistory();
+
+    if (photos.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.photo_library_outlined, size: 64, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            const Text(
+              'Nessuna foto salvata',
+              style: TextStyle(fontSize: 16, color: Colors.grey),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Scatta o carica uno scatto per tracciare i tuoi progressi visivi!',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.all(12.0),
+      child: GridView.builder(
+        itemCount: photos.length,
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2, // 2 colonne per una vista affiancata
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 10,
+          childAspectRatio: 0.8,
+        ),
+        itemBuilder: (context, index) {
+          final photo = photos[index];
+          final formattedDate =
+          "${photo.date.day.toString().padLeft(2, '0')}/${photo.date.month.toString().padLeft(2, '0')}/${photo.date.year}";
+
+          return Card(
+            clipBehavior: Clip.antiAlias,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            elevation: 2,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                // Visualizza l'immagine salvata in memoria
+                Image.file(
+                  File(photo.imagePath),
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    color: Colors.grey[200],
+                    child: const Icon(Icons.broken_image, color: Colors.grey),
+                  ),
+                ),
+                // Overlay sfumato in basso con la data della foto
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+                    color: Colors.black54,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          formattedDate,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        InkWell(
+                          onTap: () async {
+                            await _storageService.deleteProgressPhoto(photo.id);
+                            setState(() {});
+                          },
+                          child: const Icon(
+                            Icons.delete_outline,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
 
   // TAB 1: PESO E BMI
   Widget _buildWeightAndBMITab() {
-    final bmi = _calculatedBMI;
+    final bmi = _calculatedBMI; // <--- Calcolato prima di costruire la UI
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
@@ -281,40 +489,19 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
                   ],
                 ),
                 if (bmi != null) ...[
-                  const Divider(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('Il tuo BMI:', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
-                          Text(
-                            bmi.toStringAsFixed(1),
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: _getBMIColor(bmi),
-                            ),
-                          ),
-                        ],
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: _getBMIColor(bmi).withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: _getBMIColor(bmi)),
-                        ),
-                        child: Text(
-                          _getBMICategory(bmi),
-                          style: TextStyle(
-                            color: _getBMIColor(bmi),
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
+                  const SizedBox(height: 12),
+                  Text(
+                    'BMI: ${bmi.toStringAsFixed(1)}',
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    getBMICategory(bmi),
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: getBMIColor(bmi),
+                    ),
                   ),
                 ],
               ],
@@ -365,7 +552,7 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
       ),
     );
   }
-
+  
   // TAB 2: MISURE CORPOREE (VITA, FIANCHI, BRACCIA, GAMBE)
   Widget _buildBodyMeasurementsTab() {
     final List<BodyMeasurementEntry> history = _storageService.getBodyMeasurementsHistory();
