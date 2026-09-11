@@ -26,13 +26,16 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with SingleTickerPr
   void initState() {
     super.initState();
     _user = _storageService.getUser();
-    _weightController.text = _user.currentWeight.toString();
-    _targetController.text = _user.targetWeight.toString();
+    _weightController.text = _user.currentWeight?.toString() ?? '';
+    _targetController.text = _user.targetWeight.toString() ?? '';
     _tabController = TabController(length: 3, vsync: this);
   }
 
-  void _saveWeight() async {
-    final newWeight = double.tryParse(_weightController.text);
+void _saveWeight() async {
+    // Sostituiamo eventuale virgola con il punto prima del parsing
+    final cleanText = _weightController.text.replaceAll(',', '.');
+    final newWeight = double.tryParse(cleanText);
+
     if (newWeight != null && newWeight > 0) {
       // Salva sia lo storico delle date che l'utente aggiornato
       await _storageService.addWeightEntry(newWeight);
@@ -48,9 +51,17 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with SingleTickerPr
           content: Text('✨ Rilevazione peso aggiornata!'),
         ),
       );
+    } else {
+      // Opzionale: mostra un avviso se il formato non è valido
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: AppColors.heartRed,
+          content: Text('⚠️ Inserisci un valore numerico valido.'),
+        ),
+      );
     }
   }
-
+  
   // Finestra di dialogo per modificare l'obiettivo di peso
   void _showEditTargetDialog() {
     _targetController.text = _user.targetWeight.toString();
@@ -75,7 +86,8 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with SingleTickerPr
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: AppColors.woodAccent),
               onPressed: () async {
-                final newTarget = double.tryParse(_targetController.text);
+                final cleanText = _targetController.text.replaceAll(',', '.');
+                final newTarget = double.tryParse(cleanText);
                 if (newTarget != null && newTarget > 0) {
                   setState(() {
                     _user.targetWeight = newTarget;
@@ -207,7 +219,6 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with SingleTickerPr
     );
   }
 
-  // Costruisce il Grafico Temporale basato su fl_chart
   Widget _buildWeightGraph() {
     final List<WeightEntry> history = _storageService.getWeightHistory();
 
@@ -228,55 +239,111 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with SingleTickerPr
       );
     }
 
-    // Trasformazione dati in punti per il grafico
-    final spots = history.asMap().entries.map((e) {
-      return FlSpot(e.key.toDouble(), e.value.weight);
+    // Ordiniamo lo storico per data
+    history.sort((a, b) => a.date.compareTo(b.date));
+
+    final DateTime startDate = history.first.date;
+    final DateTime endDate = history.last.date;
+
+    // Coordinate X basate sui giorni trascorsi dalla prima misurazione (startDate = 0.0)
+    final List<FlSpot> spots = history.map((entry) {
+        final double xValue = entry.date.difference(startDate).inHours / 24.0;
+        return FlSpot(xValue, entry.weight);
     }).toList();
+
+    // MARGINI ASSE X: -1 giorno rispetto al primo punto, +1 giorno rispetto all'ultimo
+    final double totalDaysDifference = endDate.difference(startDate).inHours / 24.0;
+    final double minX = -1.0; 
+    final double maxX = totalDaysDifference + 1.0;
+
+    // Margini per l'Asse Y (Peso)
+    final List<double> weights = history.map((e) => e.weight).toList();
+    final double minWeight = weights.reduce((a, b) => a < b ? a : b);
+    final double maxWeight = weights.reduce((a, b) => a > b ? a : b);
+    
+    final double minY = (minWeight == maxWeight) ? minWeight - 5.0 : minWeight - 2.0;
+    final double maxY = (minWeight == maxWeight) ? maxWeight + 5.0 : maxWeight + 2.0;
 
     return LineChart(
       LineChartData(
+        minX: minX,
+        maxX: maxX,
+        minY: minY,
+        maxY: maxY,
+        lineTouchData: LineTouchData(
+          touchTooltipData: LineTouchTooltipData(
+            getTooltipItems: (touchedSpots) {
+              return touchedSpots.map((spot) {
+                  final entry = history.reduce((a, b) {
+                      final diffA = (a.date.difference(startDate).inHours / 24.0 - spot.x).abs();
+                      final diffB = (b.date.difference(startDate).inHours / 24.0 - spot.x).abs();
+                      return diffA < diffB ? a : b;
+                  });
+                  final dateStr = '${entry.date.day}/${entry.date.month}';
+                  return LineTooltipItem(
+                    '${entry.weight.toStringAsFixed(1)} kg\n$dateStr',
+                    const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  );
+              }).toList();
+            },
+          ),
+        ),
         gridData: const FlGridData(
-          show: true, 
+          show: true,
           drawVerticalLine: false,
-          horizontalInterval: 1,
+          horizontalInterval: 2,
         ),
         titlesData: FlTitlesData(
           topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          
+          // ASSE VERTICALE (PESO IN KG)
           leftTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
-              reservedSize: 36,
+              reservedSize: 45,
               getTitlesWidget: (value, meta) {
+                final String formatted = (value % 1 == 0)
+                ? value.toInt().toString()
+                : value.toStringAsFixed(1);
                 return Text(
-                  '${value.toInt()}kg',
+                  '$formatted kg',
                   style: const TextStyle(fontSize: 10, color: AppColors.textSecondary),
                 );
               },
             ),
           ),
+          
+          // ASSE ORIZZONTALE (DATE: COMPRESE INIZIO E FINE ASSE)
           bottomTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
-              reservedSize: 24,
+              reservedSize: 28,
+              // Mostra un'etichetta ogni 1 giorno (oppure ogni 2 se l'intervallo è lungo)
+              interval: (maxX - minX) > 10 ? ((maxX - minX) / 5) : 1.0,
               getTitlesWidget: (value, meta) {
-                int index = value.toInt();
-                if (index >= 0 && index < history.length) {
-                  final date = history[index].date;
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 6.0),
-                    child: Text(
-                      '${date.day}/${date.month}',
-                      style: const TextStyle(fontSize: 10, color: AppColors.textSecondary),
-                    ),
-                  );
-                }
-                return const SizedBox.shrink();
+                // Converte il valore X (giorni trascorsi) nella data calendario corrispondente
+                final DateTime calculatedDate = startDate.add(Duration(hours: (value * 24).round()));
+
+                return Padding(
+                  padding: const EdgeInsets.only(top: 6.0),
+                  child: Text(
+                    '${calculatedDate.day}/${calculatedDate.month}',
+                    style: const TextStyle(fontSize: 10, color: AppColors.textSecondary),
+                  ),
+                );
               },
             ),
           ),
         ),
-        borderData: FlBorderData(show: false),
+        borderData: FlBorderData(
+          show: true,
+          border: Border.all(color: AppColors.disabled.withOpacity(0.3)),
+        ),
         lineBarsData: [
           LineChartBarData(
             spots: spots,
