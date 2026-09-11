@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
 import '../theme/app_theme.dart';
 import '../theme/cozy_widgets.dart';
 import '../services/local_storage_service.dart';
@@ -33,9 +34,13 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with SingleTickerPr
   void _saveWeight() async {
     final newWeight = double.tryParse(_weightController.text);
     if (newWeight != null && newWeight > 0) {
-      _user.currentWeight = newWeight;
-      await _storageService.saveUser(_user);
-      setState(() {});
+      // Salva sia lo storico delle date che l'utente aggiornato
+      await _storageService.addWeightEntry(newWeight);
+      
+      setState(() {
+        _user = _storageService.getUser();
+      });
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -192,16 +197,97 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with SingleTickerPr
           const SizedBox(height: 8),
           CozyCard(
             child: Container(
-              height: 180,
-              alignment: Alignment.center,
-              child: const Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.show_chart, size: 40, color: AppColors.woodAccent),
-                  SizedBox(height: 8),
-                  Text('Grafico dello Storico Peso', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
-                ],
-              ),
+              height: 220,
+              padding: const EdgeInsets.only(top: 16, right: 16, bottom: 8, left: 8),
+              child: _buildWeightGraph(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Costruisce il Grafico Temporale basato su fl_chart
+  Widget _buildWeightGraph() {
+    final List<WeightEntry> history = _storageService.getWeightHistory();
+
+    if (history.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.show_chart, size: 36, color: AppColors.textSecondary),
+            SizedBox(height: 8),
+            Text(
+              'Nessuna registrazione presente.\nInserisci il tuo primo peso per attivare il grafico!',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Trasformazione dati in punti per il grafico
+    final spots = history.asMap().entries.map((e) {
+      return FlSpot(e.key.toDouble(), e.value.weight);
+    }).toList();
+
+    return LineChart(
+      LineChartData(
+        gridData: const FlGridData(
+          show: true, 
+          drawVerticalLine: false,
+          horizontalInterval: 1,
+        ),
+        titlesData: FlTitlesData(
+          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 36,
+              getTitlesWidget: (value, meta) {
+                return Text(
+                  '${value.toInt()}kg',
+                  style: const TextStyle(fontSize: 10, color: AppColors.textSecondary),
+                );
+              },
+            ),
+          ),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 24,
+              getTitlesWidget: (value, meta) {
+                int index = value.toInt();
+                if (index >= 0 && index < history.length) {
+                  final date = history[index].date;
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 6.0),
+                    child: Text(
+                      '${date.day}/${date.month}',
+                      style: const TextStyle(fontSize: 10, color: AppColors.textSecondary),
+                    ),
+                  );
+                }
+                return const SizedBox.shrink();
+              },
+            ),
+          ),
+        ),
+        borderData: FlBorderData(show: false),
+        lineBarsData: [
+          LineChartBarData(
+            spots: spots,
+            isCurved: history.length > 2,
+            color: AppColors.woodAccent,
+            barWidth: 3,
+            isStrokeCapRound: true,
+            dotData: const FlDotData(show: true),
+            belowBarData: BarAreaData(
+              show: true,
+              color: AppColors.woodAccent.withOpacity(0.15),
             ),
           ),
         ],

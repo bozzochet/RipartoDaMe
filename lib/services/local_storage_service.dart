@@ -2,6 +2,24 @@ import 'package:hive_flutter/hive_flutter.dart';
 import '../models/user_model.dart';
 import '../models/habit_model.dart';
 
+/// Modello per rappresentare la singola misurazione del peso con la sua data
+class WeightEntry {
+  final DateTime date;
+  final double weight;
+
+  WeightEntry({required this.date, required this.weight});
+
+  Map<String, dynamic> toMap() => {
+        'date': date.toIso8601String(),
+        'weight': weight,
+      };
+
+  factory WeightEntry.fromMap(Map<String, dynamic> map) => WeightEntry(
+        date: DateTime.parse(map['date']),
+        weight: (map['weight'] as num).toDouble(),
+      );
+}
+
 class LocalStorageService {
   final Box _userBox = Hive.box('userBox');
   final Box _habitsBox = Hive.box('habitsBox');
@@ -92,11 +110,13 @@ class LocalStorageService {
 
   // --- GESTIONE PESO E MAPPA ---
 
-  // Salva un nuovo rilievo del peso
-  Future<void> addWeightEntry(double weight) async {
-    final String dateKey = DateTime.now().toIso8601String().split('T')[0];
+  // Salva un nuovo rilievo del peso (supporta anche una data personalizzata)
+  Future<void> addWeightEntry(double weight, {DateTime? customDate}) async {
+    final DateTime targetDate = customDate ?? DateTime.now();
+    final String dateKey = targetDate.toIso8601String().split('T')[0];
+
     await _weightBox.put(dateKey, {
-      'date': DateTime.now().toIso8601String(),
+      'date': targetDate.toIso8601String(),
       'weight': weight,
     });
 
@@ -104,5 +124,22 @@ class LocalStorageService {
     final user = getUser();
     user.currentWeight = weight;
     await saveUser(user);
+  }
+
+  // Recupera lo storico completo ordinato in modo cronologico (dal meno recente al più recente)
+  List<WeightEntry> getWeightHistory() {
+    final entries = _weightBox.values
+        .map((e) => WeightEntry.fromMap(Map<String, dynamic>.from(e)))
+        .toList();
+
+    // Ordina le date per il grafico
+    entries.sort((a, b) => a.date.compareTo(b.date));
+    return entries;
+  }
+
+  // Elimina una registrazione dal peso tramite la chiave di data YYYY-MM-DD
+  Future<void> deleteWeightEntry(DateTime date) async {
+    final String dateKey = date.toIso8601String().split('T')[0];
+    await _weightBox.delete(dateKey);
   }
 }
