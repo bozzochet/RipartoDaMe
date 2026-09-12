@@ -8,6 +8,7 @@ import '../services/local_storage_service.dart';
 import '../models/user_model.dart';
 import '../models/body_measurement_entry.dart';
 import '../models/progress_photo_entry.dart';
+import '../models/blood_test_entry.dart';
 
 class IlMioCorpoScreen extends StatefulWidget {
   const IlMioCorpoScreen({super.key});
@@ -36,7 +37,24 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
 
   // Controllers Referti
   final TextEditingController _glycemiaController = TextEditingController();
+  final TextEditingController _hba1cController = TextEditingController();
   final TextEditingController _insulinController = TextEditingController();
+
+  final TextEditingController _ironController = TextEditingController();
+  final TextEditingController _ferritinController = TextEditingController();
+
+  final TextEditingController _potassiumController = TextEditingController();
+  final TextEditingController _vitaminDController = TextEditingController();
+  final TextEditingController _vitaminB12Controller = TextEditingController();
+
+  final TextEditingController _astController = TextEditingController();
+  final TextEditingController _altController = TextEditingController();
+  final TextEditingController _ggtController = TextEditingController();
+
+  final TextEditingController _hemoglobinController = TextEditingController();
+  final TextEditingController _redBloodCellsController = TextEditingController();
+  final TextEditingController _whiteBloodCellsController = TextEditingController();
+  final TextEditingController _plateletsController = TextEditingController();
 
   @override
   void initState() {
@@ -68,8 +86,24 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
     _hipsController.dispose();
     _armsController.dispose();
     _legsController.dispose();
+
+    // Dispose Analisi
     _glycemiaController.dispose();
+    _hba1cController.dispose();
     _insulinController.dispose();
+    _ironController.dispose();
+    _ferritinController.dispose();
+    _potassiumController.dispose();
+    _vitaminDController.dispose();
+    _vitaminB12Controller.dispose();
+    _astController.dispose();
+    _altController.dispose();
+    _ggtController.dispose();
+    _hemoglobinController.dispose();
+    _redBloodCellsController.dispose();
+    _whiteBloodCellsController.dispose();
+    _plateletsController.dispose();
+
     super.dispose();
   }
   
@@ -222,8 +256,8 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
       },
     );
   }
-
-// Metodo per scattare o selezionare una foto
+  
+  // Metodo per scattare o selezionare una foto
   Future<void> _pickAndSavePhoto(ImageSource source) async {
     final XFile? image = await _picker.pickImage(
       source: source,
@@ -942,71 +976,344 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
 
   // TAB 3: VALORI EMATICI E REFERTI
   Widget _buildBloodTab() {
+    final history = _storageService.getBloodTestsHistory();
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Valori Ematici Recenti',
-            style: TextStyle(fontFamily: 'Serif', fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+            'Inserisci Nuovi Esami',
+            style: TextStyle(
+              fontFamily: 'Serif',
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
           ),
           const SizedBox(height: 12),
+
+          // 1. GLICEMIA E INSULINA
           CozyCard(
-            child: Column(
+            child: ExpansionTile(
+              title: const Text(
+                'Glicemia & Insulina',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
               children: [
-                TextField(
-                  key: const ValueKey('glycemia_input_field'),
-                  controller: _glycemiaController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Glicemia a digiuno (mg/dL)',
-                    border: OutlineInputBorder(),
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Column(
+                    children: [
+                      _buildBloodField(_glycemiaController, 'Glicemia', 'mg/dL'),
+                      const SizedBox(height: 10),
+                      _buildBloodField(_hba1cController, 'Emoglobina Glicata (HbA1c)', '%'),
+                      const SizedBox(height: 10),
+                      _buildBloodField(_insulinController, 'Insulina', 'µIU/mL'),
+                    ],
                   ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  key: const ValueKey('insulin_input_field'),
-                  controller: _insulinController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Insulina (µIU/mL)',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                CozyButton(
-                  text: 'Registra Valori',
-                  icon: Icons.bookmark_add,
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Valori salvati nel registro sanitario.')),
-                    );
-                  },
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 10),
+
+          // 2. ASSETTO MARZIALE
+          CozyCard(
+            child: ExpansionTile(
+              title: const Text(
+                'Assetto Marziale (Ferro)',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Column(
+                    children: [
+                      _buildBloodField(_ironController, 'Sideremia / Ferro', 'µg/dL'),
+                      const SizedBox(height: 10),
+                      _buildBloodField(_ferritinController, 'Ferritina', 'ng/mL'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // 3. VITAMINE ED ELETTROLITI
+          CozyCard(
+            child: ExpansionTile(
+              title: const Text(
+                'Vitamine ed Elettroliti',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Column(
+                    children: [
+                      _buildBloodField(_potassiumController, 'Potassio', 'mEq/L'),
+                      const SizedBox(height: 10),
+                      _buildBloodField(_vitaminDController, 'Vitamina D', 'ng/mL'),
+                      const SizedBox(height: 10),
+                      _buildBloodField(_vitaminB12Controller, 'Vitamina B12', 'pg/mL'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // 4. FUNZIONALITÀ EPATICA
+          CozyCard(
+            child: ExpansionTile(
+              title: const Text(
+                'Funzionalità Epatica',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Column(
+                    children: [
+                      _buildBloodField(_astController, 'AST (GOT)', 'U/L'),
+                      const SizedBox(height: 10),
+                      _buildBloodField(_altController, 'ALT (GPT)', 'U/L'),
+                      const SizedBox(height: 10),
+                      _buildBloodField(_ggtController, 'GGT', 'U/L'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // 5. EMOCROMO
+          CozyCard(
+            child: ExpansionTile(
+              title: const Text(
+                'Emocromo',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Column(
+                    children: [
+                      _buildBloodField(_hemoglobinController, 'Emoglobina', 'g/dL'),
+                      const SizedBox(height: 10),
+                      _buildBloodField(_redBloodCellsController, 'Globuli Rossi', 'x10^6/µL'),
+                      const SizedBox(height: 10),
+                      _buildBloodField(_whiteBloodCellsController, 'Globuli Bianchi', 'x10^3/µL'),
+                      const SizedBox(height: 10),
+                      _buildBloodField(_plateletsController, 'Piastrine', 'x10^3/µL'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // BOTTONE SALVA
+          SizedBox(
+            width: double.infinity,
+            child: CozyButton(
+              text: 'Salva Analisi del Sangue',
+              icon: Icons.bookmark_add,
+              onPressed: _saveBloodTest,
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // STORICO REFERTI
           const Text(
-            'Referti & Esami Medici',
-            style: TextStyle(fontFamily: 'Serif', fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+            'Storico Esami Registrati',
+            style: TextStyle(
+              fontFamily: 'Serif',
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
           ),
           const SizedBox(height: 12),
-          CozyCard(
-            child: ListTile(
-              leading: const Icon(Icons.picture_as_pdf, color: AppColors.heartRed, size: 36),
-              title: const Text('Carica un nuovo referto (PDF/Foto)', style: TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: const Text('Conserva le analisi del sangue in modo sicuro'),
-              trailing: const Icon(Icons.upload_file, color: AppColors.woodAccent),
-              onTap: () {},
+
+          if (history.isEmpty)
+          const CozyCard(
+            child: Center(
+              child: Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Text(
+                  'Nessun esame salvato finora.',
+                  style: TextStyle(color: AppColors.textSecondary),
+                ),
+              ),
             ),
+          )
+          else
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: history.length,
+            itemBuilder: (context, index) {
+              final entry = history[index];
+              final dateStr =
+              "${entry.date.day.toString().padLeft(2, '0')}/${entry.date.month.toString().padLeft(2, '0')}/${entry.date.year}";
+
+              return CozyCard(
+                child: ListTile(
+                  onTap: () => _showBloodTestDetailsDialog(entry),
+                  title: Text(
+                    'Analisi del $dateStr',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text(
+                    'Glicemia: ${entry.glycemia ?? "-"} | Vit. D: ${entry.vitaminD ?? "-"} | Ferro: ${entry.iron ?? "-"}',
+                  ),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.delete_outline, color: Colors.red),
+                    onPressed: () async {
+                      await _storageService.deleteBloodTestEntry(entry.date.toIso8601String().split('T')[0]);
+                      setState(() {});
+                    },
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),
     );
   }
 
+  // Helper Widget per i campi di testo
+  Widget _buildBloodField(TextEditingController controller, String label, String unit) {
+    return TextField(
+      controller: controller,
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      decoration: InputDecoration(
+        labelText: '$label ($unit)',
+        border: const OutlineInputBorder(),
+      ),
+    );
+  }
+  
+  void _saveBloodTest() async {
+    final entry = BloodTestEntry(
+      id: DateTime.now().toIso8601String(),
+      date: DateTime.now(),
+      glycemia: double.tryParse(_glycemiaController.text.replaceAll(',', '.')),
+      hba1c: double.tryParse(_hba1cController.text.replaceAll(',', '.')),
+      insulin: double.tryParse(_insulinController.text.replaceAll(',', '.')),
+      iron: double.tryParse(_ironController.text.replaceAll(',', '.')),
+      ferritin: double.tryParse(_ferritinController.text.replaceAll(',', '.')),
+      potassium: double.tryParse(_potassiumController.text.replaceAll(',', '.')),
+      vitaminD: double.tryParse(_vitaminDController.text.replaceAll(',', '.')),
+      vitaminB12: double.tryParse(_vitaminB12Controller.text.replaceAll(',', '.')),
+      ast: double.tryParse(_astController.text.replaceAll(',', '.')),
+      alt: double.tryParse(_altController.text.replaceAll(',', '.')),
+      ggt: double.tryParse(_ggtController.text.replaceAll(',', '.')),
+      hemoglobin: double.tryParse(_hemoglobinController.text.replaceAll(',', '.')),
+      redBloodCells: double.tryParse(_redBloodCellsController.text.replaceAll(',', '.')),
+      whiteBloodCells: double.tryParse(_whiteBloodCellsController.text.replaceAll(',', '.')),
+      platelets: double.tryParse(_plateletsController.text.replaceAll(',', '.')),
+    );
+
+    await _storageService.addBloodTestEntry(entry);
+
+    // Resetta i campi di testo
+    _glycemiaController.clear();
+    _hba1cController.clear();
+    _insulinController.clear();
+    _ironController.clear();
+    _ferritinController.clear();
+    _potassiumController.clear();
+    _vitaminDController.clear();
+    _vitaminB12Controller.clear();
+    _astController.clear();
+    _altController.clear();
+    _ggtController.clear();
+    _hemoglobinController.clear();
+    _redBloodCellsController.clear();
+    _whiteBloodCellsController.clear();
+    _plateletsController.clear();
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: AppColors.success,
+          content: Text('🩸 Analisi del sangue salvate con successo!'),
+        ),
+      );
+      setState(() {});
+    }
+  }
+
+  void _showBloodTestDetailsDialog(BloodTestEntry entry) {
+    final dateStr =
+    "${entry.date.day.toString().padLeft(2, '0')}/${entry.date.month.toString().padLeft(2, '0')}/${entry.date.year}";
+
+    // Mappa dei valori presenti per crearne una lista ordinata
+    final Map<String, String> valuesMap = {
+      if (entry.glycemia != null) 'Glicemia': '${entry.glycemia} mg/dL',
+      if (entry.hba1c != null) 'Emoglobina Glicata': '${entry.hba1c} %',
+      if (entry.insulin != null) 'Insulina': '${entry.insulin} µIU/mL',
+      if (entry.iron != null) 'Sideremia (Ferro)': '${entry.iron} µg/dL',
+      if (entry.ferritin != null) 'Ferritina': '${entry.ferritin} ng/mL',
+      if (entry.potassium != null) 'Potassio': '${entry.potassium} mEq/L',
+      if (entry.vitaminD != null) 'Vitamina D': '${entry.vitaminD} ng/mL',
+      if (entry.vitaminB12 != null) 'Vitamina B12': '${entry.vitaminB12} pg/mL',
+      if (entry.ast != null) 'AST (GOT)': '${entry.ast} U/L',
+      if (entry.alt != null) 'ALT (GPT)': '${entry.alt} U/L',
+      if (entry.ggt != null) 'GGT': '${entry.ggt} U/L',
+      if (entry.hemoglobin != null) 'Emoglobina': '${entry.hemoglobin} g/dL',
+      if (entry.redBloodCells != null) 'Globuli Rossi': '${entry.redBloodCells} x10^6/µL',
+      if (entry.whiteBloodCells != null) 'Globuli Bianchi': '${entry.whiteBloodCells} x10^3/µL',
+      if (entry.platelets != null) 'Piastrine': '${entry.platelets} x10^3/µL',
+    };
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Analisi del $dateStr'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: valuesMap.isEmpty
+            ? const Text('Nessun valore registrato per questo referto.')
+            : ListView(
+              shrinkWrap: true,
+              children: valuesMap.entries.map((item) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(item.key, style: const TextStyle(fontWeight: FontWeight.w500)),
+                        Text(item.value, style: const TextStyle(fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  );
+              }).toList(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Chiudi'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  //----------------------------------------------------------------------------------------------------------------------
+  
   Widget _buildMetricColumn(String title, String value) {
     return Column(
       children: [
@@ -1016,4 +1323,5 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
       ],
     );
   }
+  
 }

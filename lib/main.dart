@@ -13,6 +13,7 @@ void main() async {
   await Hive.openBox('measurementsBox');
   await Hive.openBox('diaryBox');
   await Hive.openBox('photosBox');
+  await Hive.openBox('bloodTestsBox');
 
   runApp(const RipartoDaMeApp());
 }

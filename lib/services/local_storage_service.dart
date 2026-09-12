@@ -4,6 +4,7 @@ import '../models/user_model.dart';
 import '../models/habit_model.dart';
 import '../models/body_measurement_entry.dart';
 import '../models/progress_photo_entry.dart';
+import '../models/blood_test_entry.dart';
 
 /// Modello per rappresentare la singola misurazione del peso con la sua data
 class WeightEntry {
@@ -29,6 +30,7 @@ class LocalStorageService {
   final Box _weightBox = Hive.box('weightLogsBox');
   final Box _measurementsBox = Hive.box('measurementsBox');
   final Box _photosBox = Hive.box('photosBox');
+  final Box _bloodTestsBox = Hive.box('bloodTestsBox');
 
   // --- GESTIONE FOTO PROGRESSI ---
 
@@ -190,5 +192,24 @@ class LocalStorageService {
     final history = getBodyMeasurementsHistory();
     return history.isNotEmpty ? history.first : null;
   }
-
+  
+  // --- GESTIONE ANALISI DEL SANGUE ---
+  
+  Future<void> addBloodTestEntry(BloodTestEntry entry) async {
+    final String dateKey = entry.date.toIso8601String().split('T')[0];
+    await _bloodTestsBox.put(dateKey, entry.toMap());
+  }
+  
+  List<BloodTestEntry> getBloodTestsHistory() {
+    final entries = _bloodTestsBox.values
+    .map((e) => BloodTestEntry.fromMap(Map<String, dynamic>.from(e)))
+    .toList();
+    entries.sort((a, b) => b.date.compareTo(a.date));
+    return entries;
+  }
+  
+  Future<void> deleteBloodTestEntry(String id) async {
+    await _bloodTestsBox.delete(id);
+  }
+  
 }
