@@ -9,6 +9,7 @@ import 'il_mio_corpo_screen.dart';
 import 'la_mia_casa_screen.dart';
 import 'shop_screen.dart';
 import 'cura_di_me_screen.dart';
+import 'la_mia_mappa_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -273,6 +274,19 @@ class _HomeScreenState extends State<HomeScreen> {
                       context,
                       MaterialPageRoute(builder: (context) => const LaMiaCasaScreen()),
                     );
+                  },
+                ),
+                _buildMenuCard(
+                  title: 'La mia Mappa',
+                  subtitle: 'Il tuo percorso & Tappe',
+                  icon: '🗺️',
+                  color: const Color(0xFFE8DFC8),
+                  onTap: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const LaMiaMappaScreen()),
+                    );
+                    _refreshData();
                   },
                 ),
                 _buildMenuCard(

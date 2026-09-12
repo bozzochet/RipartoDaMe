@@ -3,9 +3,11 @@ class UserModel {
   String name;
   double currentWeight;
   double targetWeight;
+  double startWeight;
   double height;
   int currentHearts;     // Cuori attuali riempiti oggi
   int maxHearts;        // Cuori totali / cap giornaliero
+  List<String> claimedStageIds; // <--- Aggiungi questo
   int coins;            // Monete/Rupie per comprare abiti e mobili
   int xp;               // Punti esperienza per la progressione
   AvatarConfig avatarConfig;
@@ -15,13 +17,15 @@ class UserModel {
     required this.name,
     required this.currentWeight,
     required this.targetWeight,
+    this.startWeight = 95.0,
     this.height = 165.0,
     this.currentHearts = 4,
     this.maxHearts = 10,
     this.coins = 0,
     this.xp = 0,
     required this.avatarConfig,
-  });
+    List<String>? claimedStageIds, // <--- Inizializzatore
+  }) : claimedStageIds = claimedStageIds ?? [];
 
   // Alias utili se nel codice usi "heartsToday" o "maxHeartsDaily"
   int get heartsToday => currentHearts;

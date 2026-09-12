@@ -36,13 +36,58 @@ class _LaMiaMappaScreenState extends State<LaMiaMappaScreen> with SingleTickerPr
   late AnimationController _animController;
   late Animation<double> _pulseAnimation;
 
-  // Definizione delle tappe del percorso
-  final List<MappaStage> _stages = [
-    MappaStage(id: '1', title: 'Casa (Partenza)', targetWeight: 94.0, xRatio: 0.65, yRatio: 0.75, rewardCoins: 0),
-    MappaStage(id: '2', title: 'Bosco della Ripartenza', targetWeight: 90.0, xRatio: 0.35, yRatio: 0.55, rewardCoins: 50),
-    MappaStage(id: '3', title: 'Valle della Costanza', targetWeight: 87.0, xRatio: 0.25, yRatio: 0.35, rewardCoins: 75),
-    MappaStage(id: '4', title: 'Castello della Fiducia', targetWeight: 80.0, xRatio: 0.70, yRatio: 0.22, rewardCoins: 100),
-  ];
+// Genera le tappe in modo dinamico in base ai dati dell'utente
+  List<MappaStage> _generateDynamicStages() {
+    final double startWeight = _user.startWeight > 0 ? _user.startWeight : 95.0;
+    final double targetWeight = _user.targetWeight > 0 ? _user.targetWeight : 75.0;
+
+    // Se l'obiettivo è maggiore o uguale al peso iniziale, mostra tappe di default
+    if (startWeight <= targetWeight) {
+      return [
+        MappaStage(id: '1', title: 'Partenza', targetWeight: startWeight, xRatio: 0.65, yRatio: 0.75, rewardCoins: 0),
+        MappaStage(id: '2', title: 'Obiettivo', targetWeight: targetWeight, xRatio: 0.35, yRatio: 0.25, rewardCoins: 5),
+      ];
+    }
+
+    final double totalDiff = startWeight - targetWeight;
+    final double step = totalDiff / 3; // Divide il percorso in 3 intervalli (4 tappe)
+
+    // Coordinate percentuali sulla mappa per disegnare il percorso a zig-zag
+    final List<Map<String, double>> coordinates = [
+      {'x': 0.65, 'y': 0.78}, // Tappa 1: Casa (Partenza)
+      {'x': 0.35, 'y': 0.58}, // Tappa 2: Bosco
+      {'x': 0.25, 'y': 0.38}, // Tappa 3: Valle
+      {'x': 0.70, 'y': 0.20}, // Tappa 4: Castello (Obiettivo Finale)
+    ];
+
+    final List<String> titles = [
+      'Casa (Partenza)',
+      'Bosco della Ripartenza',
+      'Valle della Costanza',
+      'Castello della Fiducia',
+    ];
+
+    List<MappaStage> stages = [];
+
+    for (int i = 0; i < 4; i++) {
+      // Calcola il peso target per ogni tappa (arrotondato a 1 decimale)
+      double stageWeight = double.parse((startWeight - (step * i)).toStringAsFixed(1));
+      if (i == 3) stageWeight = targetWeight; // L'ultima tappa coincide con l'obiettivo
+
+      stages.add(
+        MappaStage(
+          id: 'stage_$i',
+          title: titles[i],
+          targetWeight: stageWeight,
+          xRatio: coordinates[i]['x']!,
+          yRatio: coordinates[i]['y']!,
+          rewardCoins: i == 0 ? 0 : 5, // 5 rupie per ogni traguardo (0 per la partenza)
+        ),
+      );
+    }
+
+    return stages;
+  }
 
   @override
   void initState() {
@@ -84,12 +129,21 @@ class _LaMiaMappaScreenState extends State<LaMiaMappaScreen> with SingleTickerPr
   void _onStageTap(MappaStage stage, bool isUnlocked) async {
     _playSound(isUnlocked);
 
-    // Se la tappa è sbloccata ed è un traguardo, aggiunge le monete nel database
-    if (isUnlocked && stage.rewardCoins > 0) {
-      await _storageService.addCoins(stage.rewardCoins);
+    bool justClaimed = false;
+
+    // Se sbloccata e non ancora riscossa
+    if (isUnlocked && stage.rewardCoins > 0 && !_user.claimedStageIds.contains(stage.id)) {
+      await _storageService.addReward(coinsGained: stage.rewardCoins);
+      
+      // Segna la tappa come riscossa nel profilo
+      _user.claimedStageIds.add(stage.id);
+      await _storageService.saveUser(_user);
+
       setState(() {
-        _user = _storageService.getUser(); // Rinfresca il bilancio monete
+        _user = _storageService.getUser();
       });
+
+      justClaimed = true;
     }
 
     if (!mounted) return;
@@ -133,14 +187,16 @@ class _LaMiaMappaScreenState extends State<LaMiaMappaScreen> with SingleTickerPr
               const SizedBox(height: 8),
               Text(
                 isUnlocked
-                    ? '🎉 Traguardo raggiunto! Hai dimostrato grande costanza.'
+                    ? (justClaimed 
+                        ? '🎉 Traguardo raggiunto! Hai ottenuto la tua ricompensa.' 
+                        : '🎉 Traguardo già raggiunto e ricompensa riscossa!')
                     : '🔒 Continua il tuo percorso per sbloccare questa tappa!',
                 style: TextStyle(
                   color: isUnlocked ? const Color(0xFF2E7D32) : const Color(0xFF7A6855),
                   fontSize: 13,
                 ),
               ),
-              if (isUnlocked && stage.rewardCoins > 0) ...[
+              if (stage.rewardCoins > 0) ...[
                 const SizedBox(height: 15),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -152,11 +208,10 @@ class _LaMiaMappaScreenState extends State<LaMiaMappaScreen> with SingleTickerPr
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // Icona o Immagine della Rupia Viola/Dorata
                       const Icon(Icons.diamond_outlined, color: Colors.purpleAccent, size: 26),
                       const SizedBox(width: 8),
                       Text(
-                        '+${stage.rewardRupees} Rupie guadagnate!',
+                        '+${stage.rewardCoins} Rupie',
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           color: Color(0xFF8B5A2B),
@@ -175,7 +230,7 @@ class _LaMiaMappaScreenState extends State<LaMiaMappaScreen> with SingleTickerPr
                 backgroundColor: const Color(0xFF8B5A2B),
               ),
               onPressed: () => Navigator.pop(context),
-              child: const Text('Raccogli', style: TextStyle(color: Colors.white)),
+              child: const Text('OK', style: TextStyle(color: Colors.white)),
             ),
           ],
         );
@@ -185,6 +240,9 @@ class _LaMiaMappaScreenState extends State<LaMiaMappaScreen> with SingleTickerPr
 
   @override
   Widget build(BuildContext context) {
+    // 1. Genera le tappe dinamiche
+    final List<MappaStage> stages = _generateDynamicStages();
+
     return Scaffold(
       backgroundColor: const Color(0xFFF7F1E3),
       appBar: AppBar(
@@ -213,16 +271,14 @@ class _LaMiaMappaScreenState extends State<LaMiaMappaScreen> with SingleTickerPr
           ],
         ),
         actions: [
-          // Widget contatore Rupie nell'AppBar
           Padding(
             padding: const EdgeInsets.only(right: 16.0),
             child: Row(
               children: [
-                // Icona a forma di diamante/rupia (oppure un file PNG 'rupee_green.png')
-                const Icon(Icons.diamond, color: Color(0xFF00E676), size: 22), 
+                const Icon(Icons.diamond, color: Color(0xFF00E676), size: 22),
                 const SizedBox(width: 4),
                 Text(
-                  '${_user.rupees}', // Totale Rupie dell'utente
+                  '${_user.coins}',
                   style: const TextStyle(
                     color: Color(0xFF4A3525),
                     fontWeight: FontWeight.bold,
@@ -241,7 +297,7 @@ class _LaMiaMappaScreenState extends State<LaMiaMappaScreen> with SingleTickerPr
 
           return Stack(
             children: [
-              // 1. Sfondo e Mappa
+              // Sfondo
               Container(
                 width: mapWidth,
                 height: mapHeight,
@@ -261,89 +317,90 @@ class _LaMiaMappaScreenState extends State<LaMiaMappaScreen> with SingleTickerPr
                 ),
               ),
 
-              // 2. Linea del percorso
+              // Linea del percorso (Usa "stages" senza underscore)
               CustomPaint(
                 size: Size(mapWidth, mapHeight),
-                painter: MapPathPainter(stages: _stages),
+                painter: MapPathPainter(stages: stages),
               ),
 
-              // 3. Nodi delle tappe
-              ..._stages.map((stage) {
-                bool isUnlocked = _user.currentWeight <= stage.targetWeight || stage.id == '1';
+              // Nodi (Usa "stages" senza underscore)
+              ...stages.map((stage) {
+                  bool isUnlocked = _user.currentWeight <= stage.targetWeight || stage.id == 'stage_0';
 
-                return Positioned(
-                  left: stage.xRatio * mapWidth - 40,
-                  top: stage.yRatio * mapHeight - 40,
-                  child: GestureDetector(
-                    onTap: () => _onStageTap(stage, isUnlocked),
-                    child: Column(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF7F1E3).withOpacity(0.9),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: const Color(0xFF8B5A2B)),
-                          ),
-                          child: Text(
-                            '${stage.title}\n${stage.targetWeight} kg',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF4A3525),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        AnimatedBuilder(
-                          animation: _pulseAnimation,
-                          builder: (context, child) {
-                            return Transform.scale(
-                              scale: isUnlocked ? _pulseAnimation.value : 1.0,
-                              child: child,
-                            );
-                          },
-                          child: Container(
-                            width: 44,
-                            height: 44,
+                  return Positioned(
+                    left: stage.xRatio * mapWidth - 40,
+                    top: stage.yRatio * mapHeight - 40,
+                    child: GestureDetector(
+                      onTap: () => _onStageTap(stage, isUnlocked),
+                      child: Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: isUnlocked ? const Color(0xFF8B5A2B) : const Color(0xFFA89885),
-                              border: Border.all(color: Colors.white, width: 2),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: isUnlocked
-                                      ? Colors.amber.withOpacity(0.6)
-                                      : Colors.black.withOpacity(0.2),
-                                  blurRadius: isUnlocked ? 12 : 4,
-                                  spreadRadius: isUnlocked ? 2 : 0,
-                                ),
-                              ],
+                              color: const Color(0xFFF7F1E3).withOpacity(0.9),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: const Color(0xFF8B5A2B)),
                             ),
-                            child: Icon(
-                              isUnlocked ? Icons.stars_rounded : Icons.lock_outline,
-                              color: isUnlocked ? Colors.amber : Colors.white70,
-                              size: 24,
+                            child: Text(
+                              '${stage.title}\n${stage.targetWeight} kg',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF4A3525),
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 4),
+                          AnimatedBuilder(
+                            animation: _pulseAnimation,
+                            builder: (context, child) {
+                              return Transform.scale(
+                                scale: isUnlocked ? _pulseAnimation.value : 1.0,
+                                child: child,
+                              );
+                            },
+                            child: Container(
+                              width: 44,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: isUnlocked ? const Color(0xFF8B5A2B) : const Color(0xFFA89885),
+                                border: Border.all(color: Colors.white, width: 2),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: isUnlocked
+                                    ? Colors.amber.withOpacity(0.6)
+                                    : Colors.black.withOpacity(0.2),
+                                    blurRadius: isUnlocked ? 12 : 4,
+                                    spreadRadius: isUnlocked ? 2 : 0,
+                                  ),
+                                ],
+                              ),
+                              child: Icon(
+                                isUnlocked ? Icons.stars_rounded : Icons.lock_outline,
+                                color: isUnlocked ? Colors.amber : Colors.white70,
+                                size: 24,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                );
-              }).toList(),
+                  );
+              }),
             ],
           );
         },
       ),
     );
   }
-}
 
+}
+  
 class MapPathPainter extends CustomPainter {
   final List<MappaStage> stages;
-
+  
   MapPathPainter({required this.stages});
 
   @override
