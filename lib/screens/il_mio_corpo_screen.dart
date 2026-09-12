@@ -395,59 +395,62 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
           final formattedDate =
           "${photo.date.day.toString().padLeft(2, '0')}/${photo.date.month.toString().padLeft(2, '0')}/${photo.date.year}";
 
-          return Card(
-            clipBehavior: Clip.antiAlias,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            elevation: 2,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                // Visualizza l'immagine salvata in memoria
-                Image.file(
-                  File(photo.imagePath),
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    color: Colors.grey[200],
-                    child: const Icon(Icons.broken_image, color: Colors.grey),
-                  ),
-                ),
-                // Overlay sfumato in basso con la data della foto
-                Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
-                    color: Colors.black54,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          formattedDate,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        InkWell(
-                          onTap: () async {
-                            await _storageService.deleteProgressPhoto(photo.id);
-                            setState(() {});
-                          },
-                          child: const Icon(
-                            Icons.delete_outline,
-                            color: Colors.white,
-                            size: 18,
-                          ),
-                        ),
-                      ],
+          return GestureDetector(
+            onTap: () => _showPhotoDetailDialog(photo), // <--- APRE LA MODALE SCHERMO INTERO
+            child: Card(
+              clipBehavior: Clip.antiAlias,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              elevation: 2,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  // Visualizza l'immagine salvata in memoria
+                  Image.file(
+                    File(photo.imagePath),
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      color: Colors.grey[200],
+                      child: const Icon(Icons.broken_image, color: Colors.grey),
                     ),
                   ),
-                ),
-              ],
+                  // Overlay sfumato in basso con la data della foto
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+                      color: Colors.black54,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            formattedDate,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          InkWell(
+                            onTap: () async {
+                              await _storageService.deleteProgressPhoto(photo.id);
+                              setState(() {});
+                            },
+                            child: const Icon(
+                              Icons.delete_outline,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           );
         },
@@ -455,6 +458,67 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
     );
   }
 
+  void _showPhotoDetailDialog(ProgressPhotoEntry photo) {
+    final formattedDate =
+    "${photo.date.day.toString().padLeft(2, '0')}/${photo.date.month.toString().padLeft(2, '0')}/${photo.date.year}";
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          backgroundColor: Colors.black,
+          insetPadding: const EdgeInsets.all(10),
+          child: Stack(
+            alignment: Alignment.topRight,
+            children: [
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Titolo con Data
+                  Padding(
+                    padding: const EdgeInsets.all(12.0),
+                    child: Text(
+                      'Foto del $formattedDate',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  // Foto ingrandita con Zoom (InteractiveViewer)
+                  Flexible(
+                    child: InteractiveViewer(
+                      panEnabled: true,
+                      minScale: 0.5,
+                      maxScale: 4,
+                      child: Image.file(
+                        File(photo.imagePath),
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) => const Center(
+                          child: Text(
+                            'Immagine non trovata',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+              ),
+              // Bottone di chiusura in alto a destra
+              IconButton(
+                icon: const Icon(Icons.close, color: Colors.white, size: 28),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+  
   // TAB 1: PESO E BMI
   Widget _buildWeightAndBMITab() {
     final bmi = _calculatedBMI; // <--- Calcolato prima di costruire la UI
