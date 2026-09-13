@@ -14,9 +14,9 @@ dependencies:
   intl: ^0.20.2
   hive: ^2.2.3
   hive_flutter: ^1.1.0
-  fl_chart: ^1.2.0 # Per il grafico delle misurazioni e del peso
-  audioplayers: ^6.0.0 # Per gli effetti sonori
-  path_provider: ^2.1.2 # Per gestire le directory locali di salvataggio
+  fl_chart: ^1.2.0
+  audioplayers: ^6.0.0
+  path_provider: ^2.1.2
 
 dev_dependencies:
   flutter_test:

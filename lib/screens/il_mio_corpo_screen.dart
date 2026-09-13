@@ -2,6 +2,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart' as path_provider;
+import 'package:path/path.dart' as path;
 import '../theme/app_theme.dart';
 import '../theme/cozy_widgets.dart';
 import '../services/local_storage_service.dart';
@@ -261,21 +263,29 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
   Future<void> _pickAndSavePhoto(ImageSource source) async {
     final XFile? image = await _picker.pickImage(
       source: source,
-      imageQuality: 80, // Ottimizza lo spazio occupato
+      imageQuality: 80,
     );
 
     if (image != null) {
+      // 1. Ottieni la directory permanente dell'applicazione
+      final appDir = await path_provider.getApplicationDocumentsDirectory();
+      final fileName = path.basename(image.path);
+      
+      // 2. Copia il file temporaneo nella directory permanente
+      final File savedImage = await File(image.path).copy('${appDir.path}/$fileName');
+
+      // 3. Salva la nuova foto usando il percorso PERMANENTE (savedImage.path)
       final newPhoto = ProgressPhotoEntry(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         date: DateTime.now(),
-        imagePath: image.path,
+        imagePath: savedImage.path,
       );
 
       await _storageService.addProgressPhoto(newPhoto);
-      setState(() {}); // Aggiorna la vista della galleria
+      setState(() {});
     }
   }
-
+  
   // Modale per scegliere tra Fotocamera e Galleria
   void _showImageSourceDialog() {
     showModalBottomSheet(
@@ -392,9 +402,12 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
         ),
         itemBuilder: (context, index) {
           final photo = photos[index];
-          final formattedDate =
-          "${photo.date.day.toString().padLeft(2, '0')}/${photo.date.month.toString().padLeft(2, '0')}/${photo.date.year}";
-
+          final day = photo.date.day.toString().padLeft(2, '0');
+          final month = photo.date.month.toString().padLeft(2, '0');
+          final year = photo.date.year;
+          final hour = photo.date.hour.toString().padLeft(2, '0');
+          final minute = photo.date.minute.toString().padLeft(2, '0');
+          final formattedDate = "$day/$month/$year - $hour:$minute";
           return GestureDetector(
             onTap: () => _showPhotoDetailDialog(photo), // <--- APRE LA MODALE SCHERMO INTERO
             child: Card(
@@ -459,9 +472,14 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
   }
 
   void _showPhotoDetailDialog(ProgressPhotoEntry photo) {
-    final formattedDate =
-    "${photo.date.day.toString().padLeft(2, '0')}/${photo.date.month.toString().padLeft(2, '0')}/${photo.date.year}";
-
+    final day = photo.date.day.toString().padLeft(2, '0');
+    final month = photo.date.month.toString().padLeft(2, '0');
+    final year = photo.date.year;
+    final hour = photo.date.hour.toString().padLeft(2, '0');
+    final minute = photo.date.minute.toString().padLeft(2, '0');
+    
+    final formattedDate = "$day/$month/$year alle $hour:$minute";
+    
     showDialog(
       context: context,
       builder: (context) {

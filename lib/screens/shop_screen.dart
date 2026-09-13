@@ -7,21 +7,33 @@ enum CurrencyType { rupees, hearts }
 class ShopItem {
   final String id;
   final String title;
-  final String category; // 'casa' oppure 'vestiti'
-  final String icon; // Emoji o path asset
+
+  // 'casa' oppure 'vestiti'
+  final String category;
+
+  // Stanza della casa a cui appartiene l'oggetto
+  // 'salone', 'bagno', 'camera', 'cucina', 'giardino'
+  final String? room;
+
+  // Emoji oppure path dell'immagine asset
+  final String icon;
+
   final int price;
   final CurrencyType currency;
+  
   bool isPurchased;
 
   ShopItem({
-    required this.id,
-    required this.title,
-    required this.category,
-    required this.icon,
-    required this.price,
-    required this.currency,
-    this.isPurchased = false,
+      required this.id,
+      required this.title,
+      required this.category,
+      this.room,
+      required this.icon,
+      required this.price,
+      required this.currency,
+      this.isPurchased = false,
   });
+
 }
 
 class ShopScreen extends StatefulWidget {
@@ -38,19 +50,96 @@ class _ShopScreenState extends State<ShopScreen> with SingleTickerProviderStateM
 
   // Catalogo Oggetti dello Shop
   final List<ShopItem> _catalog = [
-    // --- SEZIONE CASA ---
-    ShopItem(id: 'plant_moon', title: 'Pianta della Luna', category: 'casa', icon: '🪴', price: 3, currency: CurrencyType.hearts),
-    ShopItem(id: 'tea_set', title: 'Set Tisana Relax', category: 'casa', icon: '🫖', price: 5, currency: CurrencyType.hearts),
-    ShopItem(id: 'vintage_chair', title: 'Poltrona da Lettura', category: 'casa', icon: '🛋️', price: 40, currency: CurrencyType.rupees),
-    ShopItem(id: 'fireplace', title: 'Caminetto in Pietra', category: 'casa', icon: '🪵', price: 100, currency: CurrencyType.rupees),
 
-    // --- SEZIONE VESTITI ---
-    ShopItem(id: 'flower_crown', title: 'Corona di Margherita', category: 'vestiti', icon: '👑', price: 4, currency: CurrencyType.hearts),
-    ShopItem(id: 'cozy_sweater', title: 'Maglione Oversize', category: 'vestiti', icon: '🧶', price: 6, currency: CurrencyType.hearts),
-    ShopItem(id: 'adventure_cloak', title: 'Mantello del Bosco', category: 'vestiti', icon: '🧥', price: 50, currency: CurrencyType.rupees),
-    ShopItem(id: 'boots_leather', title: 'Stivali da Esploratrice', category: 'vestiti', icon: '🥾', price: 75, currency: CurrencyType.rupees),
+    // =========================
+    // CASA
+    // =========================
+
+    ShopItem(
+      id: 'plant_moon',
+      title: 'Pianta della Luna',
+      category: 'casa',
+      room: 'giardino',
+      icon: '🪴',
+      price: 3,
+      currency: CurrencyType.hearts,
+    ),
+
+    ShopItem(
+      id: 'tea_set',
+      title: 'Set Tisana Relax',
+      category: 'casa',
+      room: 'cucina',
+      icon: '🫖',
+      price: 5,
+      currency: CurrencyType.hearts,
+    ),
+
+    ShopItem(
+      id: 'vintage_chair',
+      title: 'Poltrona da Lettura',
+      category: 'casa',
+      room: 'salone',
+      icon: '🛋️',
+      price: 40,
+      currency: CurrencyType.rupees,
+    ),
+
+    ShopItem(
+      id: 'fireplace',
+      title: 'Caminetto in Pietra',
+      category: 'casa',
+      room: 'salone',
+      icon: '🪵',
+      price: 100,
+      currency: CurrencyType.rupees,
+    ),
+
+    // =========================
+    // VESTITI
+    // =========================
+
+    ShopItem(
+      id: 'flower_crown',
+      title: 'Corona di Margherita',
+      category: 'vestiti',
+      room: null,
+      icon: '👑',
+      price: 4,
+      currency: CurrencyType.hearts,
+    ),
+
+    ShopItem(
+      id: 'cozy_sweater',
+      title: 'Maglione Oversize',
+      category: 'vestiti',
+      room: null,
+      icon: '🧶',
+      price: 6,
+      currency: CurrencyType.hearts,
+    ),
+
+    ShopItem(
+      id: 'adventure_cloak',
+      title: 'Mantello del Bosco',
+      category: 'vestiti',
+      room: null,
+      icon: '🧥',
+      price: 50,
+      currency: CurrencyType.rupees,
+    ),
+
+    ShopItem(
+      id: 'boots_leather',
+      title: 'Stivali da Esploratrice',
+      category: 'vestiti',
+      room: null,
+      icon: '🥾',
+      price: 75,
+      currency: CurrencyType.rupees,
+    ),
   ];
-
+  
   @override
   void initState() {
     super.initState();
