@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../theme/cozy_widgets.dart';
-import '../widgets/cozy_avatar.dart';
 import '../services/local_storage_service.dart';
 import '../models/user_model.dart';
 import 'character_editor_screen.dart';
@@ -100,7 +99,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           mainAxisSize: MainAxisSize.min, // Occupa solo la spessore strettamente necessario
                           children: [
                             CozyAvatar(
-                              size: 85, // Avatar leggermente più compatto per ridurre l'altezza
+                              size: 85,
+                              user: _user, // Passa l'utente aggiornato
                               onTap: () async {
                                 await Navigator.push(
                                   context,

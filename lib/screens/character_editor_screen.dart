@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../theme/cozy_widgets.dart';
+import '../widgets/avatar_view.dart';
 import '../services/local_storage_service.dart';
 import '../models/user_model.dart';
+import '../constants/app_assets.dart'; // <--- 1. Import Aggiunto
 
 class CharacterEditorScreen extends StatefulWidget {
   const CharacterEditorScreen({super.key});
@@ -16,44 +18,32 @@ class _CharacterEditorScreenState extends State<CharacterEditorScreen> with Sing
   late UserModel _user;
   late TabController _tabController;
 
-  // Stato Locale dell'Avatar per la personalizzazione
-  String _selectedHairStyle = '💇‍♀️';
-  Color _selectedHairColor = const Color(0xFF4A3525);
-  Color _selectedSkinColor = const Color(0xFFF5D0A9);
-  String _selectedOutfit = '🧶';
-  String _selectedHeadwear = '👑';
+  late String _selectedBody;
+  late String _selectedHair;
+  late String _selectedOutfit;
 
-  // Opzioni Disponibili per la Personalizzazione
-  final List<Map<String, String>> _hairStyles = [
-    {'name': 'Corti Cozy', 'icon': '💇‍♀️'},
-    {'name': 'Trecce del Bosco', 'icon': '👩‍🦱'},
-    {'name': 'Ricci Morbidi', 'icon': '👩‍🦱'},
-    {'name': 'Chioma Lunga', 'icon': '👱‍♀️'},
-  ];
-
-  final List<Color> _hairColors = [
-    const Color(0xFF4A3525), // Castano Scuro
-    const Color(0xFF8B5A2B), // Castano Chiaro / Miele
-    const Color(0xFFE5C158), // Biondo Dorato
-    const Color(0xFFC05621), // Rosso Rame
-    const Color(0xFFD69E2E), // Biondo Zenzero
-    const Color(0xFF4A5568), // Grigio Argento
-    const Color(0xFFED64A6), // Rosa Fata
-  ];
-
-  final List<Color> _skinColors = [
-    const Color(0xFFFFF0E5), // Porcellana
-    const Color(0xFFF5D0A9), // Naturale Chiaro
-    const Color(0xFFE0AC69), // Dorato/Miele
-    const Color(0xFF8D5524), // Ambra
-    const Color(0xFF523318), // Cioccolato
-  ];
-
+final List<Map<String, String>> _bodies = [
+    {'id': 'body_1', 'name': 'Tono 1', 'asset': AppAssets.bodyBase1},
+    {'id': 'body_2', 'name': 'Tono 2', 'asset': AppAssets.bodyBase2},
+    {'id': 'body_3', 'name': 'Tono 3', 'asset': AppAssets.bodyBase3},
+    {'id': 'body_4', 'name': 'Tono 4', 'asset': AppAssets.bodyBase4},
+    {'id': 'body_5', 'name': 'Tono 5', 'asset': AppAssets.bodyBase5},
+    {'id': 'body_6', 'name': 'Tono 6', 'asset': AppAssets.bodyBase6},
+  ];  
+  
   final List<Map<String, String>> _outfits = [
-    {'name': 'Maglione Oversize', 'icon': '🧶'},
-    {'name': 'Mantello del Bosco', 'icon': '🧥'},
-    {'name': 'Abito Estivo', 'icon': '👗'},
-    {'name': 'Giacca da Esploratore', 'icon': '🥼'},
+    {'id': 'outfit_1', 'name': 'Alchimista', 'asset': AppAssets.outfitAlchemist},
+    {'id': 'outfit_2', 'name': 'Nudo / Intimo', 'asset': ''},
+  ];
+
+  final List<Map<String, String>> _hairs = [
+    {'id': 'hair_1', 'name': 'Trecce Bionde', 'asset': AppAssets.hairBlondeBraids},
+    {'id': 'hair_2', 'name': 'Caschetto Castani', 'asset': AppAssets.hairBrownBob},
+    {'id': 'hair_3', 'name': 'Caschetto Rossi', 'asset': AppAssets.hairRedBob},
+    {'id': 'hair_4', 'name': 'Coda Castani', 'asset': AppAssets.hairBrunettePonytail},
+    {'id': 'hair_5', 'name': 'Mossi Biondi', 'asset': AppAssets.hairBlondeWaves},
+    {'id': 'hair_6', 'name': 'Mossi Castani', 'asset': AppAssets.hairBrownWaves},
+    {'id': 'hair_7', 'name': 'Nessuno', 'asset': ''},
   ];
 
   @override
@@ -61,11 +51,17 @@ class _CharacterEditorScreenState extends State<CharacterEditorScreen> with Sing
     super.initState();
     _user = _storageService.getUser();
     _tabController = TabController(length: 3, vsync: this);
+
+    _selectedBody = _user.avatarConfig.bodyPath;
+    _selectedHair = _user.avatarConfig.hairPath;
+    _selectedOutfit = _user.avatarConfig.outfitPath;
   }
 
   void _saveAvatar() async {
-    // Salviamo le scelte dell'avatar sul profilo utente
-    // (Puoi estendere UserModel per includere AvatarConfig)
+    _user.avatarConfig.bodyPath = _selectedBody;
+    _user.avatarConfig.hairPath = _selectedHair;
+    _user.avatarConfig.outfitPath = _selectedOutfit;
+
     await _storageService.saveUser(_user);
 
     if (!mounted) return;
@@ -75,6 +71,12 @@ class _CharacterEditorScreenState extends State<CharacterEditorScreen> with Sing
         content: Text('✨ Nuovo look salvato con successo!'),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   @override
@@ -96,103 +98,45 @@ class _CharacterEditorScreenState extends State<CharacterEditorScreen> with Sing
       ),
       body: Column(
         children: [
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
 
-          // 1. ANTEPRIMA AVATAR DINAMICA
+          // ANTEPRIMA AVATAR
           Center(
             child: CozyCard(
-              padding: const EdgeInsets.all(20),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  // Cerchio Sfondo
-                  Container(
-                    width: 150,
-                    height: 150,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: AppColors.surfaceDark,
-                      border: Border.all(color: AppColors.border, width: 2),
-                    ),
-                  ),
-
-                  // Viso/Pelle dell'Avatar
-                  Positioned(
-                    bottom: 35,
-                    child: Container(
-                      width: 85,
-                      height: 85,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: _selectedSkinColor,
-                      ),
-                      child: const Center(
-                        child: Text('😊', style: TextStyle(fontSize: 45)),
-                      ),
-                    ),
-                  ),
-
-                  // Capelli (Colore tinto tramite filtro tinta o icona)
-                  Positioned(
-                    top: 15,
-                    child: Text(
-                      _selectedHairStyle,
-                      style: TextStyle(
-                        fontSize: 50,
-                        shadows: [
-                          Shadow(
-                            color: _selectedHairColor,
-                            blurRadius: 10,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  // Accessorio Testa
-                  Positioned(
-                    top: 5,
-                    child: Text(_selectedHeadwear, style: const TextStyle(fontSize: 30)),
-                  ),
-
-                  // Abito Indossato
-                  Positioned(
-                    bottom: 5,
-                    child: Text(_selectedOutfit, style: const TextStyle(fontSize: 45)),
-                  ),
-                ],
+              padding: const EdgeInsets.all(12),
+              child: SizedBox(
+                width: 220,
+                height: 320,
+                child: AvatarView(
+                  bodyPath: _selectedBody,
+                  hairPath: _selectedHair,
+                  outfitPath: _selectedOutfit,
+                ),
               ),
             ),
           ),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
 
-          // TAB BAR PER SELEZIONARE LA CATEGORIA
           TabBar(
             controller: _tabController,
             indicatorColor: AppColors.woodAccent,
             labelColor: AppColors.textPrimary,
             unselectedLabelColor: AppColors.textSecondary,
             tabs: const [
-              Tab(icon: Icon(Icons.face), text: 'Capelli'),
-              Tab(icon: Icon(Icons.color_lens), text: 'Toni'),
+              Tab(icon: Icon(Icons.person), text: 'Corpo'),
               Tab(icon: Icon(Icons.checkroom), text: 'Abiti'),
+              Tab(icon: Icon(Icons.face), text: 'Capelli'),
             ],
           ),
 
-          // 2. SELEZIONE OPZIONI
           Expanded(
             child: TabBarView(
               controller: _tabController,
               children: [
-                // SCHEDA 1: CAPELLI & ACCONCIATURE
-                _buildStyleSelector(),
-
-                // SCHEDA 2: COLORI CAPELLI E PELLE
-                _buildColorSelector(),
-
-                // SCHEDA 3: ABITI & ACCESSORI
-                _buildOutfitSelector(),
+                _buildAssetGrid(_bodies, _selectedBody, (asset) => setState(() => _selectedBody = asset)),
+                _buildAssetGrid(_outfits, _selectedOutfit, (asset) => setState(() => _selectedOutfit = asset)),
+                _buildAssetGrid(_hairs, _selectedHair, (asset) => setState(() => _selectedHair = asset)),
               ],
             ),
           ),
@@ -201,139 +145,54 @@ class _CharacterEditorScreenState extends State<CharacterEditorScreen> with Sing
     );
   }
 
-  // Selettore Stile Capelli
-  Widget _buildStyleSelector() {
+  Widget _buildAssetGrid(List<Map<String, String>> items, String currentSelected, Function(String) onSelect) {
     return GridView.builder(
       padding: const EdgeInsets.all(16),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
+        crossAxisCount: 3,
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
-        childAspectRatio: 1.2,
+        childAspectRatio: 0.85,
       ),
-      itemCount: _hairStyles.length,
+      itemCount: items.length,
       itemBuilder: (context, index) {
-        final item = _hairStyles[index];
-        final isSelected = _selectedHairStyle == item['icon'];
+        final item = items[index];
+        final assetPath = item['asset']!;
+        final isSelected = currentSelected == assetPath;
 
         return GestureDetector(
-          onTap: () => setState(() => _selectedHairStyle = item['icon']!),
-          child: CozyCard(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(item['icon']!, style: const TextStyle(fontSize: 36)),
-                const SizedBox(height: 8),
-                Text(
-                  item['name']!,
-                  style: TextStyle(
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                    color: isSelected ? AppColors.woodAccent : AppColors.textPrimary,
-                  ),
-                ),
-              ],
+          onTap: () => onSelect(assetPath),
+          child: Container(
+            // 2. Bordo gestito pulito tramite Container esterno senza spezzare CozyCard
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isSelected ? AppColors.woodAccent : Colors.transparent,
+                width: isSelected ? 3.0 : 0.0,
+              ),
             ),
-          ),
-        );
-      },
-    );
-  }
-
-  // Selettore Colori (Palette Tinte e Carnagione)
-  Widget _buildColorSelector() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Colore Capelli',
-            style: TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.textPrimary),
-          ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: _hairColors.map((color) {
-              final isSelected = _selectedHairColor == color;
-              return GestureDetector(
-                onTap: () => setState(() => _selectedHairColor = color),
-                child: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: color,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: isSelected ? AppColors.woodAccent : Colors.transparent,
-                      width: 3,
-                    ),
-                  ),
-                  child: isSelected ? const Icon(Icons.check, color: Colors.white, size: 20) : null,
-                ),
-              );
-            }).toList(),
-          ),
-
-          const SizedBox(height: 24),
-
-          const Text(
-            'Tonalità della Pelle',
-            style: TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.textPrimary),
-          ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: _skinColors.map((color) {
-              final isSelected = _selectedSkinColor == color;
-              return GestureDetector(
-                onTap: () => setState(() => _selectedSkinColor = color),
-                child: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: color,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: isSelected ? AppColors.woodAccent : Colors.transparent,
-                      width: 3,
-                    ),
-                  ),
-                  child: isSelected ? const Icon(Icons.check, color: AppColors.textPrimary, size: 20) : null,
-                ),
-              );
-            }).toList(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Selettore Abiti
-  Widget _buildOutfitSelector() {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: _outfits.length,
-      itemBuilder: (context, index) {
-        final outfit = _outfits[index];
-        final isSelected = _selectedOutfit == outfit['icon'];
-
-        return Container(
-          margin: const EdgeInsets.only(bottom: 10),
-          child: GestureDetector(
-            onTap: () => setState(() => _selectedOutfit = outfit['icon']!),
             child: CozyCard(
-              child: Row(
+              padding: const EdgeInsets.all(8),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(outfit['icon']!, style: const TextStyle(fontSize: 32)),
-                  const SizedBox(width: 16),
-                  Text(
-                    outfit['name']!,
-                    style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.all(6.0),
+                      child: assetPath.isNotEmpty
+                          ? Image.asset(assetPath, fit: BoxFit.contain)
+                          : const Icon(Icons.block, color: AppColors.textSecondary),
+                    ),
                   ),
-                  const Spacer(),
-                  if (isSelected) const Icon(Icons.check_circle, color: AppColors.woodAccent),
+                  Text(
+                    item['name']!,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      color: isSelected ? AppColors.woodAccent : AppColors.textPrimary,
+                    ),
+                  ),
                 ],
               ),
             ),

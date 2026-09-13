@@ -1,3 +1,5 @@
+import '../constants/app_assets.dart';
+
 class UserModel {
   String id;
   String name;
@@ -7,7 +9,7 @@ class UserModel {
   double height;
   int currentHearts;     // Cuori attuali riempiti oggi
   int maxHearts;        // Cuori totali / cap giornaliero
-  List<String> claimedStageIds; // <--- Aggiungi questo
+  List<String> claimedStageIds; // Tappe della mappa già riscattate
   int coins;            // Monete/Rupie per comprare abiti e mobili
   int xp;               // Punti esperienza per la progressione
   AvatarConfig avatarConfig;
@@ -24,10 +26,10 @@ class UserModel {
     this.coins = 0,
     this.xp = 0,
     required this.avatarConfig,
-    List<String>? claimedStageIds, // <--- Inizializzatore
+    List<String>? claimedStageIds,
   }) : claimedStageIds = claimedStageIds ?? [];
 
-  // Alias utili se nel codice usi "heartsToday" o "maxHeartsDaily"
+  // Alias utili
   int get heartsToday => currentHearts;
   set heartsToday(int val) => currentHearts = val;
   int get maxHeartsDaily => maxHearts;
@@ -38,9 +40,11 @@ class UserModel {
       'name': name,
       'currentWeight': currentWeight,
       'targetWeight': targetWeight,
+      'startWeight': startWeight,
       'height': height,
       'currentHearts': currentHearts,
       'maxHearts': maxHearts,
+      'claimedStageIds': claimedStageIds, // <--- Aggiunto nel toMap
       'coins': coins,
       'xp': xp,
       'avatarConfig': avatarConfig.toMap(),
@@ -53,9 +57,13 @@ class UserModel {
       name: map['name'] ?? 'Giada',
       currentWeight: (map['currentWeight'] ?? 94.0).toDouble(),
       targetWeight: (map['targetWeight'] ?? 80.0).toDouble(),
+      startWeight: (map['startWeight'] ?? 95.0).toDouble(),
       height: (map['height'] ?? 165.0).toDouble(),
       currentHearts: map['currentHearts'] ?? 4,
       maxHearts: map['maxHearts'] ?? 10,
+      claimedStageIds: map['claimedStageIds'] != null
+          ? List<String>.from(map['claimedStageIds']) // <--- Aggiunto nel fromMap
+          : [],
       coins: map['coins'] ?? 0,
       xp: map['xp'] ?? 0,
       avatarConfig: map['avatarConfig'] != null
@@ -66,37 +74,29 @@ class UserModel {
 }
 
 class AvatarConfig {
-  String hairStyle;
-  String hairColor;
-  String skinColor;
-  String outfitId;
-  String headwearId;
+  String bodyPath;
+  String hairPath;
+  String outfitPath;
 
   AvatarConfig({
-    this.hairStyle = 'short',
-    this.hairColor = '#4A3525',
-    this.skinColor = '#F5D0A9',
-    this.outfitId = 'default_sweater',
-    this.headwearId = 'none',
+    this.bodyPath = AppAssets.bodyBase1,
+    this.hairPath = AppAssets.hairBlondeBraids,
+    this.outfitPath = AppAssets.outfitAlchemist,
   });
 
   Map<String, dynamic> toMap() {
     return {
-      'hairStyle': hairStyle,
-      'hairColor': hairColor,
-      'skinColor': skinColor,
-      'outfitId': outfitId,
-      'headwearId': headwearId,
+      'bodyPath': bodyPath,
+      'hairPath': hairPath,
+      'outfitPath': outfitPath,
     };
   }
 
   factory AvatarConfig.fromMap(Map<String, dynamic> map) {
     return AvatarConfig(
-      hairStyle: map['hairStyle'] ?? 'short',
-      hairColor: map['hairColor'] ?? '#4A3525',
-      skinColor: map['skinColor'] ?? '#F5D0A9',
-      outfitId: map['outfitId'] ?? 'default_sweater',
-      headwearId: map['headwearId'] ?? 'none',
+      bodyPath: map['bodyPath'] ?? AppAssets.bodyBase1,
+      hairPath: map['hairPath'] ?? AppAssets.hairBlondeBraids,
+      outfitPath: map['outfitPath'] ?? AppAssets.outfitAlchemist,
     );
   }
 }

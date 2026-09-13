@@ -5,6 +5,7 @@ import '../models/habit_model.dart';
 import '../models/body_measurement_entry.dart';
 import '../models/progress_photo_entry.dart';
 import '../models/blood_test_entry.dart';
+import '../constants/app_assets.dart';
 
 /// Modello per rappresentare la singola misurazione del peso con la sua data
 class WeightEntry {
@@ -70,13 +71,16 @@ class LocalStorageService {
       // Dati iniziali di default al primo avvio
       return UserModel(
         id: 'user_local',
-        name: 'Giada',
+        name: 'Glenda',
         currentWeight: 94.0,
         targetWeight: 80.0,
-        avatarConfig: AvatarConfig(
-          hairStyle: 'short',
-          outfitId: 'adventure',
-        ),
+        startWeight: 95.0,
+        height: 165.0,
+        currentHearts: 0,
+        maxHearts: 10,
+        coins: 0,
+        xp: 0,
+        avatarConfig: AvatarConfig(),
       );
     }
   }

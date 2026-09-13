@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'app_theme.dart';
+import '../models/user_model.dart';
+import '../widgets/avatar_view.dart';
 
 /// 1. PULSANTE STILE LEGNO / PERGAMENA
 class CozyButton extends StatelessWidget {
@@ -118,6 +120,58 @@ class CurrencyBadge extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// 4. AVATAR CIRCOLARE STRATIFICATO PER LA HOME / HEADER
+class CozyAvatar extends StatelessWidget {
+  final double size;
+  final VoidCallback? onTap;
+  final UserModel user;
+
+  const CozyAvatar({
+    super.key,
+    this.size = 85,
+    this.onTap,
+    required this.user,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: AppColors.surfaceDark,
+          border: Border.all(
+            color: AppColors.woodAccent,
+            width: size * 0.03,
+          ),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black26,
+              blurRadius: 4,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: ClipOval(
+          child: OverflowBox(
+            maxHeight: size * 2.0,
+            maxWidth: size * 2.0,
+            alignment: Alignment.topCenter,
+            child: AvatarView(
+              bodyPath: user.avatarConfig.bodyPath,
+              hairPath: user.avatarConfig.hairPath,
+              outfitPath: user.avatarConfig.outfitPath,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
