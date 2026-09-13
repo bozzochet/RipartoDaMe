@@ -268,22 +268,22 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
     );
 
     if (image != null) {
-      // 1. Ottieni la directory permanente dell'applicazione
       final appDir = await path_provider.getApplicationDocumentsDirectory();
-      final fileName = path.basename(image.path);
       
-      // 2. Copia il file temporaneo nella directory permanente
+      // Generiamo un nome unico per il file
+      final String fileName = 'body_photo_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      
+      // Copiamo il file temporaneo nella cartella permanente
       final File savedImage = await File(image.path).copy('${appDir.path}/$fileName');
 
-      // 3. Salva la nuova foto usando il percorso PERMANENTE (savedImage.path)
+      //SALVIAMO SOLO IL NOME DEL FILE (fileName), NON savedImage.path
       final newPhoto = ProgressPhotoEntry(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         date: DateTime.now(),
-        imagePath: savedImage.path,
+        imagePath: fileName, // <--- Solo il nome del file!
       );
 
-      await Gal.putImage(savedImage.path); // Salva una copia nel rullino foto pubblico
-      
+      await Gal.putImage(savedImage.path);
       await _storageService.addProgressPhoto(newPhoto);
       setState(() {});
     }
@@ -1382,37 +1382,54 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
   }
 
   //----------------------------------------------------------------------------------------------------------------------
-  
-  Widget _buildSafeImage(String path, {BoxFit fit = BoxFit.cover}) {
-    final cleanPath = path.replaceFirst('file://', '');
-    final file = File(cleanPath);
 
-    if (!file.existsSync()) {
-      return Container(
-        color: Colors.grey[300],
-        child: const Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.broken_image_outlined, color: Colors.grey, size: 36),
-            SizedBox(height: 4),
-            Text('Foto non trovata', style: TextStyle(fontSize: 10, color: Colors.grey)),
-          ],
-        ),
-      );
-    }
+  Widget _buildSafeImage(String imagePathOrName, {BoxFit fit = BoxFit.cover}) {
+    return FutureBuilder<Directory>(
+      future: path_provider.getApplicationDocumentsDirectory(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return Container(
+            color: Colors.grey[200],
+            child: const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))),
+          );
+        }
 
-    return Image.file(
-      file,
-      fit: fit,
-      errorBuilder: (context, error, stackTrace) {
-        return Container(
-          color: Colors.grey[300],
-          child: const Icon(Icons.broken_image, color: Colors.grey, size: 36),
+        final appDir = snapshot.data!;
+        
+        // Se era un vecchio percorso assoluto (conteneva '/'), estraiamo solo il nome file.
+        // Altrimenti usiamo direttamente il nome file.
+        final fileName = path.basename(imagePathOrName.replaceFirst('file://', ''));
+        final fullPath = '${appDir.path}/$fileName';
+        final file = File(fullPath);
+
+        if (!file.existsSync()) {
+          return Container(
+            color: Colors.grey[300],
+            child: const Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.broken_image_outlined, color: Colors.grey, size: 36),
+                SizedBox(height: 4),
+                Text('Foto non trovata', style: TextStyle(fontSize: 10, color: Colors.grey)),
+              ],
+            ),
+          );
+        }
+
+        return Image.file(
+          file,
+          fit: fit,
+          errorBuilder: (context, error, stackTrace) {
+            return Container(
+              color: Colors.grey[300],
+              child: const Icon(Icons.broken_image, color: Colors.grey, size: 36),
+            );
+          },
         );
       },
     );
   }
-  
+    
   //----------------------------------------------------------------------------------------------------------------------
   
   Widget _buildMetricColumn(String title, String value) {
