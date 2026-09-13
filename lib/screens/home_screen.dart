@@ -22,7 +22,6 @@ class _HomeScreenState extends State<HomeScreen> {
   final LocalStorageService _storageService = LocalStorageService();
   late UserModel _user;
 
-  // Controller e stato per la modifica del nome
   final TextEditingController _nameController = TextEditingController();
   bool _isEditingName = false;
 
@@ -37,14 +36,12 @@ class _HomeScreenState extends State<HomeScreen> {
     _nameController.text = _user.name;
   }
 
-  // Ricarica i dati dell'utente quando si torna indietro dalle altre schermate
   void _refreshData() {
     setState(() {
       _loadUser();
     });
   }
 
-  // Salva il nuovo nome nel LocalStorage
   void _saveName() async {
     final newName = _nameController.text.trim();
     if (newName.isNotEmpty) {
@@ -65,298 +62,318 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.transparent,
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: _isEditingName
-            ? Row(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        toolbarHeight: 60,
+      ),
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/images/home_bg.png'),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: Stack(
+          children: [
+            // CONTENUTO PRINCIPALE
+            SafeArea(
+              child: Column(
                 children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _nameController,
-                      autofocus: true,
-                      style: const TextStyle(color: Colors.black, fontSize: 18),
-                      decoration: const InputDecoration(
-                        hintText: 'Inserisci nome...',
-                        border: InputBorder.none,
-                        isDense: true,
+                  const SizedBox(height: 16),
+
+                  // -------------------------------------------------------------
+                  // 1. CARD AVATAR PRINCIPALE (FISSA IN ALTO E COMPATTA)
+                  // -------------------------------------------------------------
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 38.0),
+                    child: Opacity(
+                      opacity: 0.68, // Rende la card dell'avatar leggermente trasparente
+                      child: CozyCard(
+                        // Padding verticale ridotto per ridurre l'altezza della box
+                        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min, // Occupa solo la spessore strettamente necessario
+                          children: [
+                            CozyAvatar(
+                              size: 85, // Avatar leggermente più compatto per ridurre l'altezza
+                              onTap: () async {
+                                await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => const CharacterEditorScreen()),
+                                );
+                                _refreshData();
+                              },
+                            ),
+                            const SizedBox(height: 2), // Distanza ridotta
+                            if (_isEditingName)
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                SizedBox(
+                                  width: 140,
+                                  child: TextField(
+                                    controller: _nameController,
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(
+                                      fontFamily: 'Serif',
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    decoration: const InputDecoration(
+                                      isDense: true,
+                                      contentPadding: EdgeInsets.symmetric(vertical: 2),
+                                    ),
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.check_circle, color: AppColors.success, size: 20),
+                                  onPressed: _saveName,
+                                ),
+                              ],
+                            )
+                            else
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  _user.name,
+                                  style: const TextStyle(
+                                    fontFamily: 'Serif',
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                                IconButton(
+                                  constraints: const BoxConstraints(),
+                                  padding: const EdgeInsets.only(left: 4),
+                                  icon: const Icon(Icons.edit_outlined, size: 16, color: AppColors.textSecondary),
+                                  onPressed: () {
+                                    setState(() {
+                                        _isEditingName = true;
+                                    });
+                                  },
+                                ),
+                              ],
+                            ),
+                            const Text(
+                              'Tocca l\'avatar per cambiare look 🪞',
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                color: AppColors.textSecondary,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.check, color: AppColors.success),
-                    onPressed: _saveName,
-                  ),
-                ],
-              )
-            : Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Benvenuta, ${_user.name}',
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.edit_outlined, size: 18),
-                    onPressed: () {
-                      setState(() {
-                        _isEditingName = true;
-                      });
-                    },
-                  ),
-                ],
-              ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16.0),
-            child: Row(
-              children: [
-                CurrencyBadge(
-                  icon: Icons.favorite,
-                  iconColor: AppColors.heartRed,
-                  value: '${_user.currentHearts}',
-                ),
-                const SizedBox(width: 12),
-                CurrencyBadge(
-                  icon: Icons.diamond,
-                  iconColor: AppColors.rupeeGreen,
-                  value: '${_user.coins}',
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          children: [
-            // 1. CARD AVATAR PRINCIPALE
-            CozyCard(
-              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-              child: Column(
-                children: [
-                  // Avatar personalizzato con tocco per aprire lo Specchio Magico
-                  CozyAvatar(
-                    size: 120,
-                    onTap: () async {
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const CharacterEditorScreen()),
-                      );
-                      _refreshData();
-                    },
-                  ),
+
                   const SizedBox(height: 12),
 
-                  // Nome utente o campo di modifica
-                  if (_isEditingName)
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        SizedBox(
-                          width: 160,
-                          child: TextField(
-                            controller: _nameController,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontFamily: 'Serif',
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            decoration: const InputDecoration(
-                              isDense: true,
-                              contentPadding: EdgeInsets.symmetric(vertical: 4),
+                  // -------------------------------------------------------------
+                  // 2. AREA SCROLLABILE (SOLO GRIDVIEW E TITOLO)
+                  // -------------------------------------------------------------
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(horizontal: 38.0, vertical: 8.0),
+                      child: Column(
+                        children: [
+                          const Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              'Esplora il tuo mondo',
+                              style: TextStyle(
+                                fontFamily: 'Serif',
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.textPrimary,
+                              ),
                             ),
                           ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.check_circle, color: AppColors.success),
-                          onPressed: _saveName,
-                        ),
-                      ],
-                    )
-                  else
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          _user.name,
-                          style: const TextStyle(
-                            fontFamily: 'Serif',
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.edit_outlined, size: 18, color: AppColors.textSecondary),
-                          onPressed: () {
-                            setState(() {
-                              _isEditingName = true;
-                            });
-                          },
-                        ),
-                      ],
-                    ),
+                          const SizedBox(height: 12),
 
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Tocca l\'avatar per cambiare look 🪞',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
-                      fontStyle: FontStyle.italic,
+                          GridView.count(
+                            crossAxisCount: 2,
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                            childAspectRatio: 1.1,
+                            children: [
+                              _buildMenuCard(
+                                title: 'Il Mio Corpo',
+                                subtitle: 'Peso, Valori & Foto',
+                                icon: '🩸',
+                                onTap: () async {
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (context) => const IlMioCorpoScreen()),
+                                  );
+                                  _refreshData();
+                                },
+                              ),
+                              _buildMenuCard(
+                                title: 'Cura di me',
+                                subtitle: 'Ricarica i Cuori',
+                                icon: '🌿',
+                                onTap: () async {
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (context) => const CuraDiMeScreen()),
+                                  );
+                                  _refreshData();
+                                },
+                              ),
+                              _buildMenuCard(
+                                title: 'La mia Casa',
+                                subtitle: 'Arreda la stanza',
+                                icon: '🏡',
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (context) => const LaMiaCasaScreen()),
+                                  );
+                                },
+                              ),
+                              _buildMenuCard(
+                                title: 'La mia Mappa',
+                                subtitle: 'Il tuo percorso & Tappe',
+                                icon: '🗺️',
+                                onTap: () async {
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (context) => const LaMiaMappaScreen()),
+                                  );
+                                  _refreshData();
+                                },
+                              ),
+                              _buildMenuCard(
+                                title: 'Bottega',
+                                subtitle: 'Spendi Rupie & Cuori',
+                                icon: '🛍️',
+                                onTap: () async {
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (context) => const ShopScreen()),
+                                  );
+                                  _refreshData();
+                                },
+                              ),
+                              _buildMenuCard(
+                                title: 'Specchio Magico',
+                                subtitle: 'Capelli & Abiti',
+                                icon: '🪞',
+                                onTap: () async {
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (context) => const CharacterEditorScreen()),
+                                  );
+                                  _refreshData();
+                                },
+                              ),
+                                                            _buildMenuCard(
+                                title: 'Bottega 2',
+                                subtitle: 'Spendi Rupie & Cuori',
+                                icon: '🛍️',
+                                onTap: () async {
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (context) => const ShopScreen()),
+                                  );
+                                  _refreshData();
+                                },
+                              ),
+                              _buildMenuCard(
+                                title: 'Specchio Magico 2',
+                                subtitle: 'Capelli & Abiti',
+                                icon: '🪞',
+                                onTap: () async {
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (context) => const CharacterEditorScreen()),
+                                  );
+                                  _refreshData();
+                                },
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
 
-            const SizedBox(height: 24),
-
-            // 2. MENU DI NAVIGAZIONE RAPIDA
-            const Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Esplora il tuo mondo',
-                style: TextStyle(
-                  fontFamily: 'Serif',
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
-                ),
+            // 3. CONTATORI IN ALTO A DESTRA (FISSI E INVARIATI)
+            Positioned(
+              top: MediaQuery.of(context).padding.top - 14,
+              right: 42.0,
+              child: Row(
+                children: [
+                  CurrencyBadge(
+                    icon: Icons.favorite,
+                    iconColor: AppColors.heartRed,
+                    value: '${_user.currentHearts}',
+                  ),
+                  const SizedBox(width: 12),
+                  CurrencyBadge(
+                    icon: Icons.diamond,
+                    iconColor: AppColors.rupeeGreen,
+                    value: '${_user.coins}',
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 12),
-
-            GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              childAspectRatio: 1.1,
-              children: [
-                _buildMenuCard(
-                  title: 'Il Mio Corpo',
-                  subtitle: 'Peso, Valori & Foto',
-                  icon: '🩸',
-                  color: const Color(0xFFE8DFC8),
-                  onTap: () async {
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const IlMioCorpoScreen()),
-                    );
-                    _refreshData();
-                  },
-                ),
-                _buildMenuCard(
-                  title: 'Cura di me',
-                  subtitle: 'Ricarica i Cuori',
-                  icon: '🌿',
-                  color: const Color(0xFFE8DFC8),
-                  onTap: () async {
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const CuraDiMeScreen()),
-                    );
-                    _refreshData();
-                  },
-                ),
-                _buildMenuCard(
-                  title: 'La mia Casa',
-                  subtitle: 'Arreda la stanza',
-                  icon: '🏡',
-                  color: const Color(0xFFE8DFC8),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const LaMiaCasaScreen()),
-                    );
-                  },
-                ),
-                _buildMenuCard(
-                  title: 'La mia Mappa',
-                  subtitle: 'Il tuo percorso & Tappe',
-                  icon: '🗺️',
-                  color: const Color(0xFFE8DFC8),
-                  onTap: () async {
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const LaMiaMappaScreen()),
-                    );
-                    _refreshData();
-                  },
-                ),
-                _buildMenuCard(
-                  title: 'Bottega',
-                  subtitle: 'Spendi Rupie & Cuori',
-                  icon: '🛍️',
-                  color: const Color(0xFFE8DFC8),
-                  onTap: () async {
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const ShopScreen()),
-                    );
-                    _refreshData();
-                  },
-                ),
-                _buildMenuCard(
-                  title: 'Specchio Magico',
-                  subtitle: 'Capelli & Abiti',
-                  icon: '🪞',
-                  color: const Color(0xFFE8DFC8),
-                  onTap: () async {
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const CharacterEditorScreen()),
-                    );
-                    _refreshData();
-                  },
-                ),
-              ],
             ),
           ],
         ),
       ),
     );
   }
-
+  
   Widget _buildMenuCard({
     required String title,
     required String subtitle,
     required String icon,
-    required Color color,
     required VoidCallback onTap,
   }) {
     return GestureDetector(
       onTap: onTap,
-      child: CozyCard(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(icon, style: const TextStyle(fontSize: 32)),
-            const SizedBox(height: 8),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-                color: AppColors.textPrimary,
+      child: Opacity(
+        opacity: 0.78, // Rende la singola card della griglia leggermente trasparente
+        child: CozyCard(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(icon, style: const TextStyle(fontSize: 32)),
+              const SizedBox(height: 8),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: AppColors.textPrimary,
+                ),
               ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              subtitle,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 10,
-                color: AppColors.textSecondary,
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 10,
+                  color: AppColors.textSecondary,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
