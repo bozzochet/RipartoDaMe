@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
-import '../theme/cozy_widgets.dart';
+import '../theme/cozy_styles.dart';
+import '../theme/cozy_background.dart';
 import '../widgets/avatar_view.dart';
+import '../widgets/cozy_button.dart';
 import '../services/local_storage_service.dart';
 import '../models/user_model.dart';
-import '../constants/app_assets.dart'; // <--- 1. Import Aggiunto
+import '../constants/app_assets.dart';
 
 class CharacterEditorScreen extends StatefulWidget {
   const CharacterEditorScreen({super.key});
@@ -22,7 +24,7 @@ class _CharacterEditorScreenState extends State<CharacterEditorScreen> with Sing
   late String _selectedHair;
   late String _selectedOutfit;
 
-final List<Map<String, String>> _bodies = [
+  final List<Map<String, String>> _bodies = [
     {'id': 'body_1', 'name': 'Tono 1', 'asset': AppAssets.bodyBase1},
     {'id': 'body_2', 'name': 'Tono 2', 'asset': AppAssets.bodyBase2},
     {'id': 'body_3', 'name': 'Tono 3', 'asset': AppAssets.bodyBase3},
@@ -81,66 +83,69 @@ final List<Map<String, String>> _bodies = [
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Specchio Magico'),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 12.0),
-            child: CozyButton(
-              text: 'Salva',
-              icon: Icons.check,
-              onPressed: _saveAvatar,
-            ),
-          )
-        ],
-      ),
-      body: Column(
-        children: [
-          const SizedBox(height: 12),
+    return CozyBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          title: const Text('Specchio Magico', style: TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold)),
+          actions: [
+            Padding(
+              padding: const EdgeInsets.only(right: 12.0),
+              child: CozyButton(
+                text: 'Salva',
+                icon: Icons.check,
+                onPressed: _saveAvatar,
+              ),
+            )
+          ],
+        ),
+        body: Column(
+          children: [
+            const SizedBox(height: 12),
 
-          // ANTEPRIMA AVATAR
-          Center(
-            child: CozyCard(
-              padding: const EdgeInsets.all(12),
-              child: SizedBox(
-                width: 220,
-                height: 320,
-                child: AvatarView(
-                  bodyPath: _selectedBody,
-                  hairPath: _selectedHair,
-                  outfitPath: _selectedOutfit,
+            Center(
+              child: CozyWoodCard(
+                padding: const EdgeInsets.all(12),
+                child: SizedBox(
+                  width: 220,
+                  height: 320,
+                  child: AvatarView(
+                    bodyPath: _selectedBody,
+                    hairPath: _selectedHair,
+                    outfitPath: _selectedOutfit,
+                  ),
                 ),
               ),
             ),
-          ),
 
-          const SizedBox(height: 12),
+            const SizedBox(height: 12),
 
-          TabBar(
-            controller: _tabController,
-            indicatorColor: AppColors.woodAccent,
-            labelColor: AppColors.textPrimary,
-            unselectedLabelColor: AppColors.textSecondary,
-            tabs: const [
-              Tab(icon: Icon(Icons.person), text: 'Corpo'),
-              Tab(icon: Icon(Icons.checkroom), text: 'Abiti'),
-              Tab(icon: Icon(Icons.face), text: 'Capelli'),
-            ],
-          ),
-
-          Expanded(
-            child: TabBarView(
+            TabBar(
               controller: _tabController,
-              children: [
-                _buildAssetGrid(_bodies, _selectedBody, (asset) => setState(() => _selectedBody = asset)),
-                _buildAssetGrid(_outfits, _selectedOutfit, (asset) => setState(() => _selectedOutfit = asset)),
-                _buildAssetGrid(_hairs, _selectedHair, (asset) => setState(() => _selectedHair = asset)),
+              indicatorColor: AppColors.woodAccent,
+              labelColor: AppColors.textPrimary,
+              unselectedLabelColor: AppColors.textSecondary,
+              tabs: const [
+                Tab(icon: Icon(Icons.person), text: 'Corpo'),
+                Tab(icon: Icon(Icons.checkroom), text: 'Abiti'),
+                Tab(icon: Icon(Icons.face), text: 'Capelli'),
               ],
             ),
-          ),
-        ],
+
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _buildAssetGrid(_bodies, _selectedBody, (asset) => setState(() => _selectedBody = asset)),
+                  _buildAssetGrid(_outfits, _selectedOutfit, (asset) => setState(() => _selectedOutfit = asset)),
+                  _buildAssetGrid(_hairs, _selectedHair, (asset) => setState(() => _selectedHair = asset)),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -163,7 +168,6 @@ final List<Map<String, String>> _bodies = [
         return GestureDetector(
           onTap: () => onSelect(assetPath),
           child: Container(
-            // 2. Bordo gestito pulito tramite Container esterno senza spezzare CozyCard
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
@@ -171,7 +175,7 @@ final List<Map<String, String>> _bodies = [
                 width: isSelected ? 3.0 : 0.0,
               ),
             ),
-            child: CozyCard(
+            child: CozyWoodCard(
               padding: const EdgeInsets.all(8),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,

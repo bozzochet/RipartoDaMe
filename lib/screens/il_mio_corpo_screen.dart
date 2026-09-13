@@ -8,6 +8,7 @@ import 'package:gal/gal.dart';
 import '../theme/app_theme.dart';
 import '../theme/cozy_widgets.dart';
 import '../theme/cozy_background.dart';
+import '../theme/cozy_styles.dart';
 import '../services/local_storage_service.dart';
 import '../models/user_model.dart';
 import '../models/body_measurement_entry.dart';
@@ -108,8 +109,7 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
 
     super.dispose();
   }
-  
-  // --- LOGICA BMI ---
+
   double? get _calculatedBMI {
     if (_user.height <= 0 || _user.currentWeight <= 0) return null;
     final heightInMeters = _user.height / 100.0;
@@ -117,19 +117,12 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
   }
 
   String getBMICategory(double bmi) {
-    if (bmi < 18.5) {
-      return 'Sottopeso';
-    } else if (bmi >= 18.5 && bmi < 25.0) {
-      return 'Normopeso';
-    } else if (bmi >= 25.0 && bmi < 30.0) {
-      return 'Sovrappeso';
-    } else if (bmi >= 30.0 && bmi < 35.0) {
-      return 'Obesità di I Grado (Lieve)';
-    } else if (bmi >= 35.0 && bmi < 40.0) {
-      return 'Obesità di II Grado (Moderata)';
-    } else {
-      return 'Obesità di III Grado (Grave/Elevata)';
-    }
+    if (bmi < 18.5) return 'Sottopeso';
+    if (bmi >= 18.5 && bmi < 25.0) return 'Normopeso';
+    if (bmi >= 25.0 && bmi < 30.0) return 'Sovrappeso';
+    if (bmi >= 30.0 && bmi < 35.0) return 'Obesità I';
+    if (bmi >= 35.0 && bmi < 40.0) return 'Obesità II';
+    return 'Obesità III';
   }
 
   Color getBMIColor(double bmi) {
@@ -226,7 +219,7 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
             key: const ValueKey('target_input_field'),
             controller: _targetController,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: _buildCozyInputDecoration('Nuovo Obiettivo (kg)'),
+            decoration: CozyStyles.cozyInputDecoration('Nuovo Obiettivo (kg)'),
           ),
           actions: [
             TextButton(
@@ -327,55 +320,6 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
     );
   }
 
-  // --- WIDGET CONTENITORE LEGNO PROCEDURALE ---
-  Widget _buildWoodBox({required Widget child, EdgeInsetsGeometry? padding}) {
-    return Container(
-      padding: padding ?? const EdgeInsets.all(16.0),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        gradient: const LinearGradient(
-          colors: [
-            Color(0xFFFDF6E3), // Warm Cream / Parchment
-            Color(0xFFF5E6C8), // Light Wood Tint
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        border: Border.all(color: const Color(0xFF8B5A2B).withOpacity(0.5), width: 1.5),
-        boxShadow: const [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 6,
-            offset: Offset(0, 3),
-          ),
-        ],
-      ),
-      child: child,
-    );
-  }
-
-  InputDecoration _buildCozyInputDecoration(String label) {
-    return InputDecoration(
-      labelText: label,
-      labelStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
-      filled: true,
-      fillColor: Colors.white.withOpacity(0.6),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: Color(0xFFC4A484)),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: Color(0xFFC4A484)),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: AppColors.woodAccent, width: 2),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return CozyBackground(
@@ -410,25 +354,409 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
           ],
         ),
         floatingActionButton: _mainTabController.index == 3
-        ? FloatingActionButton.extended(
-          onPressed: _showImageSourceDialog,
-          icon: const Icon(Icons.add_a_photo),
-          label: const Text('Nuova Foto'),
-          backgroundColor: AppColors.woodAccent,
-          foregroundColor: Colors.white,
-        )
-        : null,
+            ? FloatingActionButton.extended(
+                onPressed: _showImageSourceDialog,
+                icon: const Icon(Icons.add_a_photo),
+                label: const Text('Nuova Foto'),
+                backgroundColor: AppColors.woodAccent,
+                foregroundColor: Colors.white,
+              )
+            : null,
       ),
     );
   }
-  
-  // TAB GALLERIA FOTO
+
+  // TAB 1: PESO E BMI
+  Widget _buildWeightAndBMITab() {
+    final bmi = _calculatedBMI;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CozyWoodCard(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildMetricColumn('Attuale', '${_user.currentWeight} kg'),
+                const Icon(Icons.arrow_forward, color: AppColors.woodAccent),
+                InkWell(
+                  onTap: _showEditTargetDialog,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildMetricColumn('Obiettivo', '${_user.targetWeight} kg'),
+                        const SizedBox(width: 6),
+                        const Icon(Icons.edit, size: 18, color: AppColors.woodAccent),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          CozyWoodCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Calcolo BMI (Indice di Massa Corporea)',
+                  style: TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.textPrimary),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        key: const ValueKey('height_input_field'),
+                        controller: _heightController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: CozyStyles.cozyInputDecoration('Altezza (cm)'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    CozyButton(
+                      text: 'Aggiorna',
+                      icon: Icons.height,
+                      onPressed: _saveHeight,
+                    ),
+                  ],
+                ),
+                if (bmi != null) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    'BMI: ${bmi.toStringAsFixed(1)}',
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    getBMICategory(bmi),
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: getBMIColor(bmi),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          CozyWoodCard(
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    key: const ValueKey('weight_input_field'),
+                    controller: _weightController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: CozyStyles.cozyInputDecoration('Nuovo Peso (kg)'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                CozyButton(
+                  text: 'Salva',
+                  icon: Icons.add,
+                  onPressed: _saveWeight,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          const Text(
+            'Andamento Peso',
+            style: TextStyle(fontFamily: 'Serif', fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+          ),
+          const SizedBox(height: 8),
+          CozyWoodCard(
+            padding: const EdgeInsets.only(top: 16, right: 16, bottom: 8, left: 8),
+            child: SizedBox(
+              height: 220,
+              child: _buildWeightGraph(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // TAB 2: MISURE CORPOREE
+  Widget _buildBodyMeasurementsTab() {
+    final List<BodyMeasurementEntry> history = _storageService.getBodyMeasurementsHistory();
+
+    return Column(
+      children: [
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            gradient: const LinearGradient(
+              colors: [Color(0xFFE8D3B4), Color(0xFFD2B48C)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            border: Border.all(color: const Color(0xFF8B5A2B), width: 1.5),
+            boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
+          ),
+          child: TabBar(
+            controller: _measurementsTabController,
+            indicator: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              color: const Color(0xFF5C4033),
+              border: Border.all(color: const Color(0xFFDAA520), width: 1.5),
+            ),
+            labelColor: const Color(0xFFFFF8DC),
+            unselectedLabelColor: const Color(0xFF5C4033),
+            labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, fontFamily: 'Serif'),
+            tabs: const [
+              Tab(text: 'Vita'),
+              Tab(text: 'Fianchi'),
+              Tab(text: 'Braccia'),
+              Tab(text: 'Gambe'),
+            ],
+          ),
+        ),
+        Expanded(
+          child: TabBarView(
+            controller: _measurementsTabController,
+            children: [
+              _buildSingleMeasurementView('Vita', _waistController, history, (val) => _saveMeasurement(waist: val), (e) => e.waist),
+              _buildSingleMeasurementView('Fianchi', _hipsController, history, (val) => _saveMeasurement(hips: val), (e) => e.hips),
+              _buildSingleMeasurementView('Braccia', _armsController, history, (val) => _saveMeasurement(arms: val), (e) => e.arms),
+              _buildSingleMeasurementView('Gambe', _legsController, history, (val) => _saveMeasurement(legs: val), (e) => e.legs),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSingleMeasurementView(
+    String title,
+    TextEditingController controller,
+    List<BodyMeasurementEntry> history,
+    Function(double) onSave,
+    double? Function(BodyMeasurementEntry) valueExtractor,
+  ) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CozyWoodCard(
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    key: ValueKey('input_$title'),
+                    controller: controller,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: CozyStyles.cozyInputDecoration('Misura $title (cm)'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                CozyButton(
+                  text: 'Salva',
+                  icon: Icons.add,
+                  onPressed: () {
+                    final cleanText = controller.text.replaceAll(',', '.');
+                    final val = double.tryParse(cleanText);
+                    if (val != null && val > 0) {
+                      onSave(val);
+                      controller.clear();
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            'Andamento $title',
+            style: const TextStyle(fontFamily: 'Serif', fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+          ),
+          const SizedBox(height: 8),
+          CozyWoodCard(
+            padding: const EdgeInsets.only(top: 16, right: 16, bottom: 8, left: 8),
+            child: SizedBox(
+              height: 220,
+              child: _buildMeasurementGraph(history, valueExtractor, title),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // TAB 3: VALORI EMATICI
+  Widget _buildBloodTab() {
+    final history = _storageService.getBloodTestsHistory();
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Inserisci Nuovi Esami',
+            style: TextStyle(
+              fontFamily: 'Serif',
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          _buildExpansionWoodSection(
+            title: 'Glicemia & Insulina',
+            children: [
+              _buildBloodField(_glycemiaController, 'Glicemia', 'mg/dL'),
+              const SizedBox(height: 10),
+              _buildBloodField(_hba1cController, 'Emoglobina Glicata (HbA1c)', '%'),
+              const SizedBox(height: 10),
+              _buildBloodField(_insulinController, 'Insulina', 'µIU/mL'),
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          _buildExpansionWoodSection(
+            title: 'Assetto Marziale (Ferro)',
+            children: [
+              _buildBloodField(_ironController, 'Sideremia / Ferro', 'µg/dL'),
+              const SizedBox(height: 10),
+              _buildBloodField(_ferritinController, 'Ferritina', 'ng/mL'),
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          _buildExpansionWoodSection(
+            title: 'Vitamine ed Elettroliti',
+            children: [
+              _buildBloodField(_potassiumController, 'Potassio', 'mEq/L'),
+              const SizedBox(height: 10),
+              _buildBloodField(_vitaminDController, 'Vitamina D', 'ng/mL'),
+              const SizedBox(height: 10),
+              _buildBloodField(_vitaminB12Controller, 'Vitamina B12', 'pg/mL'),
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          _buildExpansionWoodSection(
+            title: 'Funzionalità Epatica',
+            children: [
+              _buildBloodField(_astController, 'AST (GOT)', 'U/L'),
+              const SizedBox(height: 10),
+              _buildBloodField(_altController, 'ALT (GPT)', 'U/L'),
+              const SizedBox(height: 10),
+              _buildBloodField(_ggtController, 'GGT', 'U/L'),
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          _buildExpansionWoodSection(
+            title: 'Emocromo',
+            children: [
+              _buildBloodField(_hemoglobinController, 'Emoglobina', 'g/dL'),
+              const SizedBox(height: 10),
+              _buildBloodField(_redBloodCellsController, 'Globuli Rossi', 'x10^6/µL'),
+              const SizedBox(height: 10),
+              _buildBloodField(_whiteBloodCellsController, 'Globuli Bianchi', 'x10^3/µL'),
+              const SizedBox(height: 10),
+              _buildBloodField(_plateletsController, 'Piastrine', 'x10^3/µL'),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          SizedBox(
+            width: double.infinity,
+            child: CozyButton(
+              text: 'Salva Analisi del Sangue',
+              icon: Icons.bookmark_add,
+              onPressed: _saveBloodTest,
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          const Text(
+            'Storico Esami Registrati',
+            style: TextStyle(
+              fontFamily: 'Serif',
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          if (history.isEmpty)
+            const CozyWoodCard(
+              child: Center(
+                child: Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Text(
+                    'Nessun esame salvato finora.',
+                    style: TextStyle(color: AppColors.textSecondary),
+                  ),
+                ),
+              ),
+            )
+          else
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: history.length,
+              itemBuilder: (context, index) {
+                final entry = history[index];
+                final dateStr =
+                    "${entry.date.day.toString().padLeft(2, '0')}/${entry.date.month.toString().padLeft(2, '0')}/${entry.date.year}";
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8.0),
+                  child: CozyWoodCard(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    child: ListTile(
+                      onTap: () => _showBloodTestDetailsDialog(entry),
+                      title: Text(
+                        'Analisi del $dateStr',
+                        style: const TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                      ),
+                      subtitle: Text(
+                        'Glicemia: ${entry.glycemia ?? "-"} | Vit. D: ${entry.vitaminD ?? "-"} | Ferro: ${entry.iron ?? "-"}',
+                        style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                      ),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                        onPressed: () async {
+                          await _storageService.deleteBloodTestEntry(entry.date.toIso8601String().split('T')[0]);
+                          setState(() {});
+                        },
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
+  // TAB 4: FOTO GALLERIA
   Widget _buildPhotoGalleryTab() {
     final List<ProgressPhotoEntry> photos = _storageService.getProgressPhotosHistory();
 
     if (photos.isEmpty) {
       return Center(
-        child: _buildWoodBox(
+        child: CozyWoodCard(
           padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -524,288 +852,34 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
     );
   }
 
-  void _showPhotoDetailDialog(ProgressPhotoEntry photo) {
-    final day = photo.date.day.toString().padLeft(2, '0');
-    final month = photo.date.month.toString().padLeft(2, '0');
-    final year = photo.date.year;
-    final hour = photo.date.hour.toString().padLeft(2, '0');
-    final minute = photo.date.minute.toString().padLeft(2, '0');
-    
-    final formattedDate = "$day/$month/$year alle $hour:$minute";
-    
-    showDialog(
-      context: context,
-      builder: (context) {
-        return Dialog(
-          backgroundColor: Colors.black,
-          insetPadding: const EdgeInsets.all(10),
-          child: Stack(
-            alignment: Alignment.topRight,
-            children: [
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(12.0),
-                    child: Text(
-                      'Foto del $formattedDate',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  Flexible(
-                    child: InteractiveViewer(
-                      panEnabled: true,
-                      minScale: 0.5,
-                      maxScale: 4,
-                      child: _buildSafeImage(photo.imagePath, fit: BoxFit.contain),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                ],
-              ),
-              IconButton(
-                icon: const Icon(Icons.close, color: Colors.white, size: 28),
-                onPressed: () => Navigator.pop(context),
-              ),
-            ],
+  // --- HELPER WIDGETS ---
+  Widget _buildExpansionWoodSection({required String title, required List<Widget> children}) {
+    return CozyWoodCard(
+      padding: EdgeInsets.zero,
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          title: Text(
+            title,
+            style: const TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold, color: AppColors.textPrimary),
           ),
-        );
-      },
-    );
-  }
-  
-  // TAB 1: PESO E BMI
-  Widget _buildWeightAndBMITab() {
-    final bmi = _calculatedBMI;
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildWoodBox(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildMetricColumn('Attuale', '${_user.currentWeight} kg'),
-                const Icon(Icons.arrow_forward, color: AppColors.woodAccent),
-                InkWell(
-                  onTap: _showEditTargetDialog,
-                  borderRadius: BorderRadius.circular(8),
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _buildMetricColumn('Obiettivo', '${_user.targetWeight} kg'),
-                        const SizedBox(width: 6),
-                        const Icon(Icons.edit, size: 18, color: AppColors.woodAccent),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
+          iconColor: AppColors.woodAccent,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Column(children: children),
             ),
-          ),
-          const SizedBox(height: 16),
-
-          _buildWoodBox(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Calcolo BMI (Indice di Massa Corporea)',
-                  style: TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.textPrimary),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        key: const ValueKey('height_input_field'),
-                        controller: _heightController,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        decoration: _buildCozyInputDecoration('Altezza (cm)'),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    CozyButton(
-                      text: 'Aggiorna',
-                      icon: Icons.height,
-                      onPressed: _saveHeight,
-                    ),
-                  ],
-                ),
-                if (bmi != null) ...[
-                  const SizedBox(height: 12),
-                  Text(
-                    'BMI: ${bmi.toStringAsFixed(1)}',
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    getBMICategory(bmi),
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: getBMIColor(bmi),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          _buildWoodBox(
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    key: const ValueKey('weight_input_field'),
-                    controller: _weightController,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    decoration: _buildCozyInputDecoration('Nuovo Peso (kg)'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                CozyButton(
-                  text: 'Salva',
-                  icon: Icons.add,
-                  onPressed: _saveWeight,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          const Text(
-            'Andamento Peso',
-            style: TextStyle(fontFamily: 'Serif', fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-          ),
-          const SizedBox(height: 8),
-          _buildWoodBox(
-            padding: const EdgeInsets.only(top: 16, right: 16, bottom: 8, left: 8),
-            child: SizedBox(
-              height: 220,
-              child: _buildWeightGraph(),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
-  
-  // TAB 2: MISURE CORPOREE CON TABS IN STILE LEGNO
-  Widget _buildBodyMeasurementsTab() {
-    final List<BodyMeasurementEntry> history = _storageService.getBodyMeasurementsHistory();
 
-    return Column(
-      children: [
-        // Sotto-menu Misure integrato in stile legno
-        Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            gradient: const LinearGradient(
-              colors: [Color(0xFFE8D3B4), Color(0xFFD2B48C)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            border: Border.all(color: const Color(0xFF8B5A2B), width: 1.5),
-            boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
-          ),
-          child: TabBar(
-            controller: _measurementsTabController,
-            indicator: BoxDecoration(
-              borderRadius: BorderRadius.circular(10),
-              color: const Color(0xFF5C4033),
-              border: Border.all(color: const Color(0xFFDAA520), width: 1.5),
-            ),
-            labelColor: const Color(0xFFFFF8DC),
-            unselectedLabelColor: const Color(0xFF5C4033),
-            labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, fontFamily: 'Serif'),
-            tabs: const [
-              Tab(text: 'Vita'),
-              Tab(text: 'Fianchi'),
-              Tab(text: 'Braccia'),
-              Tab(text: 'Gambe'),
-            ],
-          ),
-        ),
-        Expanded(
-          child: TabBarView(
-            controller: _measurementsTabController,
-            children: [
-              _buildSingleMeasurementView('Vita', _waistController, history, (val) => _saveMeasurement(waist: val), (e) => e.waist),
-              _buildSingleMeasurementView('Fianchi', _hipsController, history, (val) => _saveMeasurement(hips: val), (e) => e.hips),
-              _buildSingleMeasurementView('Braccia', _armsController, history, (val) => _saveMeasurement(arms: val), (e) => e.arms),
-              _buildSingleMeasurementView('Gambe', _legsController, history, (val) => _saveMeasurement(legs: val), (e) => e.legs),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSingleMeasurementView(
-    String title,
-    TextEditingController controller,
-    List<BodyMeasurementEntry> history,
-    Function(double) onSave,
-    double? Function(BodyMeasurementEntry) valueExtractor,
-  ) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildWoodBox(
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    key: ValueKey('input_$title'),
-                    controller: controller,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    decoration: _buildCozyInputDecoration('Misura $title (cm)'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                CozyButton(
-                  text: 'Salva',
-                  icon: Icons.add,
-                  onPressed: () {
-                    final cleanText = controller.text.replaceAll(',', '.');
-                    final val = double.tryParse(cleanText);
-                    if (val != null && val > 0) {
-                      onSave(val);
-                      controller.clear();
-                    }
-                  },
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            'Andamento $title',
-            style: const TextStyle(fontFamily: 'Serif', fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-          ),
-          const SizedBox(height: 8),
-          _buildWoodBox(
-            padding: const EdgeInsets.only(top: 16, right: 16, bottom: 8, left: 8),
-            child: SizedBox(
-              height: 220,
-              child: _buildMeasurementGraph(history, valueExtractor, title),
-            ),
-          ),
-        ],
-      ),
+  Widget _buildBloodField(TextEditingController controller, String label, String unit) {
+    return TextField(
+      controller: controller,
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      decoration: CozyStyles.cozyInputDecoration('$label ($unit)'),
     );
   }
 
@@ -1079,190 +1153,6 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
     );
   }
 
-  // TAB 3: VALORI EMATICI E REFERTI CON EXPANSION TILES STILE LEGNO
-  Widget _buildBloodTab() {
-    final history = _storageService.getBloodTestsHistory();
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Inserisci Nuovi Esami',
-            style: TextStyle(
-              fontFamily: 'Serif',
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          _buildExpansionWoodSection(
-            title: 'Glicemia & Insulina',
-            children: [
-              _buildBloodField(_glycemiaController, 'Glicemia', 'mg/dL'),
-              const SizedBox(height: 10),
-              _buildBloodField(_hba1cController, 'Emoglobina Glicata (HbA1c)', '%'),
-              const SizedBox(height: 10),
-              _buildBloodField(_insulinController, 'Insulina', 'µIU/mL'),
-            ],
-          ),
-          const SizedBox(height: 10),
-
-          _buildExpansionWoodSection(
-            title: 'Assetto Marziale (Ferro)',
-            children: [
-              _buildBloodField(_ironController, 'Sideremia / Ferro', 'µg/dL'),
-              const SizedBox(height: 10),
-              _buildBloodField(_ferritinController, 'Ferritina', 'ng/mL'),
-            ],
-          ),
-          const SizedBox(height: 10),
-
-          _buildExpansionWoodSection(
-            title: 'Vitamine ed Elettroliti',
-            children: [
-              _buildBloodField(_potassiumController, 'Potassio', 'mEq/L'),
-              const SizedBox(height: 10),
-              _buildBloodField(_vitaminDController, 'Vitamina D', 'ng/mL'),
-              const SizedBox(height: 10),
-              _buildBloodField(_vitaminB12Controller, 'Vitamina B12', 'pg/mL'),
-            ],
-          ),
-          const SizedBox(height: 10),
-
-          _buildExpansionWoodSection(
-            title: 'Funzionalità Epatica',
-            children: [
-              _buildBloodField(_astController, 'AST (GOT)', 'U/L'),
-              const SizedBox(height: 10),
-              _buildBloodField(_altController, 'ALT (GPT)', 'U/L'),
-              const SizedBox(height: 10),
-              _buildBloodField(_ggtController, 'GGT', 'U/L'),
-            ],
-          ),
-          const SizedBox(height: 10),
-
-          _buildExpansionWoodSection(
-            title: 'Emocromo',
-            children: [
-              _buildBloodField(_hemoglobinController, 'Emoglobina', 'g/dL'),
-              const SizedBox(height: 10),
-              _buildBloodField(_redBloodCellsController, 'Globuli Rossi', 'x10^6/µL'),
-              const SizedBox(height: 10),
-              _buildBloodField(_whiteBloodCellsController, 'Globuli Bianchi', 'x10^3/µL'),
-              const SizedBox(height: 10),
-              _buildBloodField(_plateletsController, 'Piastrine', 'x10^3/µL'),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          SizedBox(
-            width: double.infinity,
-            child: CozyButton(
-              text: 'Salva Analisi del Sangue',
-              icon: Icons.bookmark_add,
-              onPressed: _saveBloodTest,
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          const Text(
-            'Storico Esami Registrati',
-            style: TextStyle(
-              fontFamily: 'Serif',
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          if (history.isEmpty)
-            _buildWoodBox(
-              child: const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(16.0),
-                  child: Text(
-                    'Nessun esame salvato finora.',
-                    style: TextStyle(color: AppColors.textSecondary),
-                  ),
-                ),
-              ),
-            )
-          else
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: history.length,
-              itemBuilder: (context, index) {
-                final entry = history[index];
-                final dateStr =
-                    "${entry.date.day.toString().padLeft(2, '0')}/${entry.date.month.toString().padLeft(2, '0')}/${entry.date.year}";
-
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 8.0),
-                  child: _buildWoodBox(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    child: ListTile(
-                      onTap: () => _showBloodTestDetailsDialog(entry),
-                      title: Text(
-                        'Analisi del $dateStr',
-                        style: const TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-                      ),
-                      subtitle: Text(
-                        'Glicemia: ${entry.glycemia ?? "-"} | Vit. D: ${entry.vitaminD ?? "-"} | Ferro: ${entry.iron ?? "-"}',
-                        style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                      ),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                        onPressed: () async {
-                          await _storageService.deleteBloodTestEntry(entry.date.toIso8601String().split('T')[0]);
-                          setState(() {});
-                        },
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildExpansionWoodSection({required String title, required List<Widget> children}) {
-    return _buildWoodBox(
-      padding: EdgeInsets.zero,
-      child: Theme(
-        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-        child: ExpansionTile(
-          title: Text(
-            title,
-            style: const TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-          ),
-          iconColor: AppColors.woodAccent,
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: Column(children: children),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBloodField(TextEditingController controller, String label, String unit) {
-    return TextField(
-      controller: controller,
-      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      decoration: _buildCozyInputDecoration('$label ($unit)'),
-    );
-  }
-  
   void _saveBloodTest() async {
     final entry = BloodTestEntry(
       id: DateTime.now().toIso8601String(),
@@ -1351,22 +1241,22 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
           content: SizedBox(
             width: double.maxFinite,
             child: valuesMap.isEmpty
-            ? const Text('Nessun valore registrato per questo referto.')
-            : ListView(
-                shrinkWrap: true,
-                children: valuesMap.entries.map((item) {
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(item.key, style: const TextStyle(fontWeight: FontWeight.w500, color: AppColors.textPrimary)),
-                        Text(item.value, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.woodAccent)),
-                      ],
-                    ),
-                  );
-                }).toList(),
-              ),
+                ? const Text('Nessun valore registrato per questo referto.')
+                : ListView(
+                    shrinkWrap: true,
+                    children: valuesMap.entries.map((item) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(item.key, style: const TextStyle(fontWeight: FontWeight.w500, color: AppColors.textPrimary)),
+                            Text(item.value, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.woodAccent)),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ),
           ),
           actions: [
             TextButton(
@@ -1374,6 +1264,60 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
               child: const Text('Chiudi', style: TextStyle(color: AppColors.woodAccent)),
             ),
           ],
+        );
+      },
+    );
+  }
+
+  void _showPhotoDetailDialog(ProgressPhotoEntry photo) {
+    final day = photo.date.day.toString().padLeft(2, '0');
+    final month = photo.date.month.toString().padLeft(2, '0');
+    final year = photo.date.year;
+    final hour = photo.date.hour.toString().padLeft(2, '0');
+    final minute = photo.date.minute.toString().padLeft(2, '0');
+    
+    final formattedDate = "$day/$month/$year alle $hour:$minute";
+    
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          backgroundColor: Colors.black,
+          insetPadding: const EdgeInsets.all(10),
+          child: Stack(
+            alignment: Alignment.topRight,
+            children: [
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(12.0),
+                    child: Text(
+                      'Foto del $formattedDate',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  Flexible(
+                    child: InteractiveViewer(
+                      panEnabled: true,
+                      minScale: 0.5,
+                      maxScale: 4,
+                      child: _buildSafeImage(photo.imagePath, fit: BoxFit.contain),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+              ),
+              IconButton(
+                icon: const Icon(Icons.close, color: Colors.white, size: 28),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
+          ),
         );
       },
     );

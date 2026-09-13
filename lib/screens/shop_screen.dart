@@ -1,39 +1,32 @@
 import 'package:flutter/material.dart';
 import '../services/local_storage_service.dart';
 import '../models/user_model.dart';
+import '../theme/app_theme.dart';
+import '../theme/cozy_styles.dart';
+import '../theme/cozy_background.dart';
 
 enum CurrencyType { rupees, hearts }
 
 class ShopItem {
   final String id;
   final String title;
-
-  // 'casa' oppure 'vestiti'
   final String category;
-
-  // Stanza della casa a cui appartiene l'oggetto
-  // 'salone', 'bagno', 'camera', 'cucina', 'giardino'
   final String? room;
-
-  // Emoji oppure path dell'immagine asset
   final String icon;
-
   final int price;
   final CurrencyType currency;
-  
   bool isPurchased;
 
   ShopItem({
-      required this.id,
-      required this.title,
-      required this.category,
-      this.room,
-      required this.icon,
-      required this.price,
-      required this.currency,
-      this.isPurchased = false,
+    required this.id,
+    required this.title,
+    required this.category,
+    this.room,
+    required this.icon,
+    required this.price,
+    required this.currency,
+    this.isPurchased = false,
   });
-
 }
 
 class ShopScreen extends StatefulWidget {
@@ -48,13 +41,7 @@ class _ShopScreenState extends State<ShopScreen> with SingleTickerProviderStateM
   late UserModel _user;
   late TabController _tabController;
 
-  // Catalogo Oggetti dello Shop
   final List<ShopItem> _catalog = [
-
-    // =========================
-    // CASA
-    // =========================
-
     ShopItem(
       id: 'plant_moon',
       title: 'Pianta della Luna',
@@ -64,7 +51,6 @@ class _ShopScreenState extends State<ShopScreen> with SingleTickerProviderStateM
       price: 3,
       currency: CurrencyType.hearts,
     ),
-
     ShopItem(
       id: 'tea_set',
       title: 'Set Tisana Relax',
@@ -74,7 +60,6 @@ class _ShopScreenState extends State<ShopScreen> with SingleTickerProviderStateM
       price: 5,
       currency: CurrencyType.hearts,
     ),
-
     ShopItem(
       id: 'vintage_chair',
       title: 'Poltrona da Lettura',
@@ -84,7 +69,6 @@ class _ShopScreenState extends State<ShopScreen> with SingleTickerProviderStateM
       price: 40,
       currency: CurrencyType.rupees,
     ),
-
     ShopItem(
       id: 'fireplace',
       title: 'Caminetto in Pietra',
@@ -94,11 +78,6 @@ class _ShopScreenState extends State<ShopScreen> with SingleTickerProviderStateM
       price: 100,
       currency: CurrencyType.rupees,
     ),
-
-    // =========================
-    // VESTITI
-    // =========================
-
     ShopItem(
       id: 'flower_crown',
       title: 'Corona di Margherita',
@@ -108,7 +87,6 @@ class _ShopScreenState extends State<ShopScreen> with SingleTickerProviderStateM
       price: 4,
       currency: CurrencyType.hearts,
     ),
-
     ShopItem(
       id: 'cozy_sweater',
       title: 'Maglione Oversize',
@@ -118,7 +96,6 @@ class _ShopScreenState extends State<ShopScreen> with SingleTickerProviderStateM
       price: 6,
       currency: CurrencyType.hearts,
     ),
-
     ShopItem(
       id: 'adventure_cloak',
       title: 'Mantello del Bosco',
@@ -128,7 +105,6 @@ class _ShopScreenState extends State<ShopScreen> with SingleTickerProviderStateM
       price: 50,
       currency: CurrencyType.rupees,
     ),
-
     ShopItem(
       id: 'boots_leather',
       title: 'Stivali da Esploratrice',
@@ -139,7 +115,7 @@ class _ShopScreenState extends State<ShopScreen> with SingleTickerProviderStateM
       currency: CurrencyType.rupees,
     ),
   ];
-  
+
   @override
   void initState() {
     super.initState();
@@ -147,7 +123,6 @@ class _ShopScreenState extends State<ShopScreen> with SingleTickerProviderStateM
     _tabController = TabController(length: 2, vsync: this);
   }
 
-  // Logica di acquisto
   void _buyItem(ShopItem item) async {
     if (item.isPurchased) return;
 
@@ -190,68 +165,66 @@ class _ShopScreenState extends State<ShopScreen> with SingleTickerProviderStateM
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF7F1E3),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFFEFE3CE),
-        elevation: 0,
-        centerTitle: true,
-        title: const Text(
-          'Bottega delle Meraviglie',
-          style: TextStyle(
-            color: Color(0xFF4A3525),
-            fontFamily: 'Serif',
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-          ),
-        ),
-        actions: [
-          // Indicatori Valuta in alto a destra
-          Padding(
-            padding: const EdgeInsets.only(right: 12.0),
-            child: Row(
-              children: [
-                // Contatore Cuori
-                const Icon(Icons.favorite, color: Colors.redAccent, size: 18),
-                const SizedBox(width: 3),
-                Text(
-                  '${_user.currentHearts}',
-                  style: const TextStyle(color: Color(0xFF4A3525), fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(width: 10),
-                // Contatore Rupie
-                const Icon(Icons.diamond, color: Color(0xFF00E676), size: 18),
-                const SizedBox(width: 3),
-                Text(
-                  '${_user.coins}',
-                  style: const TextStyle(color: Color(0xFF4A3525), fontWeight: FontWeight.bold),
-                ),
-              ],
+    return CozyBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          centerTitle: true,
+          title: const Text(
+            'Bottega delle Meraviglie',
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontFamily: 'Serif',
+              fontWeight: FontWeight.bold,
+              fontSize: 20,
             ),
           ),
-        ],
-        bottom: TabBar(
+          actions: [
+            Padding(
+              padding: const EdgeInsets.only(right: 12.0),
+              child: Row(
+                children: [
+                  const Icon(Icons.favorite, color: Colors.redAccent, size: 18),
+                  const SizedBox(width: 3),
+                  Text(
+                    '${_user.currentHearts}',
+                    style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(width: 10),
+                  const Icon(Icons.diamond, color: Color(0xFF00E676), size: 18),
+                  const SizedBox(width: 3),
+                  Text(
+                    '${_user.coins}',
+                    style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          bottom: TabBar(
+            controller: _tabController,
+            indicatorColor: AppColors.woodAccent,
+            labelColor: AppColors.woodAccent,
+            unselectedLabelColor: AppColors.textSecondary,
+            tabs: const [
+              Tab(icon: Icon(Icons.home_work_outlined), text: 'Arredo Casa'),
+              Tab(icon: Icon(Icons.checkroom_outlined), text: 'Guardaroba'),
+            ],
+          ),
+        ),
+        body: TabBarView(
           controller: _tabController,
-          indicatorColor: const Color(0xFF8B5A2B),
-          labelColor: const Color(0xFF8B5A2B),
-          unselectedLabelColor: const Color(0xFF7A6855),
-          tabs: const [
-            Tab(icon: Icon(Icons.home_work_outlined), text: 'Arredo Casa'),
-            Tab(icon: Icon(Icons.checkroom_outlined), text: 'Guardaroba'),
+          children: [
+            _buildShopGrid('casa'),
+            _buildShopGrid('vestiti'),
           ],
         ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildShopGrid('casa'),
-          _buildShopGrid('vestiti'),
-        ],
       ),
     );
   }
 
-  // Griglia degli articoli in vendita
   Widget _buildShopGrid(String category) {
     final items = _catalog.where((element) => element.category == category).toList();
 
@@ -267,19 +240,8 @@ class _ShopScreenState extends State<ShopScreen> with SingleTickerProviderStateM
       itemBuilder: (context, index) {
         final item = items[index];
 
-        return Container(
-          decoration: BoxDecoration(
-            color: const Color(0xFFEFE6D5),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFC4B296)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.04),
-                blurRadius: 4,
-                offset: const Offset(0, 2),
-              )
-            ],
-          ),
+        return CozyWoodCard(
+          padding: const EdgeInsets.all(12),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -291,12 +253,10 @@ class _ShopScreenState extends State<ShopScreen> with SingleTickerProviderStateM
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 12,
-                  color: Color(0xFF4A3525),
+                  color: AppColors.textPrimary,
                 ),
               ),
               const SizedBox(height: 6),
-
-              // Prezzo e tipo di valuta
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -311,19 +271,17 @@ class _ShopScreenState extends State<ShopScreen> with SingleTickerProviderStateM
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 13,
-                      color: Color(0xFF8B5A2B),
+                      color: AppColors.woodAccent,
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 8),
-
-              // Pulsante Acquista
               SizedBox(
                 height: 30,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: item.isPurchased ? const Color(0xFFA89885) : const Color(0xFF8B5A2B),
+                    backgroundColor: item.isPurchased ? AppColors.textSecondary : AppColors.woodAccent,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                   onPressed: item.isPurchased ? null : () => _buyItem(item),
