@@ -4,6 +4,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart' as path_provider;
 import 'package:path/path.dart' as path;
+import 'package:gal/gal.dart';
 import '../theme/app_theme.dart';
 import '../theme/cozy_widgets.dart';
 import '../services/local_storage_service.dart';
@@ -281,6 +282,8 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
         imagePath: savedImage.path,
       );
 
+      await Gal.putImage(savedImage.path); // Salva una copia nel rullino foto pubblico
+      
       await _storageService.addProgressPhoto(newPhoto);
       setState(() {});
     }
@@ -420,14 +423,7 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
                 fit: StackFit.expand,
                 children: [
                   // Visualizza l'immagine salvata in memoria
-                  Image.file(
-                    File(photo.imagePath),
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      color: Colors.grey[200],
-                      child: const Icon(Icons.broken_image, color: Colors.grey),
-                    ),
-                  ),
+                  _buildSafeImage(photo.imagePath, fit: BoxFit.cover),
                   // Overlay sfumato in basso con la data della foto
                   Positioned(
                     bottom: 0,
@@ -510,16 +506,7 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
                       panEnabled: true,
                       minScale: 0.5,
                       maxScale: 4,
-                      child: Image.file(
-                        File(photo.imagePath),
-                        fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) => const Center(
-                          child: Text(
-                            'Immagine non trovata',
-                            style: TextStyle(color: Colors.white),
-                          ),
-                        ),
-                      ),
+                      child: _buildSafeImage(photo.imagePath, fit: BoxFit.contain),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -1394,6 +1381,38 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
     );
   }
 
+  //----------------------------------------------------------------------------------------------------------------------
+  
+  Widget _buildSafeImage(String path, {BoxFit fit = BoxFit.cover}) {
+    final cleanPath = path.replaceFirst('file://', '');
+    final file = File(cleanPath);
+
+    if (!file.existsSync()) {
+      return Container(
+        color: Colors.grey[300],
+        child: const Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.broken_image_outlined, color: Colors.grey, size: 36),
+            SizedBox(height: 4),
+            Text('Foto non trovata', style: TextStyle(fontSize: 10, color: Colors.grey)),
+          ],
+        ),
+      );
+    }
+
+    return Image.file(
+      file,
+      fit: fit,
+      errorBuilder: (context, error, stackTrace) {
+        return Container(
+          color: Colors.grey[300],
+          child: const Icon(Icons.broken_image, color: Colors.grey, size: 36),
+        );
+      },
+    );
+  }
+  
   //----------------------------------------------------------------------------------------------------------------------
   
   Widget _buildMetricColumn(String title, String value) {
