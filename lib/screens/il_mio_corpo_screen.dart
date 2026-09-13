@@ -7,6 +7,7 @@ import 'package:path/path.dart' as path;
 import 'package:gal/gal.dart';
 import '../theme/app_theme.dart';
 import '../theme/cozy_widgets.dart';
+import '../theme/cozy_background.dart';
 import '../services/local_storage_service.dart';
 import '../models/user_model.dart';
 import '../models/body_measurement_entry.dart';
@@ -70,11 +71,10 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
     _mainTabController = TabController(length: 4, vsync: this);
     _measurementsTabController = TabController(length: 4, vsync: this);
     
-    // Aggiungi questo listener per aggiornare la UI al cambio scheda
     _mainTabController.addListener(() {
-        if (!_mainTabController.indexIsChanging) {
-          setState(() {});
-        }
+      if (!_mainTabController.indexIsChanging) {
+        setState(() {});
+      }
     });
   }
 
@@ -90,7 +90,6 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
     _armsController.dispose();
     _legsController.dispose();
 
-    // Dispose Analisi
     _glycemiaController.dispose();
     _hba1cController.dispose();
     _insulinController.dispose();
@@ -117,7 +116,6 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
     return _user.currentWeight / (heightInMeters * heightInMeters);
   }
 
-  /// Ritorna la categoria del BMI secondo le linee guida OMS estese
   String getBMICategory(double bmi) {
     if (bmi < 18.5) {
       return 'Sottopeso';
@@ -140,7 +138,7 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
     if (bmi < 30.0) return Colors.orange;
     if (bmi < 35.0) return Colors.deepOrange;
     if (bmi < 40.0) return Colors.red;
-    return Colors.purple; // Obesità di III Grado
+    return Colors.purple;
   }
   
   void _saveHeight() async {
@@ -161,7 +159,6 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
     }
   }
 
-  // --- LOGICA SALVATAGGIO PESO ---
   void _saveWeight() async {
     final cleanText = _weightController.text.replaceAll(',', '.');
     final newWeight = double.tryParse(cleanText);
@@ -181,21 +178,20 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
     }
   }
 
-  // --- LOGICA SALVATAGGIO MISURE CORPOREE ---
   void _saveMeasurement({
-      double? waist,
-      double? hips,
-      double? arms,
-      double? thighs,
-      double? legs,
-      double? chest,
+    double? waist,
+    double? hips,
+    double? arms,
+    double? thighs,
+    double? legs,
+    double? chest,
   }) async {
     final entry = BodyMeasurementEntry(
       date: DateTime.now(),
       waist: waist,
       hips: hips,
       arms: arms,
-      thighs: thighs ?? legs, // <--- Se viene passato legs, usalo per thighs
+      thighs: thighs ?? legs,
       chest: chest,
     );
     
@@ -217,15 +213,20 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Modifica Obiettivo Peso'),
+          backgroundColor: const Color(0xFFFDF6E3),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: Color(0xFF8B5A2B), width: 2),
+          ),
+          title: const Text(
+            'Modifica Obiettivo Peso',
+            style: TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+          ),
           content: TextField(
             key: const ValueKey('target_input_field'),
             controller: _targetController,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(
-              labelText: 'Nuovo Obiettivo (kg)',
-              border: OutlineInputBorder(),
-            ),
+            decoration: _buildCozyInputDecoration('Nuovo Obiettivo (kg)'),
           ),
           actions: [
             TextButton(
@@ -233,7 +234,10 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
               child: const Text('Annulla', style: TextStyle(color: AppColors.textSecondary)),
             ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.woodAccent),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.woodAccent,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
               onPressed: () async {
                 final cleanText = _targetController.text.replaceAll(',', '.');
                 final newTarget = double.tryParse(cleanText);
@@ -260,7 +264,6 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
     );
   }
   
-  // Metodo per scattare o selezionare una foto
   Future<void> _pickAndSavePhoto(ImageSource source) async {
     final XFile? image = await _picker.pickImage(
       source: source,
@@ -269,18 +272,13 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
 
     if (image != null) {
       final appDir = await path_provider.getApplicationDocumentsDirectory();
-      
-      // Generiamo un nome unico per il file
       final String fileName = 'body_photo_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      
-      // Copiamo il file temporaneo nella cartella permanente
       final File savedImage = await File(image.path).copy('${appDir.path}/$fileName');
 
-      //SALVIAMO SOLO IL NOME DEL FILE (fileName), NON savedImage.path
       final newPhoto = ProgressPhotoEntry(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         date: DateTime.now(),
-        imagePath: fileName, // <--- Solo il nome del file!
+        imagePath: fileName,
       );
 
       await Gal.putImage(savedImage.path);
@@ -289,12 +287,13 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
     }
   }
   
-  // Modale per scegliere tra Fotocamera e Galleria
   void _showImageSourceDialog() {
     showModalBottomSheet(
       context: context,
+      backgroundColor: const Color(0xFFFDF6E3),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        side: BorderSide(color: Color(0xFF8B5A2B), width: 1.5),
       ),
       builder: (context) => Container(
         padding: const EdgeInsets.all(20),
@@ -303,20 +302,20 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
             const ListTile(
               title: Text(
                 'Aggiungi Foto Progressi',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                style: TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.textPrimary),
               ),
             ),
             ListTile(
-              leading: const Icon(Icons.camera_alt, color: Colors.teal),
-              title: const Text('Scatta una foto'),
+              leading: const Icon(Icons.camera_alt, color: AppColors.woodAccent),
+              title: const Text('Scatta una foto', style: TextStyle(color: AppColors.textPrimary)),
               onTap: () {
                 Navigator.pop(context);
                 _pickAndSavePhoto(ImageSource.camera);
               },
             ),
             ListTile(
-              leading: const Icon(Icons.photo_library, color: Colors.teal),
-              title: const Text('Scegli dalla galleria'),
+              leading: const Icon(Icons.photo_library, color: AppColors.woodAccent),
+              title: const Text('Scegli dalla galleria', style: TextStyle(color: AppColors.textPrimary)),
               onTap: () {
                 Navigator.pop(context);
                 _pickAndSavePhoto(ImageSource.gallery);
@@ -328,67 +327,126 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Il Mio Corpo'),
-        bottom: TabBar(
-          controller: _mainTabController,
-          indicatorColor: AppColors.woodAccent,
-          labelColor: AppColors.textPrimary,
-          unselectedLabelColor: AppColors.textSecondary,
-          tabs: const [
-            Tab(icon: Icon(Icons.monitor_weight), text: 'Peso'),
-            Tab(icon: Icon(Icons.straighten), text: 'Misure'),
-            Tab(icon: Icon(Icons.bloodtype), text: 'Analisi'),
-            Tab(icon: Icon(Icons.photo_camera_outlined), text: 'Foto'),
+  // --- WIDGET CONTENITORE LEGNO PROCEDURALE ---
+  Widget _buildWoodBox({required Widget child, EdgeInsetsGeometry? padding}) {
+    return Container(
+      padding: padding ?? const EdgeInsets.all(16.0),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: const LinearGradient(
+          colors: [
+            Color(0xFFFDF6E3), // Warm Cream / Parchment
+            Color(0xFFF5E6C8), // Light Wood Tint
           ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-      ),
-      body: TabBarView(
-        controller: _mainTabController,
-        children: [
-          _buildWeightAndBMITab(),
-          _buildBodyMeasurementsTab(),
-          _buildBloodTab(),
-          _buildPhotoGalleryTab(),
+        border: Border.all(color: const Color(0xFF8B5A2B).withOpacity(0.5), width: 1.5),
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 6,
+            offset: Offset(0, 3),
+          ),
         ],
       ),
-      floatingActionButton: _mainTabController.index == 3
-      ? FloatingActionButton.extended(
-        onPressed: _showImageSourceDialog,
-        icon: const Icon(Icons.add_a_photo),
-        label: const Text('Nuova Foto'),
-        backgroundColor: AppColors.woodAccent,
-        foregroundColor: Colors.white,
-      )
-      : null, // Nasconde il FAB nelle altre Tab
+      child: child,
+    );
+  }
+
+  InputDecoration _buildCozyInputDecoration(String label) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+      filled: true,
+      fillColor: Colors.white.withOpacity(0.6),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: Color(0xFFC4A484)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: Color(0xFFC4A484)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: AppColors.woodAccent, width: 2),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return CozyBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          title: const Text('Il Mio Corpo', style: TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold)),
+          bottom: TabBar(
+            controller: _mainTabController,
+            indicatorColor: AppColors.woodAccent,
+            indicatorWeight: 3,
+            labelColor: AppColors.woodAccent,
+            unselectedLabelColor: AppColors.textSecondary,
+            labelStyle: const TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold),
+            tabs: const [
+              Tab(icon: Icon(Icons.monitor_weight), text: 'Peso'),
+              Tab(icon: Icon(Icons.straighten), text: 'Misure'),
+              Tab(icon: Icon(Icons.bloodtype), text: 'Analisi'),
+              Tab(icon: Icon(Icons.photo_camera_outlined), text: 'Foto'),
+            ],
+          ),
+        ),
+        body: TabBarView(
+          controller: _mainTabController,
+          children: [
+            _buildWeightAndBMITab(),
+            _buildBodyMeasurementsTab(),
+            _buildBloodTab(),
+            _buildPhotoGalleryTab(),
+          ],
+        ),
+        floatingActionButton: _mainTabController.index == 3
+        ? FloatingActionButton.extended(
+          onPressed: _showImageSourceDialog,
+          icon: const Icon(Icons.add_a_photo),
+          label: const Text('Nuova Foto'),
+          backgroundColor: AppColors.woodAccent,
+          foregroundColor: Colors.white,
+        )
+        : null,
+      ),
     );
   }
   
-  // --- TAB GALLERIA FOTO ---
+  // TAB GALLERIA FOTO
   Widget _buildPhotoGalleryTab() {
     final List<ProgressPhotoEntry> photos = _storageService.getProgressPhotosHistory();
 
     if (photos.isEmpty) {
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.photo_library_outlined, size: 64, color: Colors.grey[400]),
-            const SizedBox(height: 16),
-            const Text(
-              'Nessuna foto salvata',
-              style: TextStyle(fontSize: 16, color: Colors.grey),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Scatta o carica uno scatto per tracciare i tuoi progressi visivi!',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-          ],
+        child: _buildWoodBox(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: const [
+              Icon(Icons.photo_library_outlined, size: 54, color: AppColors.textSecondary),
+              SizedBox(height: 12),
+              Text(
+                'Nessuna foto salvata',
+                style: TextStyle(fontFamily: 'Serif', fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+              ),
+              SizedBox(height: 6),
+              Text(
+                'Scatta o carica uno scatto per tracciare i tuoi progressi visivi!',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -398,7 +456,7 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
       child: GridView.builder(
         itemCount: photos.length,
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2, // 2 colonne per una vista affiancata
+          crossAxisCount: 2,
           crossAxisSpacing: 10,
           mainAxisSpacing: 10,
           childAspectRatio: 0.8,
@@ -412,26 +470,25 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
           final minute = photo.date.minute.toString().padLeft(2, '0');
           final formattedDate = "$day/$month/$year - $hour:$minute";
           return GestureDetector(
-            onTap: () => _showPhotoDetailDialog(photo), // <--- APRE LA MODALE SCHERMO INTERO
-            child: Card(
+            onTap: () => _showPhotoDetailDialog(photo),
+            child: Container(
               clipBehavior: Clip.antiAlias,
-              shape: RoundedRectangleBorder(
+              decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFF8B5A2B), width: 1.5),
+                boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))],
               ),
-              elevation: 2,
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  // Visualizza l'immagine salvata in memoria
                   _buildSafeImage(photo.imagePath, fit: BoxFit.cover),
-                  // Overlay sfumato in basso con la data della foto
                   Positioned(
                     bottom: 0,
                     left: 0,
                     right: 0,
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
-                      color: Colors.black54,
+                      color: Colors.black.withOpacity(0.7),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -439,7 +496,7 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
                             formattedDate,
                             style: const TextStyle(
                               color: Colors.white,
-                              fontSize: 12,
+                              fontSize: 11,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -488,7 +545,6 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
               Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Titolo con Data
                   Padding(
                     padding: const EdgeInsets.all(12.0),
                     child: Text(
@@ -500,7 +556,6 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
                       ),
                     ),
                   ),
-                  // Foto ingrandita con Zoom (InteractiveViewer)
                   Flexible(
                     child: InteractiveViewer(
                       panEnabled: true,
@@ -512,7 +567,6 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
                   const SizedBox(height: 12),
                 ],
               ),
-              // Bottone di chiusura in alto a destra
               IconButton(
                 icon: const Icon(Icons.close, color: Colors.white, size: 28),
                 onPressed: () => Navigator.pop(context),
@@ -526,15 +580,14 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
   
   // TAB 1: PESO E BMI
   Widget _buildWeightAndBMITab() {
-    final bmi = _calculatedBMI; // <--- Calcolato prima di costruire la UI
+    final bmi = _calculatedBMI;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // CARD OBIETTIVI E PESO ATTUALE
-          CozyCard(
+          _buildWoodBox(
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
@@ -560,14 +613,13 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
           ),
           const SizedBox(height: 16),
 
-          // SEZIONE ALTEZZA E BMI
-          CozyCard(
+          _buildWoodBox(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
                   'Calcolo BMI (Indice di Massa Corporea)',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.textPrimary),
+                  style: TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.textPrimary),
                 ),
                 const SizedBox(height: 12),
                 Row(
@@ -577,10 +629,7 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
                         key: const ValueKey('height_input_field'),
                         controller: _heightController,
                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        decoration: const InputDecoration(
-                          labelText: 'Altezza (cm)',
-                          border: OutlineInputBorder(),
-                        ),
+                        decoration: _buildCozyInputDecoration('Altezza (cm)'),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -595,14 +644,14 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
                   const SizedBox(height: 12),
                   Text(
                     'BMI: ${bmi.toStringAsFixed(1)}',
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     getBMICategory(bmi),
                     style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
                       color: getBMIColor(bmi),
                     ),
                   ),
@@ -612,8 +661,7 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
           ),
           const SizedBox(height: 16),
 
-          // REGISTRAZIONE NUOVO PESO
-          CozyCard(
+          _buildWoodBox(
             child: Row(
               children: [
                 Expanded(
@@ -621,10 +669,7 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
                     key: const ValueKey('weight_input_field'),
                     controller: _weightController,
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    decoration: const InputDecoration(
-                      labelText: 'Nuovo Peso (kg)',
-                      border: OutlineInputBorder(),
-                    ),
+                    decoration: _buildCozyInputDecoration('Nuovo Peso (kg)'),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -638,16 +683,15 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
           ),
           const SizedBox(height: 20),
 
-          // GRAFICO PESO
           const Text(
             'Andamento Peso',
             style: TextStyle(fontFamily: 'Serif', fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
           ),
           const SizedBox(height: 8),
-          CozyCard(
-            child: Container(
+          _buildWoodBox(
+            padding: const EdgeInsets.only(top: 16, right: 16, bottom: 8, left: 8),
+            child: SizedBox(
               height: 220,
-              padding: const EdgeInsets.only(top: 16, right: 16, bottom: 8, left: 8),
               child: _buildWeightGraph(),
             ),
           ),
@@ -656,19 +700,35 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
     );
   }
   
-  // TAB 2: MISURE CORPOREE (VITA, FIANCHI, BRACCIA, GAMBE)
+  // TAB 2: MISURE CORPOREE CON TABS IN STILE LEGNO
   Widget _buildBodyMeasurementsTab() {
     final List<BodyMeasurementEntry> history = _storageService.getBodyMeasurementsHistory();
 
     return Column(
       children: [
+        // Sotto-menu Misure integrato in stile legno
         Container(
-          color: Theme.of(context).scaffoldBackgroundColor,
+          margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            gradient: const LinearGradient(
+              colors: [Color(0xFFE8D3B4), Color(0xFFD2B48C)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            border: Border.all(color: const Color(0xFF8B5A2B), width: 1.5),
+            boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
+          ),
           child: TabBar(
             controller: _measurementsTabController,
-            indicatorColor: AppColors.woodAccent,
-            labelColor: AppColors.woodAccent,
-            unselectedLabelColor: AppColors.textSecondary,
+            indicator: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              color: const Color(0xFF5C4033),
+              border: Border.all(color: const Color(0xFFDAA520), width: 1.5),
+            ),
+            labelColor: const Color(0xFFFFF8DC),
+            unselectedLabelColor: const Color(0xFF5C4033),
+            labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, fontFamily: 'Serif'),
             tabs: const [
               Tab(text: 'Vita'),
               Tab(text: 'Fianchi'),
@@ -692,7 +752,6 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
     );
   }
 
-  // SCHERMATA SINGOLA MISURA
   Widget _buildSingleMeasurementView(
     String title,
     TextEditingController controller,
@@ -700,23 +759,12 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
     Function(double) onSave,
     double? Function(BodyMeasurementEntry) valueExtractor,
   ) {
-    // Estrae i punti validi per questa specifica misura
-    final List<FlSpot> spots = [];
-    final List<DateTime> dates = [];
-
-    for (var entry in history) {
-      final val = valueExtractor(entry);
-      if (val != null && val > 0) {
-        dates.add(entry.date);
-      }
-    }
-
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CozyCard(
+          _buildWoodBox(
             child: Row(
               children: [
                 Expanded(
@@ -724,10 +772,7 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
                     key: ValueKey('input_$title'),
                     controller: controller,
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    decoration: InputDecoration(
-                      labelText: 'Misura $title (cm)',
-                      border: const OutlineInputBorder(),
-                    ),
+                    decoration: _buildCozyInputDecoration('Misura $title (cm)'),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -752,10 +797,10 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
             style: const TextStyle(fontFamily: 'Serif', fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
           ),
           const SizedBox(height: 8),
-          CozyCard(
-            child: Container(
+          _buildWoodBox(
+            padding: const EdgeInsets.only(top: 16, right: 16, bottom: 8, left: 8),
+            child: SizedBox(
               height: 220,
-              padding: const EdgeInsets.only(top: 16, right: 16, bottom: 8, left: 8),
               child: _buildMeasurementGraph(history, valueExtractor, title),
             ),
           ),
@@ -764,13 +809,11 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
     );
   }
 
-  // GRAFICO GENERICO PER LE MISURE CORPOREE
   Widget _buildMeasurementGraph(
     List<BodyMeasurementEntry> history,
     double? Function(BodyMeasurementEntry) valueExtractor,
     String unitLabel,
   ) {
-    // Filtra ed ordina le registrazioni che hanno questa misura presente
     final validEntries = history
         .where((e) => valueExtractor(e) != null && valueExtractor(e)! > 0)
         .toList();
@@ -849,8 +892,6 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
         titlesData: FlTitlesData(
           topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          
-          // ASSE VERTICALE (MISURE IN CM)
           leftTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
@@ -866,8 +907,6 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
               },
             ),
           ),
-          
-          // ASSE ORIZZONTALE (DATE)
           bottomTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
@@ -908,7 +947,6 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
     );
   }
 
-  // GRAFICO PESO
   Widget _buildWeightGraph() {
     final List<WeightEntry> history = _storageService.getWeightHistory();
 
@@ -986,7 +1024,6 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
         titlesData: FlTitlesData(
           topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          
           leftTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
@@ -1002,7 +1039,6 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
               },
             ),
           ),
-          
           bottomTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
@@ -1043,7 +1079,7 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
     );
   }
 
-  // TAB 3: VALORI EMATICI E REFERTI
+  // TAB 3: VALORI EMATICI E REFERTI CON EXPANSION TILES STILE LEGNO
   Widget _buildBloodTab() {
     final history = _storageService.getBloodTestsHistory();
 
@@ -1063,132 +1099,66 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
           ),
           const SizedBox(height: 12),
 
-          // 1. GLICEMIA E INSULINA
-          CozyCard(
-            child: ExpansionTile(
-              title: const Text(
-                'Glicemia & Insulina',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Column(
-                    children: [
-                      _buildBloodField(_glycemiaController, 'Glicemia', 'mg/dL'),
-                      const SizedBox(height: 10),
-                      _buildBloodField(_hba1cController, 'Emoglobina Glicata (HbA1c)', '%'),
-                      const SizedBox(height: 10),
-                      _buildBloodField(_insulinController, 'Insulina', 'µIU/mL'),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+          _buildExpansionWoodSection(
+            title: 'Glicemia & Insulina',
+            children: [
+              _buildBloodField(_glycemiaController, 'Glicemia', 'mg/dL'),
+              const SizedBox(height: 10),
+              _buildBloodField(_hba1cController, 'Emoglobina Glicata (HbA1c)', '%'),
+              const SizedBox(height: 10),
+              _buildBloodField(_insulinController, 'Insulina', 'µIU/mL'),
+            ],
           ),
           const SizedBox(height: 10),
 
-          // 2. ASSETTO MARZIALE
-          CozyCard(
-            child: ExpansionTile(
-              title: const Text(
-                'Assetto Marziale (Ferro)',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Column(
-                    children: [
-                      _buildBloodField(_ironController, 'Sideremia / Ferro', 'µg/dL'),
-                      const SizedBox(height: 10),
-                      _buildBloodField(_ferritinController, 'Ferritina', 'ng/mL'),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+          _buildExpansionWoodSection(
+            title: 'Assetto Marziale (Ferro)',
+            children: [
+              _buildBloodField(_ironController, 'Sideremia / Ferro', 'µg/dL'),
+              const SizedBox(height: 10),
+              _buildBloodField(_ferritinController, 'Ferritina', 'ng/mL'),
+            ],
           ),
           const SizedBox(height: 10),
 
-          // 3. VITAMINE ED ELETTROLITI
-          CozyCard(
-            child: ExpansionTile(
-              title: const Text(
-                'Vitamine ed Elettroliti',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Column(
-                    children: [
-                      _buildBloodField(_potassiumController, 'Potassio', 'mEq/L'),
-                      const SizedBox(height: 10),
-                      _buildBloodField(_vitaminDController, 'Vitamina D', 'ng/mL'),
-                      const SizedBox(height: 10),
-                      _buildBloodField(_vitaminB12Controller, 'Vitamina B12', 'pg/mL'),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+          _buildExpansionWoodSection(
+            title: 'Vitamine ed Elettroliti',
+            children: [
+              _buildBloodField(_potassiumController, 'Potassio', 'mEq/L'),
+              const SizedBox(height: 10),
+              _buildBloodField(_vitaminDController, 'Vitamina D', 'ng/mL'),
+              const SizedBox(height: 10),
+              _buildBloodField(_vitaminB12Controller, 'Vitamina B12', 'pg/mL'),
+            ],
           ),
           const SizedBox(height: 10),
 
-          // 4. FUNZIONALITÀ EPATICA
-          CozyCard(
-            child: ExpansionTile(
-              title: const Text(
-                'Funzionalità Epatica',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Column(
-                    children: [
-                      _buildBloodField(_astController, 'AST (GOT)', 'U/L'),
-                      const SizedBox(height: 10),
-                      _buildBloodField(_altController, 'ALT (GPT)', 'U/L'),
-                      const SizedBox(height: 10),
-                      _buildBloodField(_ggtController, 'GGT', 'U/L'),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+          _buildExpansionWoodSection(
+            title: 'Funzionalità Epatica',
+            children: [
+              _buildBloodField(_astController, 'AST (GOT)', 'U/L'),
+              const SizedBox(height: 10),
+              _buildBloodField(_altController, 'ALT (GPT)', 'U/L'),
+              const SizedBox(height: 10),
+              _buildBloodField(_ggtController, 'GGT', 'U/L'),
+            ],
           ),
           const SizedBox(height: 10),
 
-          // 5. EMOCROMO
-          CozyCard(
-            child: ExpansionTile(
-              title: const Text(
-                'Emocromo',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Column(
-                    children: [
-                      _buildBloodField(_hemoglobinController, 'Emoglobina', 'g/dL'),
-                      const SizedBox(height: 10),
-                      _buildBloodField(_redBloodCellsController, 'Globuli Rossi', 'x10^6/µL'),
-                      const SizedBox(height: 10),
-                      _buildBloodField(_whiteBloodCellsController, 'Globuli Bianchi', 'x10^3/µL'),
-                      const SizedBox(height: 10),
-                      _buildBloodField(_plateletsController, 'Piastrine', 'x10^3/µL'),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+          _buildExpansionWoodSection(
+            title: 'Emocromo',
+            children: [
+              _buildBloodField(_hemoglobinController, 'Emoglobina', 'g/dL'),
+              const SizedBox(height: 10),
+              _buildBloodField(_redBloodCellsController, 'Globuli Rossi', 'x10^6/µL'),
+              const SizedBox(height: 10),
+              _buildBloodField(_whiteBloodCellsController, 'Globuli Bianchi', 'x10^3/µL'),
+              const SizedBox(height: 10),
+              _buildBloodField(_plateletsController, 'Piastrine', 'x10^3/µL'),
+            ],
           ),
           const SizedBox(height: 16),
 
-          // BOTTONE SALVA
           SizedBox(
             width: double.infinity,
             child: CozyButton(
@@ -1199,7 +1169,6 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
           ),
           const SizedBox(height: 24),
 
-          // STORICO REFERTI
           const Text(
             'Storico Esami Registrati',
             style: TextStyle(
@@ -1212,62 +1181,85 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
           const SizedBox(height: 12),
 
           if (history.isEmpty)
-          const CozyCard(
-            child: Center(
-              child: Padding(
-                padding: EdgeInsets.all(16.0),
-                child: Text(
-                  'Nessun esame salvato finora.',
-                  style: TextStyle(color: AppColors.textSecondary),
+            _buildWoodBox(
+              child: const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Text(
+                    'Nessun esame salvato finora.',
+                    style: TextStyle(color: AppColors.textSecondary),
+                  ),
                 ),
               ),
-            ),
-          )
+            )
           else
-          ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: history.length,
-            itemBuilder: (context, index) {
-              final entry = history[index];
-              final dateStr =
-              "${entry.date.day.toString().padLeft(2, '0')}/${entry.date.month.toString().padLeft(2, '0')}/${entry.date.year}";
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: history.length,
+              itemBuilder: (context, index) {
+                final entry = history[index];
+                final dateStr =
+                    "${entry.date.day.toString().padLeft(2, '0')}/${entry.date.month.toString().padLeft(2, '0')}/${entry.date.year}";
 
-              return CozyCard(
-                child: ListTile(
-                  onTap: () => _showBloodTestDetailsDialog(entry),
-                  title: Text(
-                    'Analisi del $dateStr',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8.0),
+                  child: _buildWoodBox(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    child: ListTile(
+                      onTap: () => _showBloodTestDetailsDialog(entry),
+                      title: Text(
+                        'Analisi del $dateStr',
+                        style: const TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                      ),
+                      subtitle: Text(
+                        'Glicemia: ${entry.glycemia ?? "-"} | Vit. D: ${entry.vitaminD ?? "-"} | Ferro: ${entry.iron ?? "-"}',
+                        style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                      ),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                        onPressed: () async {
+                          await _storageService.deleteBloodTestEntry(entry.date.toIso8601String().split('T')[0]);
+                          setState(() {});
+                        },
+                      ),
+                    ),
                   ),
-                  subtitle: Text(
-                    'Glicemia: ${entry.glycemia ?? "-"} | Vit. D: ${entry.vitaminD ?? "-"} | Ferro: ${entry.iron ?? "-"}',
-                  ),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.delete_outline, color: Colors.red),
-                    onPressed: () async {
-                      await _storageService.deleteBloodTestEntry(entry.date.toIso8601String().split('T')[0]);
-                      setState(() {});
-                    },
-                  ),
-                ),
-              );
-            },
-          ),
+                );
+              },
+            ),
         ],
       ),
     );
   }
 
-  // Helper Widget per i campi di testo
+  Widget _buildExpansionWoodSection({required String title, required List<Widget> children}) {
+    return _buildWoodBox(
+      padding: EdgeInsets.zero,
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          title: Text(
+            title,
+            style: const TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+          ),
+          iconColor: AppColors.woodAccent,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Column(children: children),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildBloodField(TextEditingController controller, String label, String unit) {
     return TextField(
       controller: controller,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      decoration: InputDecoration(
-        labelText: '$label ($unit)',
-        border: const OutlineInputBorder(),
-      ),
+      decoration: _buildCozyInputDecoration('$label ($unit)'),
     );
   }
   
@@ -1294,7 +1286,6 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
 
     await _storageService.addBloodTestEntry(entry);
 
-    // Resetta i campi di testo
     _glycemiaController.clear();
     _hba1cController.clear();
     _insulinController.clear();
@@ -1324,9 +1315,8 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
 
   void _showBloodTestDetailsDialog(BloodTestEntry entry) {
     final dateStr =
-    "${entry.date.day.toString().padLeft(2, '0')}/${entry.date.month.toString().padLeft(2, '0')}/${entry.date.year}";
+        "${entry.date.day.toString().padLeft(2, '0')}/${entry.date.month.toString().padLeft(2, '0')}/${entry.date.year}";
 
-    // Mappa dei valori presenti per crearne una lista ordinata
     final Map<String, String> valuesMap = {
       if (entry.glycemia != null) 'Glicemia': '${entry.glycemia} mg/dL',
       if (entry.hba1c != null) 'Emoglobina Glicata': '${entry.hba1c} %',
@@ -1349,39 +1339,45 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text('Analisi del $dateStr'),
+          backgroundColor: const Color(0xFFFDF6E3),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: Color(0xFF8B5A2B), width: 2),
+          ),
+          title: Text(
+            'Analisi del $dateStr',
+            style: const TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+          ),
           content: SizedBox(
             width: double.maxFinite,
             child: valuesMap.isEmpty
             ? const Text('Nessun valore registrato per questo referto.')
             : ListView(
-              shrinkWrap: true,
-              children: valuesMap.entries.map((item) {
+                shrinkWrap: true,
+                children: valuesMap.entries.map((item) {
                   return Padding(
                     padding: const EdgeInsets.symmetric(vertical: 4.0),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(item.key, style: const TextStyle(fontWeight: FontWeight.w500)),
-                        Text(item.value, style: const TextStyle(fontWeight: FontWeight.bold)),
+                        Text(item.key, style: const TextStyle(fontWeight: FontWeight.w500, color: AppColors.textPrimary)),
+                        Text(item.value, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.woodAccent)),
                       ],
                     ),
                   );
-              }).toList(),
-            ),
+                }).toList(),
+              ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Chiudi'),
+              child: const Text('Chiudi', style: TextStyle(color: AppColors.woodAccent)),
             ),
           ],
         );
       },
     );
   }
-
-  //----------------------------------------------------------------------------------------------------------------------
 
   Widget _buildSafeImage(String imagePathOrName, {BoxFit fit = BoxFit.cover}) {
     return FutureBuilder<Directory>(
@@ -1395,9 +1391,6 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
         }
 
         final appDir = snapshot.data!;
-        
-        // Se era un vecchio percorso assoluto (conteneva '/'), estraiamo solo il nome file.
-        // Altrimenti usiamo direttamente il nome file.
         final fileName = path.basename(imagePathOrName.replaceFirst('file://', ''));
         final fullPath = '${appDir.path}/$fileName';
         final file = File(fullPath);
@@ -1429,8 +1422,6 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
       },
     );
   }
-    
-  //----------------------------------------------------------------------------------------------------------------------
   
   Widget _buildMetricColumn(String title, String value) {
     return Column(
@@ -1441,5 +1432,4 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
       ],
     );
   }
-  
 }
