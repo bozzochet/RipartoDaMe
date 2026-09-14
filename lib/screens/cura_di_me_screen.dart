@@ -5,6 +5,7 @@ import '../models/user_model.dart';
 import '../theme/app_theme.dart';
 import '../theme/cozy_styles.dart';
 import '../theme/cozy_background.dart';
+import '../theme/cozy_widgets.dart';
 
 class HabitItem {
   final String id;
@@ -47,7 +48,7 @@ class _CuraDiMeScreenState extends State<CuraDiMeScreen> {
       id: 'skincare',
       title: 'Routine Skincare / Relax',
       description: 'Prenditi 5 minuti per la cura della pelle o un bagno caldo',
-      icon: '🧼',
+      icon: '✨',
     ),
     HabitItem(
       id: 'walk',
@@ -122,6 +123,7 @@ class _CuraDiMeScreenState extends State<CuraDiMeScreen> {
     return CozyBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
+        extendBodyBehindAppBar: true,
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
@@ -136,138 +138,177 @@ class _CuraDiMeScreenState extends State<CuraDiMeScreen> {
             ),
           ),
         ),
-        body: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 1. BARRA CUORI IN COZY WOOD CARD
-              CozyWoodCard(
-                child: Column(
-                  children: [
-                    const Text(
-                      'Energia Vitale & Salute',
-                      style: TextStyle(
-                        fontFamily: 'Serif',
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      alignment: WrapAlignment.center,
-                      children: List.generate(_user.maxHearts, (index) {
-                        bool isFilled = index < _user.currentHearts;
-                        return AnimatedScale(
-                          duration: const Duration(milliseconds: 300),
-                          scale: isFilled ? 1.1 : 1.0,
-                          child: Icon(
-                            isFilled ? Icons.favorite : Icons.favorite_border,
-                            color: isFilled ? const Color(0xFFE53935) : AppColors.textSecondary,
-                            size: 28,
+        body: Stack(
+          children: [
+            SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(
+                16.0,
+                MediaQuery.of(context).padding.top + kToolbarHeight + 16.0,
+                16.0,
+                16.0,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // 1. BARRA CUORI IN COZY WOOD CARD
+                  CozyWoodCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'Energia Vitale & Salute',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontFamily: 'Serif',
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: AppColors.textPrimary,
                           ),
-                        );
-                      }),
+                        ),
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          alignment: WrapAlignment.center,
+                          children: List.generate(_user.maxHearts, (index) {
+                            bool isFilled = index < _user.currentHearts;
+                            return AnimatedScale(
+                              duration: const Duration(milliseconds: 300),
+                              scale: isFilled ? 1.1 : 1.0,
+                              child: Icon(
+                                isFilled ? Icons.favorite : Icons.favorite_border,
+                                color: isFilled ? const Color(0xFFE53935) : AppColors.textSecondary,
+                                size: 24,
+                              ),
+                            );
+                          }),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          '${_user.currentHearts} / ${_user.maxHearts} Cuori disponibili',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '${_user.currentHearts} / ${_user.maxHearts} Cuori disponibili',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textSecondary,
-                      ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  const Text(
+                    'Abitudini di Oggi',
+                    style: TextStyle(
+                      fontFamily: 'Serif',
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
                     ),
+                  ),
+                  const SizedBox(height: 2),
+                  const Text(
+                    'Completa le routine quotidiane per recuperare cuori.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // 2. LISTA SCHEDE ABITUDINI IN COZY WOOD CARD
+                  Column(
+                    children: _habits.map((habit) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12.0),
+                        child: CozyWoodCard(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          overlayOpacity: habit.isCompleted ? 0.90 : 0.78,
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            leading: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.6),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(habit.icon, style: const TextStyle(fontSize: 24)),
+                            ),
+                            title: Text(
+                              habit.title,
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                                color: AppColors.textPrimary,
+                                decoration: habit.isCompleted ? TextDecoration.lineThrough : null,
+                              ),
+                            ),
+                            subtitle: Text(
+                              habit.description,
+                              style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                            ),
+                            trailing: InkWell(
+                              onTap: () => _toggleHabit(habit),
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: habit.isCompleted ? const Color(0xFF2E7D32) : Colors.transparent,
+                                  border: Border.all(
+                                    color: habit.isCompleted ? const Color(0xFF2E7D32) : AppColors.woodAccent,
+                                    width: 2,
+                                  ),
+                                ),
+                                child: Icon(
+                                  habit.isCompleted ? Icons.check : Icons.favorite_outline,
+                                  size: 18,
+                                  color: habit.isCompleted ? Colors.white : AppColors.woodAccent,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),                  
+                ],
+              ),
+            ),
+            // Contatore rupie in alto a destra (stile Home)
+            Positioned(
+              top: MediaQuery.of(context).padding.top - 18,
+              left: 42.0,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.background.withOpacity(0.88),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CurrencyBadge(
+                      icon: Icons.favorite,
+                      iconColor: AppColors.heartRed,
+                      value: '${_user.currentHearts}',
+                    ),
+                    /*
+                    const SizedBox(width: 12),
+                    CurrencyBadge(
+                      icon: Icons.diamond,
+                      iconColor: AppColors.rupeeGreen,
+                      value: '${_user.coins}',
+                    ),
+                    */
                   ],
                 ),
               ),
-
-              const SizedBox(height: 24),
-
-              const Text(
-                'Abitudini di Oggi',
-                style: TextStyle(
-                  fontFamily: 'Serif',
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const Text(
-                'Completa le routine quotidiane per recuperare cuori.',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: AppColors.textSecondary,
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              // 2. LISTA SCHEDE ABITUDINI IN COZY WOOD CARD
-              ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: _habits.length,
-                itemBuilder: (context, index) {
-                  final habit = _habits[index];
-
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12.0),
-                    child: CozyWoodCard(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      overlayOpacity: habit.isCompleted ? 0.90 : 0.78,
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        leading: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.6),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(habit.icon, style: const TextStyle(fontSize: 24)),
-                        ),
-                        title: Text(
-                          habit.title,
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                            color: AppColors.textPrimary,
-                            decoration: habit.isCompleted ? TextDecoration.lineThrough : null,
-                          ),
-                        ),
-                        subtitle: Text(
-                          habit.description,
-                          style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                        ),
-                        trailing: InkWell(
-                          onTap: () => _toggleHabit(habit),
-                          child: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: habit.isCompleted ? const Color(0xFF2E7D32) : Colors.transparent,
-                              border: Border.all(
-                                color: habit.isCompleted ? const Color(0xFF2E7D32) : AppColors.woodAccent,
-                                width: 2,
-                              ),
-                            ),
-                            child: Icon(
-                              habit.isCompleted ? Icons.check : Icons.favorite_outline,
-                              size: 18,
-                              color: habit.isCompleted ? Colors.white : AppColors.woodAccent,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

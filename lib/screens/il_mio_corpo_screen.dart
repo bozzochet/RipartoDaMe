@@ -320,13 +320,14 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
     );
   }
 
-  @override
+@override
   Widget build(BuildContext context) {
     return CozyBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
+        extendBodyBehindAppBar: true, // Estende il body dietro l'AppBar come nella mappa
         appBar: AppBar(
-          backgroundColor: Colors.transparent,
+          backgroundColor: Colors.transparent, // AppBar trasparente
           elevation: 0,
           title: const Text('Il Mio Corpo', style: TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold)),
           bottom: TabBar(
@@ -344,24 +345,65 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
             ],
           ),
         ),
-        body: TabBarView(
-          controller: _mainTabController,
+        body: Stack(
           children: [
-            _buildWeightAndBMITab(),
-            _buildBodyMeasurementsTab(),
-            _buildBloodTab(),
-            _buildPhotoGalleryTab(),
+            // Contenuto delle tab traslato in basso per non coprire l'AppBar con TabBar
+            Padding(
+              padding: EdgeInsets.only(
+                top: MediaQuery.of(context).padding.top + kToolbarHeight + 48.0,
+              ),
+              child: TabBarView(
+                controller: _mainTabController,
+                children: [
+                  _buildWeightAndBMITab(),
+                  _buildBodyMeasurementsTab(),
+                  _buildBloodTab(),
+                  _buildPhotoGalleryTab(),
+                ],
+              ),
+            ),
+
+            // Contatore rupie in alto a destra (stessa posizione e stile della mappa)
+            Positioned(
+              top: MediaQuery.of(context).padding.top - 18,
+              left: 42.0,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.background.withOpacity(0.88),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CurrencyBadge(
+                      icon: Icons.favorite,
+                      iconColor: AppColors.heartRed,
+                      value: '${_user.currentHearts}',
+                    ),
+                    /*
+                    const SizedBox(width: 12),
+                    CurrencyBadge(
+                      icon: Icons.diamond,
+                      iconColor: AppColors.rupeeGreen,
+                      value: '${_user.coins}',
+                    ),
+                    */
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
         floatingActionButton: _mainTabController.index == 3
-            ? FloatingActionButton.extended(
-                onPressed: _showImageSourceDialog,
-                icon: const Icon(Icons.add_a_photo),
-                label: const Text('Nuova Foto'),
-                backgroundColor: AppColors.woodAccent,
-                foregroundColor: Colors.white,
-              )
-            : null,
+        ? FloatingActionButton.extended(
+          onPressed: _showImageSourceDialog,
+          icon: const Icon(Icons.add_a_photo),
+          label: const Text('Nuova Foto'),
+          backgroundColor: AppColors.woodAccent,
+          foregroundColor: Colors.white,
+        )
+        : null,
       ),
     );
   }

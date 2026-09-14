@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../theme/cozy_styles.dart';
 import '../theme/cozy_background.dart';
+import '../theme/cozy_widgets.dart';
 import '../services/local_storage_service.dart';
 import '../models/user_model.dart';
 
@@ -131,114 +132,158 @@ class _LaMiaCasaScreenState extends State<LaMiaCasaScreen> {
     return CozyBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
+        extendBodyBehindAppBar: true,
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
-          title: const Text('La mia Casa', style: TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold)),
+          centerTitle: true,
+          title: const Text(
+            'La mia Casa',
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontFamily: 'Serif',
+              fontWeight: FontWeight.bold,
+              fontSize: 20,
+            ),
+          ),
         ),
-        body: SafeArea(
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                child: Row(
-                  children: [
-                    const Text('🏡', style: TextStyle(fontSize: 26)),
-                    const SizedBox(width: 8),
-                    Text(
-                      _currentRoom.name,
-                      style: const TextStyle(
-                        fontFamily: 'Serif',
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
+        body: Stack(
+          children: [
+            SafeArea(
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                    child: Row(
+                      children: [
+                        const Text('🏡', style: TextStyle(fontSize: 26)),
+                        const SizedBox(width: 8),
+                        Text(
+                          _currentRoom.name,
+                          style: const TextStyle(
+                            fontFamily: 'Serif',
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Il tuo piccolo mondo, costruito un passo alla volta ✨',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                          fontStyle: FontStyle.italic,
+                        ),
                       ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: _buildRoom(),
+                  ),
+
+                  const SizedBox(height: 14),
+
+                  SizedBox(
+                    height: 82,
+                    child: ListView.separated(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      scrollDirection: Axis.horizontal,
+                      itemCount: _rooms.length,
+                      separatorBuilder: (_, __) => const SizedBox(width: 10),
+                      itemBuilder: (context, index) {
+                        final room = _rooms[index];
+                        final selected = room.id == _selectedRoom;
+
+                        return GestureDetector(
+                          onTap: () => _selectRoom(room.id),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            width: 82,
+                            decoration: BoxDecoration(
+                              color: selected ? AppColors.woodAccent : AppColors.surface,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: selected ? AppColors.woodAccent : AppColors.border,
+                                width: selected ? 2 : 1,
+                              ),
+                              boxShadow: selected
+                                  ? [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.12),
+                                        blurRadius: 6,
+                                        offset: const Offset(0, 3),
+                                      ),
+                                    ]
+                                  : null,
+                            ),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(room.emoji, style: const TextStyle(fontSize: 27)),
+                                const SizedBox(height: 4),
+                                Text(
+                                  room.name,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: selected ? Colors.white : AppColors.textPrimary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  Expanded(child: _buildFurniturePanel()),
+                ],
+              ),
+            ),
+            // Contatore cuori in alto a destra (stile Home)
+            Positioned(
+              top: MediaQuery.of(context).padding.top - 18,
+              right: 42.0,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.background.withOpacity(0.88),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    /*
+                    CurrencyBadge(
+                      icon: Icons.favorite,
+                      iconColor: AppColors.heartRed,
+                      value: '${_user.currentHearts}',
+                    ),
+                    const SizedBox(width: 12),
+                    */
+                    CurrencyBadge(
+                      icon: Icons.diamond,
+                      iconColor: AppColors.rupeeGreen,
+                      value: '${_user.coins}',
                     ),
                   ],
                 ),
               ),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Il tuo piccolo mondo, costruito un passo alla volta ✨',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: _buildRoom(),
-              ),
-
-              const SizedBox(height: 14),
-
-              SizedBox(
-                height: 82,
-                child: ListView.separated(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _rooms.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 10),
-                  itemBuilder: (context, index) {
-                    final room = _rooms[index];
-                    final selected = room.id == _selectedRoom;
-
-                    return GestureDetector(
-                      onTap: () => _selectRoom(room.id),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        width: 82,
-                        decoration: BoxDecoration(
-                          color: selected ? AppColors.woodAccent : AppColors.surface,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: selected ? AppColors.woodAccent : AppColors.border,
-                            width: selected ? 2 : 1,
-                          ),
-                          boxShadow: selected
-                              ? [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.12),
-                                    blurRadius: 6,
-                                    offset: const Offset(0, 3),
-                                  ),
-                                ]
-                              : null,
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(room.emoji, style: const TextStyle(fontSize: 27)),
-                            const SizedBox(height: 4),
-                            Text(
-                              room.name,
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: selected ? Colors.white : AppColors.textPrimary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-
-              const SizedBox(height: 12),
-
-              Expanded(child: _buildFurniturePanel()),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

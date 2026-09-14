@@ -298,28 +298,67 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ),
-            ),
+            ),                    
 
             // -------------------------------------------------------------
-            // 3. CONTATORI IN ALTO A DESTRA (FISSI)
+            // 3. CONTATORI IN ALTO A DESTRA (FISSI CON BOX SFONDO)
             // -------------------------------------------------------------
             Positioned(
-              top: MediaQuery.of(context).padding.top - 14,
+              top: MediaQuery.of(context).padding.top - 18,
               right: 42.0,
-              child: Row(
-                children: [
-                  CurrencyBadge(
-                    icon: Icons.favorite,
-                    iconColor: AppColors.heartRed,
-                    value: '${_user.currentHearts}',
-                  ),
-                  const SizedBox(width: 12),
-                  CurrencyBadge(
-                    icon: Icons.diamond,
-                    iconColor: AppColors.rupeeGreen,
-                    value: '${_user.coins}',
-                  ),
-                ],
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.background.withOpacity(0.88),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    /*
+                    CurrencyBadge(
+                      icon: Icons.favorite,
+                      iconColor: AppColors.heartRed,
+                      value: '${_user.currentHearts}',
+                    ),
+                    const SizedBox(width: 12),
+                    */
+                    CurrencyBadge(
+                      icon: Icons.diamond,
+                      iconColor: AppColors.rupeeGreen,
+                      value: '${_user.coins}',
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Positioned(
+              top: MediaQuery.of(context).padding.top - 18,
+              left: 42.0,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.background.withOpacity(0.88),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CurrencyBadge(
+                      icon: Icons.favorite,
+                      iconColor: AppColors.heartRed,
+                      value: '${_user.currentHearts}',
+                    ),
+                    /*
+                    const SizedBox(width: 12),
+                    CurrencyBadge(
+                      icon: Icons.diamond,
+                      iconColor: AppColors.rupeeGreen,
+                      value: '${_user.coins}',
+                    ),
+                    */
+                  ],
+                ),
               ),
             ),
           ],

@@ -4,6 +4,7 @@ import '../services/local_storage_service.dart';
 import '../models/user_model.dart';
 import '../theme/app_theme.dart';
 import '../theme/cozy_styles.dart';
+import '../theme/cozy_widgets.dart';
 
 class MappaStage {
   final String id;
@@ -255,25 +256,7 @@ class _LaMiaMappaScreenState extends State<LaMiaMappaScreen> with SingleTickerPr
             ),
           ],
         ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16.0),
-            child: Row(
-              children: [
-                const Icon(Icons.diamond, color: Color(0xFF00E676), size: 22),
-                const SizedBox(width: 4),
-                Text(
-                  '${_user.coins}',
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
-                  ),
-                ),
-              ],
-            ),
-          )
-        ],
+        actions: const [SizedBox(width: 48)], // Spazio per bilanciare l'AppBar se necessario
       ),
       body: Container(
         width: double.infinity,
@@ -284,90 +267,126 @@ class _LaMiaMappaScreenState extends State<LaMiaMappaScreen> with SingleTickerPr
             fit: BoxFit.cover,
           ),
         ),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final double mapWidth = constraints.maxWidth;
-            final double mapHeight = constraints.maxHeight;
+        child: Stack(
+          children: [
+            // Contenuto principale della mappa con LayoutBuilder
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final double mapWidth = constraints.maxWidth;
+                final double mapHeight = constraints.maxHeight;
 
-            return Stack(
-              children: [
-                CustomPaint(
-                  size: Size(mapWidth, mapHeight),
-                  painter: MapPathPainter(stages: stages),
-                ),
-                ...stages.map((stage) {
-                  bool isUnlocked = _user.currentWeight <= stage.targetWeight || stage.id == 'stage_0';
-
-                  return Positioned(
-                    left: stage.xRatio * mapWidth - 40,
-                    top: stage.yRatio * mapHeight - 40,
-                    child: GestureDetector(
-                      onTap: () => _onStageTap(stage, isUnlocked),
-                      child: Column(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: AppColors.background.withOpacity(0.9),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: AppColors.woodAccent),
-                            ),
-                            child: Text(
-                              '${stage.title}\n${stage.targetWeight} kg',
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          AnimatedBuilder(
-                            animation: _pulseAnimation,
-                            builder: (context, child) {
-                              return Transform.scale(
-                                scale: isUnlocked ? _pulseAnimation.value : 1.0,
-                                child: child,
-                              );
-                            },
-                            child: Container(
-                              width: 44,
-                              height: 44,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: isUnlocked ? AppColors.woodAccent : AppColors.textSecondary,
-                                border: Border.all(color: Colors.white, width: 2),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: isUnlocked
-                                        ? Colors.amber.withOpacity(0.6)
-                                        : Colors.black.withOpacity(0.2),
-                                    blurRadius: isUnlocked ? 12 : 4,
-                                    spreadRadius: isUnlocked ? 2 : 0,
-                                  ),
-                                ],
-                              ),
-                              child: Icon(
-                                isUnlocked ? Icons.stars_rounded : Icons.lock_outline,
-                                color: isUnlocked ? Colors.amber : Colors.white70,
-                                size: 24,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                return Stack(
+                  children: [
+                    CustomPaint(
+                      size: Size(mapWidth, mapHeight),
+                      painter: MapPathPainter(stages: stages),
                     ),
-                  );
-                }),
-              ],
-            );
-          },
+                    ...stages.map((stage) {
+                      bool isUnlocked = _user.currentWeight <= stage.targetWeight || stage.id == 'stage_0';
+
+                      return Positioned(
+                        left: stage.xRatio * mapWidth - 40,
+                        top: stage.yRatio * mapHeight - 40,
+                        child: GestureDetector(
+                          onTap: () => _onStageTap(stage, isUnlocked),
+                          child: Column(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: AppColors.background.withOpacity(0.9),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: AppColors.woodAccent),
+                                ),
+                                child: Text(
+                                  '${stage.title}\n${stage.targetWeight} kg',
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              AnimatedBuilder(
+                                animation: _pulseAnimation,
+                                builder: (context, child) {
+                                  return Transform.scale(
+                                    scale: isUnlocked ? _pulseAnimation.value : 1.0,
+                                    child: child,
+                                  );
+                                },
+                                child: Container(
+                                  width: 44,
+                                  height: 44,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: isUnlocked ? AppColors.woodAccent : AppColors.textSecondary,
+                                    border: Border.all(color: Colors.white, width: 2),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: isUnlocked
+                                            ? Colors.amber.withOpacity(0.6)
+                                            : Colors.black.withOpacity(0.2),
+                                        blurRadius: isUnlocked ? 12 : 4,
+                                        spreadRadius: isUnlocked ? 2 : 0,
+                                      ),
+                                    ],
+                                  ),
+                                  child: Icon(
+                                    isUnlocked ? Icons.stars_rounded : Icons.lock_outline,
+                                    color: isUnlocked ? Colors.amber : Colors.white70,
+                                    size: 24,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }),
+                  ],
+                );
+              },
+            ),
+
+            // Contatore rupie in alto a destra con box semitrasparente e senza bordo (stile Home)
+            Positioned(
+              top: MediaQuery.of(context).padding.top - 18,
+              right: 42.0,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.background.withOpacity(0.88),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    /*
+                    CurrencyBadge(
+                      icon: Icons.favorite,
+                      iconColor: AppColors.heartRed,
+                      value: '${_user.currentHearts}',
+                    ),
+                    const SizedBox(width: 12),
+                    */
+                    CurrencyBadge(
+                      icon: Icons.diamond,
+                      iconColor: AppColors.rupeeGreen,
+                      value: '${_user.coins}',
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
-} // Chiusura corretta di _LaMiaMappaScreenState
+}
 
 class MapPathPainter extends CustomPainter {
   final List<MappaStage> stages;

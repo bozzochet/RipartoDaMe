@@ -4,6 +4,7 @@ import '../models/user_model.dart';
 import '../theme/app_theme.dart';
 import '../theme/cozy_styles.dart';
 import '../theme/cozy_background.dart';
+import '../theme/cozy_widgets.dart';
 
 enum CurrencyType { rupees, hearts }
 
@@ -168,6 +169,7 @@ class _ShopScreenState extends State<ShopScreen> with SingleTickerProviderStateM
     return CozyBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
+        extendBodyBehindAppBar: true,
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
@@ -181,28 +183,6 @@ class _ShopScreenState extends State<ShopScreen> with SingleTickerProviderStateM
               fontSize: 20,
             ),
           ),
-          actions: [
-            Padding(
-              padding: const EdgeInsets.only(right: 12.0),
-              child: Row(
-                children: [
-                  const Icon(Icons.favorite, color: Colors.redAccent, size: 18),
-                  const SizedBox(width: 3),
-                  Text(
-                    '${_user.currentHearts}',
-                    style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(width: 10),
-                  const Icon(Icons.diamond, color: Color(0xFF00E676), size: 18),
-                  const SizedBox(width: 3),
-                  Text(
-                    '${_user.coins}',
-                    style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-            ),
-          ],
           bottom: TabBar(
             controller: _tabController,
             indicatorColor: AppColors.woodAccent,
@@ -214,11 +194,69 @@ class _ShopScreenState extends State<ShopScreen> with SingleTickerProviderStateM
             ],
           ),
         ),
-        body: TabBarView(
-          controller: _tabController,
+        body: Stack(
           children: [
-            _buildShopGrid('casa'),
-            _buildShopGrid('vestiti'),
+            SafeArea(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _buildShopGrid('casa'),
+                  _buildShopGrid('vestiti'),
+                ],
+              ),
+            ),
+            // Contatore rupie in alto a destra (stile Home)
+            Positioned(
+              top: MediaQuery.of(context).padding.top - 18,
+              right: 42.0,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.background.withOpacity(0.88),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CurrencyBadge(
+                      icon: Icons.diamond,
+                      iconColor: AppColors.rupeeGreen,
+                      value: '${_user.coins}',
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            // Contatore cuori in alto a sinistra (stile Home)
+            Positioned(
+              top: MediaQuery.of(context).padding.top - 18,
+              left: 42.0,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.background.withOpacity(0.88),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CurrencyBadge(
+                      icon: Icons.favorite,
+                      iconColor: AppColors.heartRed,
+                      value: '${_user.currentHearts}',
+                    ),
+                    /*
+                    const SizedBox(width: 12),
+                    CurrencyBadge(
+                      icon: Icons.diamond,
+                      iconColor: AppColors.rupeeGreen,
+                      value: '${_user.coins}',
+                    ),
+                    */
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),
