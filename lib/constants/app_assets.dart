@@ -14,6 +14,8 @@ abstract class AppAssets {
   static const String hairBlondeWaves = 'assets/avatar/hairs/hair_blonde_waves.png';
   static const String hairBrownWaves = 'assets/avatar/hairs/hair_brown_waves.png';
   static const String hairRedBob = 'assets/avatar/hairs/hair_red_bob.png';
+  static const String hairSilverGranny = 'assets/avatar/hairs/hair_silver_granny.png';
+  static const String hairBlondeClassic = 'assets/avatar/hairs/hair_blonde_classic.png';
 
   // --- OUTFITS ---
   static const String outfitAlchemist = 'assets/avatar/outfits/outfit_alchemist.png';

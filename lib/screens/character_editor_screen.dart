@@ -45,7 +45,9 @@ class _CharacterEditorScreenState extends State<CharacterEditorScreen> with Sing
     {'id': 'hair_4', 'name': 'Coda Castani', 'asset': AppAssets.hairBrunettePonytail},
     {'id': 'hair_5', 'name': 'Mossi Biondi', 'asset': AppAssets.hairBlondeWaves},
     {'id': 'hair_6', 'name': 'Mossi Castani', 'asset': AppAssets.hairBrownWaves},
-    {'id': 'hair_7', 'name': 'Nessuno', 'asset': ''},
+    {'id': 'hair_7', 'name': 'Classici Biondi', 'asset': AppAssets.hairBlondeClassic},
+    {'id': 'hair_8', 'name': 'Nonna Argentati', 'asset': AppAssets.hairSilverGranny},
+    {'id': 'hair_9', 'name': 'Nessuno', 'asset': ''},
   ];
 
   @override
