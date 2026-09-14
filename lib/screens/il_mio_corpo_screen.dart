@@ -350,7 +350,7 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
             // Contenuto delle tab traslato in basso per non coprire l'AppBar con TabBar
             Padding(
               padding: EdgeInsets.only(
-                top: MediaQuery.of(context).padding.top + kToolbarHeight + 48.0,
+                top: MediaQuery.of(context).padding.top + kToolbarHeight + 84.0,
               ),
               child: TabBarView(
                 controller: _mainTabController,
@@ -821,79 +821,78 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
       );
     }
 
-    return Padding(
-      padding: const EdgeInsets.all(12.0),
-      child: GridView.builder(
-        itemCount: photos.length,
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          crossAxisSpacing: 10,
-          mainAxisSpacing: 10,
-          childAspectRatio: 0.8,
-        ),
-        itemBuilder: (context, index) {
-          final photo = photos[index];
-          final day = photo.date.day.toString().padLeft(2, '0');
-          final month = photo.date.month.toString().padLeft(2, '0');
-          final year = photo.date.year;
-          final hour = photo.date.hour.toString().padLeft(2, '0');
-          final minute = photo.date.minute.toString().padLeft(2, '0');
-          final formattedDate = "$day/$month/$year - $hour:$minute";
-          return GestureDetector(
-            onTap: () => _showPhotoDetailDialog(photo),
-            child: Container(
-              clipBehavior: Clip.antiAlias,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFF8B5A2B), width: 1.5),
-                boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))],
-              ),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  _buildSafeImage(photo.imagePath, fit: BoxFit.cover),
-                  Positioned(
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
-                      color: Colors.black.withOpacity(0.7),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            formattedDate,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                            ),
+    return GridView.builder(
+      padding: const EdgeInsets.all(16.0), // Margine esterno uniforme per tutta la griglia
+      itemCount: photos.length,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 0.75,
+      ),
+      itemBuilder: (context, index) {
+        final photo = photos[index];
+        final day = photo.date.day.toString().padLeft(2, '0');
+        final month = photo.date.month.toString().padLeft(2, '0');
+        final year = photo.date.year;
+        final hour = photo.date.hour.toString().padLeft(2, '0');
+        final minute = photo.date.minute.toString().padLeft(2, '0');
+        final formattedDate = "$day/$month/$year - $hour:$minute";
+        
+        return GestureDetector(
+          onTap: () => _showPhotoDetailDialog(photo),
+          child: Container(
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFF8B5A2B), width: 1.5),
+              boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))],
+            ),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                _buildSafeImage(photo.imagePath, fit: BoxFit.cover),
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+                    color: Colors.black.withOpacity(0.7),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          formattedDate,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
                           ),
-                          InkWell(
-                            onTap: () async {
-                              await _storageService.deleteProgressPhoto(photo.id);
-                              setState(() {});
-                            },
-                            child: const Icon(
-                              Icons.delete_outline,
-                              color: Colors.white,
-                              size: 18,
-                            ),
+                        ),
+                        InkWell(
+                          onTap: () async {
+                            await _storageService.deleteProgressPhoto(photo.id);
+                            setState(() {});
+                          },
+                          child: const Icon(
+                            Icons.delete_outline,
+                            color: Colors.white,
+                            size: 18,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
-
+  
   // --- HELPER WIDGETS ---
   Widget _buildExpansionWoodSection({required String title, required List<Widget> children}) {
     return CozyWoodCard(
