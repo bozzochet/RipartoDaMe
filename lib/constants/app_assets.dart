@@ -19,4 +19,11 @@ abstract class AppAssets {
 
   // --- OUTFITS ---
   static const String outfitAlchemist = 'assets/avatar/outfits/outfit_alchemist.png';
+  static const String outfitHero = 'assets/avatar/outfits/outfit_link.png';
+  static const String outfitButterfly = 'assets/avatar/outfits/outfit_butterfly.png';
+	static const String outfitFairy = 'assets/avatar/outfits/outfit_fairy.png';
+	static const String outfitHunter = 'assets/avatar/outfits/outfit_hunter.png';
+	static const String outfitPrincess = 'assets/avatar/outfits/outfit_princess.png';
+	static const String outfitThief = 'assets/avatar/outfits/outfit_thief.png';
+	static const String outfitWitch = 'assets/avatar/outfits/outfit_witch.png';
 }

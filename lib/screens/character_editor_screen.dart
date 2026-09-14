@@ -35,7 +35,14 @@ class _CharacterEditorScreenState extends State<CharacterEditorScreen> with Sing
   
   final List<Map<String, String>> _outfits = [
     {'id': 'outfit_1', 'name': 'Alchimista', 'asset': AppAssets.outfitAlchemist},
-    {'id': 'outfit_2', 'name': 'Nudo / Intimo', 'asset': ''},
+    {'id': 'outfit_2', 'name': 'Hero', 'asset': AppAssets.outfitHero},
+    {'id': 'outfit_3', 'name': 'Butterfly', 'asset': AppAssets.outfitButterfly},
+	  {'id': 'outfit_4', 'name': 'Fairy', 'asset': AppAssets.outfitFairy},
+	  {'id': 'outfit_5', 'name': 'Hunter', 'asset': AppAssets.outfitHunter},
+	  {'id': 'outfit_6', 'name': 'Princess', 'asset': AppAssets.outfitPrincess},
+	  {'id': 'outfit_7', 'name': 'Thief', 'asset': AppAssets.outfitThief},
+	  {'id': 'outfit_8', 'name': 'Witch', 'asset': AppAssets.outfitWitch},
+    {'id': 'outfit_9', 'name': 'Nudo / Intimo', 'asset': ''},
   ];
 
   final List<Map<String, String>> _hairs = [
