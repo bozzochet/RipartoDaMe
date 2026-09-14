@@ -228,8 +228,11 @@ class _LaMiaMappaScreenState extends State<LaMiaMappaScreen> with SingleTickerPr
     final List<MappaStage> stages = _generateDynamicStages();
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.transparent,
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         centerTitle: true,
         title: const Column(
           children: [
@@ -272,107 +275,99 @@ class _LaMiaMappaScreenState extends State<LaMiaMappaScreen> with SingleTickerPr
           )
         ],
       ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final double mapWidth = constraints.maxWidth;
-          final double mapHeight = constraints.maxHeight;
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/images/map_bg.png'),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final double mapWidth = constraints.maxWidth;
+            final double mapHeight = constraints.maxHeight;
 
-          return Stack(
-            children: [
-              Container(
-                width: mapWidth,
-                height: mapHeight,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFE8DFC8),
+            return Stack(
+              children: [
+                CustomPaint(
+                  size: Size(mapWidth, mapHeight),
+                  painter: MapPathPainter(stages: stages),
                 ),
-                child: Image.asset(
-                  'assets/images/map_bg.png',
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Center(
-                    child: Icon(
-                      Icons.map_rounded,
-                      size: 200,
-                      color: AppColors.border.withOpacity(0.5),
-                    ),
-                  ),
-                ),
-              ),
-              CustomPaint(
-                size: Size(mapWidth, mapHeight),
-                painter: MapPathPainter(stages: stages),
-              ),
-              ...stages.map((stage) {
-                bool isUnlocked = _user.currentWeight <= stage.targetWeight || stage.id == 'stage_0';
+                ...stages.map((stage) {
+                  bool isUnlocked = _user.currentWeight <= stage.targetWeight || stage.id == 'stage_0';
 
-                return Positioned(
-                  left: stage.xRatio * mapWidth - 40,
-                  top: stage.yRatio * mapHeight - 40,
-                  child: GestureDetector(
-                    onTap: () => _onStageTap(stage, isUnlocked),
-                    child: Column(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: AppColors.background.withOpacity(0.9),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: AppColors.woodAccent),
-                          ),
-                          child: Text(
-                            '${stage.title}\n${stage.targetWeight} kg',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        AnimatedBuilder(
-                          animation: _pulseAnimation,
-                          builder: (context, child) {
-                            return Transform.scale(
-                              scale: isUnlocked ? _pulseAnimation.value : 1.0,
-                              child: child,
-                            );
-                          },
-                          child: Container(
-                            width: 44,
-                            height: 44,
+                  return Positioned(
+                    left: stage.xRatio * mapWidth - 40,
+                    top: stage.yRatio * mapHeight - 40,
+                    child: GestureDetector(
+                      onTap: () => _onStageTap(stage, isUnlocked),
+                      child: Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: isUnlocked ? AppColors.woodAccent : AppColors.textSecondary,
-                              border: Border.all(color: Colors.white, width: 2),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: isUnlocked
-                                      ? Colors.amber.withOpacity(0.6)
-                                      : Colors.black.withOpacity(0.2),
-                                  blurRadius: isUnlocked ? 12 : 4,
-                                  spreadRadius: isUnlocked ? 2 : 0,
-                                ),
-                              ],
+                              color: AppColors.background.withOpacity(0.9),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: AppColors.woodAccent),
                             ),
-                            child: Icon(
-                              isUnlocked ? Icons.stars_rounded : Icons.lock_outline,
-                              color: isUnlocked ? Colors.amber : Colors.white70,
-                              size: 24,
+                            child: Text(
+                              '${stage.title}\n${stage.targetWeight} kg',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.textPrimary,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 4),
+                          AnimatedBuilder(
+                            animation: _pulseAnimation,
+                            builder: (context, child) {
+                              return Transform.scale(
+                                scale: isUnlocked ? _pulseAnimation.value : 1.0,
+                                child: child,
+                              );
+                            },
+                            child: Container(
+                              width: 44,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: isUnlocked ? AppColors.woodAccent : AppColors.textSecondary,
+                                border: Border.all(color: Colors.white, width: 2),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: isUnlocked
+                                        ? Colors.amber.withOpacity(0.6)
+                                        : Colors.black.withOpacity(0.2),
+                                    blurRadius: isUnlocked ? 12 : 4,
+                                    spreadRadius: isUnlocked ? 2 : 0,
+                                  ),
+                                ],
+                              ),
+                              child: Icon(
+                                isUnlocked ? Icons.stars_rounded : Icons.lock_outline,
+                                color: isUnlocked ? Colors.amber : Colors.white70,
+                                size: 24,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                );
-              }),
-            ],
-          );
-        },
+                  );
+                }),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
-}
+} // Chiusura corretta di _LaMiaMappaScreenState
 
 class MapPathPainter extends CustomPainter {
   final List<MappaStage> stages;
