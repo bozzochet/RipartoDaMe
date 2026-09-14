@@ -9,6 +9,7 @@ import 'la_mia_casa_screen.dart';
 import 'shop_screen.dart';
 import 'cura_di_me_screen.dart';
 import 'la_mia_mappa_screen.dart';
+import 'il_mio_diario_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -172,6 +173,18 @@ class _HomeScreenState extends State<HomeScreen> {
                               await Navigator.push(
                                 context,
                                 MaterialPageRoute(builder: (context) => const ShopScreen()),
+                              );
+                              _refreshData();
+                            },
+                          ),
+                          _buildMenuCard(
+                            title: 'Il mio Diario',
+                            subtitle: 'Pasti, Acqua & Rupie',
+                            icon: '📖', // Oppure '🍲', '🍎', '🍯'
+                            onTap: () async {
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (context) => const IlMioDiarioScreen()),
                               );
                               _refreshData();
                             },
