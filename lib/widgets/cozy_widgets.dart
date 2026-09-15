@@ -4,13 +4,14 @@ import '../theme/cozy_styles.dart';
 import '../widgets/avatar_view.dart';
 import '../models/user_model.dart';
 
-/// 1. PULSANTE CON TRAMA LEGNO SCURO E BORDO DORATO
+/// 1. PULSANTE CON TRAMA LEGNO (DINAMICO: SCURO SE SELEZIONATO, CHIARO SE INATTIVO)
 class CozyButton extends StatelessWidget {
   final String text;
   final VoidCallback? onPressed;
   final IconData? icon;
   final bool isSecondary;
-  final String woodAsset; // Permette di specificare la trama (default: legno scuro)
+  final bool isSelected; // Nuovo parametro per gestire lo stato attivo/inattivo
+  final String? woodAsset; // Lasciamo opzionale se si vuole forzare un asset manuale
 
   const CozyButton({
       super.key,
@@ -18,7 +19,8 @@ class CozyButton extends StatelessWidget {
       this.onPressed,
       this.icon,
       this.isSecondary = false,
-      this.woodAsset = 'assets/images/wood_texture_dark.png', // Trama in legno scuro di default
+      this.isSelected = false,
+      this.woodAsset,
   });
 
   @override
@@ -61,19 +63,32 @@ class CozyButton extends StatelessWidget {
       );
     }
 
-    // Bottone principale: Trama in legno scuro e bordo dorato stile RPG
+    // Determiniamo l'asset, il bordo e il colore del testo in base allo stato "isSelected"
+    final String activeWood = woodAsset ?? (isSelected 
+      ? 'assets/images/wood_texture_dark.png' 
+      : 'assets/images/wood_texture_verylight.png'); // Usa la tua texture light!
+
+    final Color borderColor = isSelected 
+    ? const Color(0xFFDAA520) // Bordo dorato se selezionato
+    : const Color(0xFF8B5A2B); // Bordo marrone scuro se inattivo
+
+    final Color textColor = isSelected 
+    ? const Color(0xFFFFF8DC) // Testo panna/oro chiaro
+    : const Color(0xFF3E2723); // Testo marrone scuro per leggibilità sul chiaro
+
     return Opacity(
       opacity: isDisabled ? 0.6 : 1.0,
       child: Container(
+        alignment: Alignment.center,
         decoration: BoxDecoration(
           image: DecorationImage(
-            image: AssetImage(woodAsset),
+            image: AssetImage(activeWood),
             fit: BoxFit.cover,
           ),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: const Color(0xFFDAA520), // Bordo dorato
-            width: 1.5,
+            color: borderColor,
+            width: isSelected ? 1.8 : 1.2,
           ),
           boxShadow: const [
             BoxShadow(
@@ -88,26 +103,37 @@ class CozyButton extends StatelessWidget {
           child: InkWell(
             onTap: onPressed,
             borderRadius: BorderRadius.circular(12),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              child: Row(
+            child: Container(
+              alignment: Alignment.center,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+              child: icon != null
+              ? Row(
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  if (icon != null) ...[
-                    const Icon(Icons.star, color: Color(0xFFFFF8DC), size: 18), // o l'icona passata
-                    const SizedBox(width: 8),
-                  ],
+                  Icon(icon, color: textColor, size: 18),
+                  const SizedBox(width: 8),
                   Text(
                     text,
-                    style: const TextStyle(
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
                       fontFamily: 'Serif',
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFFFFF8DC), // Testo color panna/oro chiaro
+                      color: textColor,
                       fontSize: 14,
                     ),
                   ),
                 ],
+              )
+              : Text(
+                text,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: 'Serif',
+                  fontWeight: FontWeight.bold,
+                  color: textColor,
+                  fontSize: 14,
+                ),
               ),
             ),
           ),

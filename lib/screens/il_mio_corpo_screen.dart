@@ -541,51 +541,27 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
     final List<BodyMeasurementEntry> history = _storageService.getBodyMeasurementsHistory();
     final tabs = ['Vita', 'Fianchi', 'Braccia', 'Gambe'];
     
-    // Leggiamo l'indice corrente dal TabController
     final currentIndex = _measurementsTabController.index;
 
     return Column(
       children: [
-        // Menu orizzontale con CozyButton per il tab attivo e bottoni chiari per gli inattivi
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
           child: Row(
             children: List.generate(tabs.length, (index) {
-                final isSelected = currentIndex == index;
-                return Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                    child: isSelected
-                    ? CozyButton(
-                      text: tabs[index],
-                      onPressed: () {
-                        _measurementsTabController.animateTo(index);
-                      },
-                    )
-                    : OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF5C4033),
-                        backgroundColor: const Color(0xFFE8D3B4), // Tonalità pergamena/legno chiaro
-                        side: const BorderSide(color: Color(0xFF8B5A2B), width: 1.2),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      onPressed: () {
-                        _measurementsTabController.animateTo(index);
-                      },
-                      child: Text(
-                        tabs[index],
-                        style: const TextStyle(
-                          fontFamily: 'Serif',
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ),
+              final isSelected = currentIndex == index;
+              return Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                  child: CozyButton(
+                    text: tabs[index],
+                    isSelected: isSelected, // Passiamo semplicemente lo stato!
+                    onPressed: () {
+                      _measurementsTabController.animateTo(index);
+                    },
                   ),
-                );
+                ),
+              );
             }),
           ),
         ),
