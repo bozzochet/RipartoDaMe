@@ -73,9 +73,15 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
     _measurementsTabController = TabController(length: 4, vsync: this);
     
     _mainTabController.addListener(() {
-      if (!_mainTabController.indexIsChanging) {
-        setState(() {});
-      }
+        if (!_mainTabController.indexIsChanging) {
+          setState(() {});
+        }
+    });
+    
+    _measurementsTabController.addListener(() {
+        if (!_measurementsTabController.indexIsChanging) {
+          setState(() {});
+        }
     });
   }
 
@@ -533,37 +539,54 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
   // TAB 2: MISURE CORPOREE
   Widget _buildBodyMeasurementsTab() {
     final List<BodyMeasurementEntry> history = _storageService.getBodyMeasurementsHistory();
+    final tabs = ['Vita', 'Fianchi', 'Braccia', 'Gambe'];
+    
+    // Leggiamo l'indice corrente dal TabController
+    final currentIndex = _measurementsTabController.index;
 
     return Column(
       children: [
-        Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            gradient: const LinearGradient(
-              colors: [Color(0xFFE8D3B4), Color(0xFFD2B48C)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            border: Border.all(color: const Color(0xFF8B5A2B), width: 1.5),
-            boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
-          ),
-          child: TabBar(
-            controller: _measurementsTabController,
-            indicator: BoxDecoration(
-              borderRadius: BorderRadius.circular(10),
-              color: const Color(0xFF5C4033),
-              border: Border.all(color: const Color(0xFFDAA520), width: 1.5),
-            ),
-            labelColor: const Color(0xFFFFF8DC),
-            unselectedLabelColor: const Color(0xFF5C4033),
-            labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, fontFamily: 'Serif'),
-            tabs: const [
-              Tab(text: 'Vita'),
-              Tab(text: 'Fianchi'),
-              Tab(text: 'Braccia'),
-              Tab(text: 'Gambe'),
-            ],
+        // Menu orizzontale con CozyButton per il tab attivo e bottoni chiari per gli inattivi
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+          child: Row(
+            children: List.generate(tabs.length, (index) {
+                final isSelected = currentIndex == index;
+                return Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                    child: isSelected
+                    ? CozyButton(
+                      text: tabs[index],
+                      onPressed: () {
+                        _measurementsTabController.animateTo(index);
+                      },
+                    )
+                    : OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF5C4033),
+                        backgroundColor: const Color(0xFFE8D3B4), // Tonalità pergamena/legno chiaro
+                        side: const BorderSide(color: Color(0xFF8B5A2B), width: 1.2),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onPressed: () {
+                        _measurementsTabController.animateTo(index);
+                      },
+                      child: Text(
+                        tabs[index],
+                        style: const TextStyle(
+                          fontFamily: 'Serif',
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+            }),
           ),
         ),
         Expanded(
@@ -580,7 +603,7 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
       ],
     );
   }
-
+  
   Widget _buildSingleMeasurementView(
     String title,
     TextEditingController controller,

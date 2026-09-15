@@ -4,57 +4,114 @@ import '../theme/cozy_styles.dart';
 import '../widgets/avatar_view.dart';
 import '../models/user_model.dart';
 
-/// 1. PULSANTE STILE LEGNO / PERGAMENA
+/// 1. PULSANTE CON TRAMA LEGNO SCURO E BORDO DORATO
 class CozyButton extends StatelessWidget {
   final String text;
   final VoidCallback? onPressed;
   final IconData? icon;
   final bool isSecondary;
+  final String woodAsset; // Permette di specificare la trama (default: legno scuro)
 
   const CozyButton({
-    super.key,
-    required this.text,
-    this.onPressed,
-    this.icon,
-    this.isSecondary = false,
+      super.key,
+      required this.text,
+      this.onPressed,
+      this.icon,
+      this.isSecondary = false,
+      this.woodAsset = 'assets/images/wood_texture_dark.png', // Trama in legno scuro di default
   });
 
   @override
   Widget build(BuildContext context) {
     final bool isDisabled = onPressed == null;
 
-    return ElevatedButton(
-      style: ElevatedButton.styleFrom(
-        backgroundColor: isDisabled
-            ? AppColors.disabled
-            : (isSecondary ? AppColors.surface : AppColors.woodAccent),
-        foregroundColor: isSecondary ? AppColors.textPrimary : Colors.white,
-        elevation: isSecondary ? 0 : 3,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-          side: BorderSide(
-            color: isSecondary ? AppColors.border : AppColors.woodAccent,
-            width: 1.5,
-          ),
-        ),
-      ),
-      onPressed: onPressed,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (icon != null) ...[
-            Icon(icon, size: 18),
-            const SizedBox(width: 8),
-          ],
-          Text(
-            text,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
+    // Se è un bottone secondario, manteniamo lo stile pergamena pulito/chiaro
+    if (isSecondary) {
+      return Opacity(
+        opacity: isDisabled ? 0.6 : 1.0,
+        child: OutlinedButton(
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.textPrimary,
+            backgroundColor: AppColors.surface,
+            side: const BorderSide(color: AppColors.border, width: 1.5),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
             ),
           ),
-        ],
+          onPressed: onPressed,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (icon != null) ...[
+                Icon(icon, size: 18, color: AppColors.textPrimary),
+                const SizedBox(width: 8),
+              ],
+              Text(
+                text,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Bottone principale: Trama in legno scuro e bordo dorato stile RPG
+    return Opacity(
+      opacity: isDisabled ? 0.6 : 1.0,
+      child: Container(
+        decoration: BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage(woodAsset),
+            fit: BoxFit.cover,
+          ),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: const Color(0xFFDAA520), // Bordo dorato
+            width: 1.5,
+          ),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black26,
+              blurRadius: 4,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onPressed,
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (icon != null) ...[
+                    const Icon(Icons.star, color: Color(0xFFFFF8DC), size: 18), // o l'icona passata
+                    const SizedBox(width: 8),
+                  ],
+                  Text(
+                    text,
+                    style: const TextStyle(
+                      fontFamily: 'Serif',
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFFFFF8DC), // Testo color panna/oro chiaro
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
