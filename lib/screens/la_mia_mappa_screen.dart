@@ -4,7 +4,7 @@ import '../services/local_storage_service.dart';
 import '../models/user_model.dart';
 import '../theme/app_theme.dart';
 import '../theme/cozy_styles.dart';
-import '../theme/cozy_widgets.dart';
+import '../widgets/cozy_widgets.dart';
 
 class MappaStage {
   final String id;

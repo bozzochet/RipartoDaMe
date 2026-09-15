@@ -49,35 +49,3 @@ class CozyStyles {
     );
   }
 }
-
-// Widget Card con filtro semi-trasparente
-class CozyWoodCard extends StatelessWidget {
-  final Widget child;
-  final EdgeInsetsGeometry? padding;
-  final EdgeInsetsGeometry? margin;
-  /// Opacità dello strato panna sopra il legno (0.0 = legno puro, 1.0 = panna solido)
-  final double overlayOpacity;
-
-  const CozyWoodCard({
-    super.key,
-    required this.child,
-    this.padding,
-    this.margin,
-    this.overlayOpacity = 0.65, // Bilanciamento ideale tra trama visibile e leggibilità
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: margin,
-      decoration: CozyStyles.woodBoxDecoration(),
-      clipBehavior: Clip.antiAlias, // Mantiene i bordi arrotondati puliti
-      child: Container(
-        padding: padding ?? const EdgeInsets.all(16.0),
-        // 📄 Sfondo 2: Overlay effetto pergamena/panna semi-trasparente
-        color: const Color(0xFFFDF6E3).withOpacity(overlayOpacity),
-        child: child,
-      ),
-    );
-  }
-}

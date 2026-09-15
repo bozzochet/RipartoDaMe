@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../theme/cozy_styles.dart';
-import '../theme/cozy_background.dart';
-import '../theme/cozy_widgets.dart';
+import '../widgets/cozy_background.dart';
+import '../widgets/cozy_widgets.dart';
 import '../services/local_storage_service.dart';
 import '../models/user_model.dart';
 
