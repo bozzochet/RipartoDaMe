@@ -100,12 +100,19 @@ class _CharacterEditorScreenState extends State<CharacterEditorScreen> with Sing
           elevation: 0,
           title: const Text('Specchio Magico', style: TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold)),
           actions: [
-            Padding(
-              padding: const EdgeInsets.only(right: 12.0),
-              child: CozyButton(
-                text: 'Salva',
-                icon: Icons.check,
-                onPressed: _saveAvatar,
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.only(right: 12.0),
+                child: SizedBox(
+                  height: 38,
+                  child: CozyButton(
+                    text: 'Salva',
+                    icon: Icons.check,
+                    isSelected: true,
+                    verticalPadding: 4,
+                    onPressed: _saveAvatar,
+                  ),
+                ),
               ),
             )
           ],

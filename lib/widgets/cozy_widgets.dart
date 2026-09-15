@@ -10,8 +10,9 @@ class CozyButton extends StatelessWidget {
   final VoidCallback? onPressed;
   final IconData? icon;
   final bool isSecondary;
-  final bool isSelected; // Nuovo parametro per gestire lo stato attivo/inattivo
-  final String? woodAsset; // Lasciamo opzionale se si vuole forzare un asset manuale
+  final bool isSelected; // Per gestire lo stato attivo/inattivo (scuro/chiaro)
+  final String? woodAsset; // Per forzare un asset manuale se necessario
+  final double verticalPadding; // Per regolare l'altezza verticale
 
   const CozyButton({
       super.key,
@@ -21,6 +22,7 @@ class CozyButton extends StatelessWidget {
       this.isSecondary = false,
       this.isSelected = false,
       this.woodAsset,
+      this.verticalPadding = 12, // Default standard
   });
 
   @override
@@ -36,7 +38,7 @@ class CozyButton extends StatelessWidget {
             foregroundColor: AppColors.textPrimary,
             backgroundColor: AppColors.surface,
             side: const BorderSide(color: AppColors.border, width: 1.5),
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            padding: EdgeInsets.symmetric(horizontal: 20, vertical: verticalPadding),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
@@ -66,7 +68,7 @@ class CozyButton extends StatelessWidget {
     // Determiniamo l'asset, il bordo e il colore del testo in base allo stato "isSelected"
     final String activeWood = woodAsset ?? (isSelected 
       ? 'assets/images/wood_texture_dark.png' 
-      : 'assets/images/wood_texture_verylight.png'); // Usa la tua texture light!
+      : 'assets/images/wood_texture_verylight.png');
 
     final Color borderColor = isSelected 
     ? const Color(0xFFDAA520) // Bordo dorato se selezionato
@@ -105,7 +107,7 @@ class CozyButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
             child: Container(
               alignment: Alignment.center,
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+              padding: EdgeInsets.symmetric(horizontal: 8, vertical: verticalPadding),
               child: icon != null
               ? Row(
                 mainAxisSize: MainAxisSize.min,
