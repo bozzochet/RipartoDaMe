@@ -14,6 +14,7 @@ void main() async {
   await Hive.openBox('diaryBox');
   await Hive.openBox('photosBox');
   await Hive.openBox('bloodTestsBox');
+  await Hive.openBox('mealsBox');
 
   runApp(const RipartoDaMeApp());
 }

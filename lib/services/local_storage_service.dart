@@ -5,6 +5,7 @@ import '../models/habit_model.dart';
 import '../models/body_measurement_entry.dart';
 import '../models/progress_photo_entry.dart';
 import '../models/blood_test_entry.dart';
+import '../models/meal_entry_model.dart';
 import '../constants/app_assets.dart';
 
 /// Modello per rappresentare la singola misurazione del peso con la sua data
@@ -32,6 +33,7 @@ class LocalStorageService {
   final Box _measurementsBox = Hive.box('measurementsBox');
   final Box _photosBox = Hive.box('photosBox');
   final Box _bloodTestsBox = Hive.box('bloodTestsBox');
+  final Box _mealsBox = Hive.box('mealsBox');
 
   // --- GESTIONE FOTO PROGRESSI ---
 
@@ -215,5 +217,43 @@ class LocalStorageService {
   Future<void> deleteBloodTestEntry(String id) async {
     await _bloodTestsBox.delete(id);
   }
+
+  // --- GESTIONE DIARIO ALIMENTARE (PASTI) ---
+
+  // Salva la lista dei pasti per una data specifica (chiave es. "2026-09-17")
+  Future<void> saveMealsForDate(DateTime date, List<MealEntryModel> meals) async {
+    final String dateKey = date.toIso8601String().split('T')[0];
+    final List<Map<String, dynamic>> serializedMeals = meals.map((m) => m.toMap()).toList();
+    await _mealsBox.put(dateKey, serializedMeals);
+  }
+
+  // Recupera i pasti per una data specifica in modo sicuro
+  List<MealEntryModel> getMealsForDate(DateTime date) {
+    final String dateKey = date.toIso8601String().split('T')[0];
+    final data = _mealsBox.get(dateKey);
+
+    if (data != null) {
+      try {
+        final List<dynamic> list = data;
+        return list.map((e) {
+          // Converte in sicurezza la mappa gestendo i tipi dinamici di Hive
+          final map = Map<dynamic, dynamic>.from(e);
+          final stringKeyMap = map.map((k, v) => MapEntry(k.toString(), v));
+          return MealEntryModel.fromMap(stringKeyMap);
+        }).toList();
+      } catch (e) {
+        // Stampa l'errore in console se qualcosa va storto, così lo vediamo subito
+        print("⚠️ Errore di decodifica pasti da Hive: $e");
+      }
+    }
+
+    // Default se non ci sono dati salvati per quel giorno
+    return [
+      MealEntryModel(title: 'Colazione', icon: '🥐'),
+      MealEntryModel(title: 'Pranzo', icon: '🍲'),
+      MealEntryModel(title: 'Merenda', icon: '🍎'),
+      MealEntryModel(title: 'Cena', icon: '🌙'),
+    ];
+  }  
   
 }

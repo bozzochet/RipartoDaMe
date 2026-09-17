@@ -1,36 +1,11 @@
 import 'package:flutter/material.dart';
 import '../services/local_storage_service.dart';
 import '../models/user_model.dart';
+import '../models/meal_entry_model.dart';
 import '../theme/app_theme.dart';
 import '../theme/cozy_styles.dart';
 import '../widgets/cozy_background.dart';
 import '../widgets/cozy_widgets.dart';
-
-class FoodItem {
-  final String name;
-  final String quantity;
-  final int calories;
-
-  FoodItem({required this.name, required this.quantity, required this.calories});
-}
-
-class MealEntry {
-  final String title;
-  final String icon;
-  final List<FoodItem> items;
-  String? photoPath;
-  bool isRewardClaimed;
-
-  MealEntry({
-    required this.title,
-    required this.icon,
-    List<FoodItem>? items,
-    this.photoPath,
-    this.isRewardClaimed = false,
-  }) : items = items ?? [];
-
-  int get totalCalories => items.fold(0, (sum, item) => sum + item.calories);
-}
 
 class IlMioDiarioScreen extends StatefulWidget {
   const IlMioDiarioScreen({super.key});
@@ -45,9 +20,9 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
 
   // Data selezionata per lo storico
   DateTime _selectedDate = DateTime.now();
-
-  // Mappa che associa la stringa della data (es. "2026-09-17") ai pasti di quel giorno
-  Map<String, List<MealEntry>> _dailyMealsMap = {};
+  
+  // Lista locale dei pasti in memoria per evitare ricaricamenti errati
+  List<MealEntryModel> _currentMealsList = [];
 
   // Controller temporanei per l'inserimento della nuova portata
   final TextEditingController _foodController = TextEditingController();
@@ -58,8 +33,11 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
   void initState() {
     super.initState();
     _user = _storageService.getUser();
-    // In un'applicazione reale potresti caricare la mappa dallo storage utente. 
-    // Per ora inizializziamo la vista sulla data corrente.
+    _loadMealsForSelectedDate();
+  }
+
+  void _loadMealsForSelectedDate() {
+    _currentMealsList = _storageService.getMealsForDate(_selectedDate);
   }
 
   @override
@@ -70,42 +48,31 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
     super.dispose();
   }
 
-  // Ottiene la chiave stringa formattata per la data (es. "2026-09-17")
-  String get _selectedDateKey {
-    return "${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}";
-  }
-
-  // Restituisce i pasti del giorno selezionato (creandoli vuoti se non esistono ancora)
-  List<MealEntry> get _currentMeals {
-    if (!_dailyMealsMap.containsKey(_selectedDateKey)) {
-      _dailyMealsMap[_selectedDateKey] = [
-        MealEntry(title: 'Colazione', icon: '🥐'),
-        MealEntry(title: 'Pranzo', icon: '🍲'),
-        MealEntry(title: 'Merenda', icon: '🍎'),
-        MealEntry(title: 'Cena', icon: '🌙'),
-      ];
-    }
-    return _dailyMealsMap[_selectedDateKey]!;
-  }
-
   void _changeDate(int days) {
     setState(() {
       _selectedDate = _selectedDate.add(Duration(days: days));
+      _loadMealsForSelectedDate(); // Ricarica i pasti corretti per la nuova data
     });
   }
 
   int get _totalDailyCalories {
-    return _currentMeals.fold(0, (sum, meal) => sum + meal.totalCalories);
+    return _currentMealsList.fold(0, (sum, meal) => sum + meal.totalCalories);
   }
 
-  // Aggiunge una portata al pasto del giorno corrente
-  void _addFoodItemToMeal(MealEntry meal) {
+  // Calcola le calorie totali per una specifica data (per il grafico)
+  int _getCaloriesForDate(DateTime date) {
+    final meals = _storageService.getMealsForDate(date);
+    return meals.fold(0, (sum, meal) => sum + meal.totalCalories);
+  }
+
+  // Aggiunge una portata al pasto del giorno corrente e salva su Hive
+  void _addFoodItemToMeal(MealEntryModel meal) {
     if (_foodController.text.trim().isEmpty) return;
 
     final int cals = int.tryParse(_caloriesController.text) ?? 0;
 
     setState(() {
-      meal.items.add(FoodItem(
+      meal.items.add(FoodItemModel(
         name: _foodController.text.trim(),
         quantity: _quantityController.text.trim().isEmpty ? '1 porzione' : _quantityController.text.trim(),
         calories: cals,
@@ -122,16 +89,20 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
     });
 
     _storageService.saveUser(_user);
+    _storageService.saveMealsForDate(_selectedDate, _currentMealsList);
   }
 
-  void _removeFoodItem(MealEntry meal, int index) {
+  // Rimuove una portata specifica e aggiorna Hive
+  void _removeFoodItem(MealEntryModel meal, int index) {
     setState(() {
       meal.items.removeAt(index);
     });
     _storageService.saveUser(_user);
+    _storageService.saveMealsForDate(_selectedDate, _currentMealsList);
   }
 
-  void _simulateAiPhotoAnalysis(MealEntry meal) async {
+  // Simulazione IA per scattare foto e aggiungere la portata automaticamente
+  void _simulateAiPhotoAnalysis(MealEntryModel meal) async {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -162,7 +133,7 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
 
     setState(() {
       meal.photoPath = 'assets/images/placeholder_meal.png';
-      meal.items.add(FoodItem(
+      meal.items.add(FoodItemModel(
         name: 'Piatto misto analizzato da IA',
         quantity: '1 porzione',
         calories: 450,
@@ -175,7 +146,9 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
     });
 
     await _storageService.saveUser(_user);
+    await _storageService.saveMealsForDate(_selectedDate, _currentMealsList);
 
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         backgroundColor: Color(0xFF2E7D32),
@@ -187,7 +160,7 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
   @override
   Widget build(BuildContext context) {
     final formattedDate = '${_selectedDate.day.toString().padLeft(2, '0')}/${_selectedDate.month.toString().padLeft(2, '0')}/${_selectedDate.year}';
-    final mealsList = _currentMeals; // Pasti legati unicamente al giorno selezionato
+    final mealsList = _currentMealsList;
 
     return CozyBackground(
       child: Scaffold(
@@ -249,7 +222,7 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
                     ),
                     const SizedBox(height: 12),
 
-                    // 📊 Riepilogo Calorie Totali della Giornata Selezionata
+                    // 📊 Riepilogo Calorie Totali Giornaliere
                     CozyCard(
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -270,7 +243,7 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // 📝 Lista Pasti del Giorno Selezionato
+                    // 📝 Lista Pasti
                     ListView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
@@ -315,7 +288,6 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
                                 ),
                                 const SizedBox(height: 10),
 
-                                // Portate salvate per questo pasto in questa specifica data
                                 if (meal.items.isNotEmpty) ...[
                                   ListView.builder(
                                     shrinkWrap: true,
@@ -352,7 +324,6 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
                                   const SizedBox(height: 8),
                                 ],
 
-                                // Sezione inserimento nuova portata
                                 Container(
                                   padding: const EdgeInsets.all(8),
                                   decoration: BoxDecoration(
@@ -442,6 +413,11 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
                         );
                       },
                     ),
+
+                    const SizedBox(height: 10),
+
+                    // 📈 GRAFICO DELLE CALORIE DEGLI ULTIMI 7 GIORNI
+                    _buildWeeklyCaloriesChart(),
                   ],
                 ),
               ),
@@ -469,6 +445,91 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  // Widget grafico a barre personalizzato per gli ultimi 7 giorni
+  Widget _buildWeeklyCaloriesChart() {
+    final List<DateTime> pastDays = List.generate(7, (index) {
+      return _selectedDate.subtract(Duration(days: 6 - index));
+    });
+
+    int maxCals = 2000;
+    for (var day in pastDays) {
+      final cals = _getCaloriesForDate(day);
+      if (cals > maxCals) maxCals = cals;
+    }
+
+    String getDateKey(DateTime d) => "${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}";
+
+    return CozyWoodCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.bar_chart, size: 18, color: AppColors.woodAccent),
+              SizedBox(width: 8),
+              Text(
+                'Andamento Calorie (Ultimi 7 Giorni)',
+                style: TextStyle(
+                  fontFamily: 'Serif',
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 120,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: pastDays.map((day) {
+                final cals = _getCaloriesForDate(day);
+                final double barHeight = maxCals > 0 ? (cals / maxCals) * 80 : 0.0;
+                final bool isSelectedDay = getDateKey(day) == getDateKey(_selectedDate);
+                final dayLabel = '${day.day}/${day.month}';
+
+                return Column(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Text(
+                      '$cals',
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                        color: isSelectedDay ? AppColors.woodAccent : AppColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Container(
+                      width: 16,
+                      height: barHeight < 4 ? 4 : barHeight,
+                      decoration: BoxDecoration(
+                        color: isSelectedDay ? AppColors.woodAccent : AppColors.border,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      dayLabel,
+                      style: TextStyle(
+                        fontSize: 9,
+                        color: isSelectedDay ? AppColors.textPrimary : AppColors.textSecondary,
+                        fontWeight: isSelectedDay ? FontWeight.bold : FontWeight.normal,
+                      ),
+                    ),
+                  ],
+                );
+              }).toList(),
+            ),
+          ),
+        ],
       ),
     );
   }
