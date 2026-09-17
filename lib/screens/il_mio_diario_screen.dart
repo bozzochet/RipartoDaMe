@@ -1,4 +1,9 @@
+import 'dart:io'; // Aggiunto per gestire File
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart'; // Aggiunto per la fotocamera/galleria
+import 'package:path_provider/path_provider.dart' as path_provider; // Aggiunto per i path locali
+import 'package:path/path.dart' as path; // Aggiunto per il nome file
+import 'package:gal/gal.dart'; // Aggiunto per salvare nel rullino
 import '../services/local_storage_service.dart';
 import '../models/user_model.dart';
 import '../models/meal_entry_model.dart';
@@ -16,6 +21,7 @@ class IlMioDiarioScreen extends StatefulWidget {
 
 class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
   final LocalStorageService _storageService = LocalStorageService();
+  final ImagePicker _picker = ImagePicker(); // Inizializzatore image_picker
   late UserModel _user;
 
   // Data selezionata per lo storico
@@ -51,7 +57,7 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
   void _changeDate(int days) {
     setState(() {
       _selectedDate = _selectedDate.add(Duration(days: days));
-      _loadMealsForSelectedDate(); // Ricarica i pasti corretti per la nuova data
+      _loadMealsForSelectedDate();
     });
   }
 
@@ -59,13 +65,11 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
     return _currentMealsList.fold(0, (sum, meal) => sum + meal.totalCalories);
   }
 
-  // Calcola le calorie totali per una specifica data (per il grafico)
   int _getCaloriesForDate(DateTime date) {
     final meals = _storageService.getMealsForDate(date);
     return meals.fold(0, (sum, meal) => sum + meal.totalCalories);
   }
 
-  // Aggiunge una portata al pasto del giorno corrente e salva su Hive
   void _addFoodItemToMeal(MealEntryModel meal) {
     if (_foodController.text.trim().isEmpty) return;
 
@@ -92,7 +96,6 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
     _storageService.saveMealsForDate(_selectedDate, _currentMealsList);
   }
 
-  // Rimuove una portata specifica e aggiorna Hive
   void _removeFoodItem(MealEntryModel meal, int index) {
     setState(() {
       meal.items.removeAt(index);
@@ -101,59 +104,194 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
     _storageService.saveMealsForDate(_selectedDate, _currentMealsList);
   }
 
-  // Simulazione IA per scattare foto e aggiungere la portata automaticamente
-  void _simulateAiPhotoAnalysis(MealEntryModel meal) async {
-    showDialog(
+  // --- GESTIONE FOTO E ANALISI IA REALE ---
+  void _showImageSourceDialog(MealEntryModel meal) {
+    showModalBottomSheet(
       context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(
-        child: CozyCard(
-          child: Padding(
-            padding: EdgeInsets.all(20.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(color: AppColors.woodAccent),
-                SizedBox(height: 16),
-                Text(
-                  '🪄 L\'Elfo Magico IA sta analizzando il piatto...',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold),
-                ),
-              ],
+      backgroundColor: const Color(0xFFFDF6E3),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        side: BorderSide(color: Color(0xFF8B5A2B), width: 1.5),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(20),
+        child: Wrap(
+          children: [
+            const ListTile(
+              title: Text(
+                'Fotografa il pasto & Analizza IA',
+                style: TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.textPrimary),
+              ),
             ),
-          ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt, color: AppColors.woodAccent),
+              title: const Text('Scatta una foto', style: TextStyle(color: AppColors.textPrimary)),
+              onTap: () {
+                Navigator.pop(context);
+                _pickAndSaveMealPhoto(meal, ImageSource.camera);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library, color: AppColors.woodAccent),
+              title: const Text('Scegli dalla galleria', style: TextStyle(color: AppColors.textPrimary)),
+              onTap: () {
+                Navigator.pop(context);
+                _pickAndSaveMealPhoto(meal, ImageSource.gallery);
+              },
+            ),
+          ],
         ),
       ),
     );
+  }
 
-    await Future.delayed(const Duration(seconds: 2));
-    if (!mounted) return;
-    Navigator.pop(context);
+  Future<void> _pickAndSaveMealPhoto(MealEntryModel meal, ImageSource source) async {
+    final XFile? image = await _picker.pickImage(
+      source: source,
+      imageQuality: 80,
+    );
 
-    setState(() {
-      meal.photoPath = 'assets/images/placeholder_meal.png';
-      meal.items.add(FoodItemModel(
-        name: 'Piatto misto analizzato da IA',
-        quantity: '1 porzione',
-        calories: 450,
-      ));
+    if (image != null) {
+      // Mostra dialog di caricamento IA
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CozyCard(
+            child: Padding(
+              padding: EdgeInsets.all(20.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(color: AppColors.woodAccent),
+                  SizedBox(height: 16),
+                  Text(
+                    '🪄 L\'Elfo Magico IA sta analizzando il piatto...',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
 
-      if (!meal.isRewardClaimed) {
-        meal.isRewardClaimed = true;
-        _user.coins += 5;
-      }
-    });
+      // Salvataggio persistente nella cartella documenti dell'app
+      final appDir = await path_provider.getApplicationDocumentsDirectory();
+      final String fileName = 'meal_photo_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final File savedImage = await File(image.path).copy('${appDir.path}/$fileName');
 
-    await _storageService.saveUser(_user);
-    await _storageService.saveMealsForDate(_selectedDate, _currentMealsList);
+      // Salva anche nel rullino di sistema tramite Gal
+      try {
+        await Gal.putImage(savedImage.path);
+      } catch (_) {}
 
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        backgroundColor: Color(0xFF2E7D32),
-        content: Text('✨ IA: Aggiunta portata da 450 kcal! +5 Rupie! 💎'),
-      ),
+      await Future.delayed(const Duration(seconds: 2)); // Simulazione elaborazione IA
+      if (!mounted) return;
+      Navigator.pop(context); // Chiude il loader
+
+      setState(() {
+        meal.photoPath = fileName; // Memorizza il nome del file persistente
+        meal.items.add(FoodItemModel(
+          name: 'Piatto analizzato da foto',
+          quantity: '1 porzione',
+          calories: 450,
+        ));
+
+        if (!meal.isRewardClaimed) {
+          meal.isRewardClaimed = true;
+          _user.coins += 5;
+        }
+      });
+
+      await _storageService.saveUser(_user);
+      await _storageService.saveMealsForDate(_selectedDate, _currentMealsList);
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: Color(0xFF2E7D32),
+          content: Text('✨ Foto salvata e IA: +450 kcal! +5 Rupie! 💎'),
+        ),
+      );
+    }
+  }
+
+  // Visualizzatore a schermo intero della foto del pasto con zoom
+  void _showMealPhotoDetail(String imagePath) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          backgroundColor: Colors.black,
+          insetPadding: const EdgeInsets.all(10),
+          child: Stack(
+            alignment: Alignment.topRight,
+            children: [
+              Center(
+                child: InteractiveViewer(
+                  panEnabled: true,
+                  minScale: 0.5,
+                  maxScale: 4,
+                  child: _buildSafeImage(imagePath, fit: BoxFit.contain),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close, color: Colors.white, size: 28),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // Widget helper per caricare in sicurezza l'immagine salvata localmente
+  Widget _buildSafeImage(String imagePathOrName, {BoxFit fit = BoxFit.cover, double? height, double? width}) {
+    return FutureBuilder<Directory>(
+      future: path_provider.getApplicationDocumentsDirectory(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return Container(
+            height: height,
+            width: width,
+            color: Colors.grey[200],
+            child: const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))),
+          );
+        }
+
+        final appDir = snapshot.data!;
+        final fileName = path.basename(imagePathOrName.replaceFirst('file://', ''));
+        final fullPath = '${appDir.path}/$fileName';
+        final file = File(fullPath);
+
+        if (!file.existsSync()) {
+          return Container(
+            height: height,
+            width: width,
+            color: Colors.grey[300],
+            child: const Icon(Icons.broken_image_outlined, color: Colors.grey, size: 36),
+          );
+        }
+
+        return Image.file(
+          file,
+          fit: fit,
+          height: height,
+          width: width,
+          errorBuilder: (context, error, stackTrace) {
+            return Container(
+              height: height,
+              width: width,
+              color: Colors.grey[300],
+              child: const Icon(Icons.broken_image, color: Colors.grey, size: 36),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -288,6 +426,39 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
                                 ),
                                 const SizedBox(height: 10),
 
+                                // Anteprima Foto se presente
+                                if (meal.photoPath != null && meal.photoPath!.isNotEmpty) ...[
+                                  GestureDetector(
+                                    onTap: () => _showMealPhotoDetail(meal.photoPath!),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(10),
+                                      child: SizedBox(
+                                        height: 120,
+                                        width: double.infinity,
+                                        child: Stack(
+                                          fit: StackFit.expand,
+                                          children: [
+                                            _buildSafeImage(meal.photoPath!, fit: BoxFit.cover),
+                                            Positioned(
+                                              top: 6,
+                                              right: 6,
+                                              child: Container(
+                                                padding: const EdgeInsets.all(4),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.black.withOpacity(0.6),
+                                                  shape: BoxShape.circle,
+                                                ),
+                                                child: const Icon(Icons.zoom_in, color: Colors.white, size: 16),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                ],
+
                                 if (meal.items.isNotEmpty) ...[
                                   ListView.builder(
                                     shrinkWrap: true,
@@ -398,7 +569,7 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
                                   mainAxisAlignment: MainAxisAlignment.end,
                                   children: [
                                     TextButton.icon(
-                                      onPressed: () => _simulateAiPhotoAnalysis(meal),
+                                      onPressed: () => _showImageSourceDialog(meal),
                                       icon: const Icon(Icons.camera_alt_outlined, size: 16, color: AppColors.woodAccent),
                                       label: const Text(
                                         'Foto & Calcola IA 🪄',
@@ -449,7 +620,6 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
     );
   }
 
-  // Widget grafico a barre personalizzato per gli ultimi 7 giorni
   Widget _buildWeeklyCaloriesChart() {
     final List<DateTime> pastDays = List.generate(7, (index) {
       return _selectedDate.subtract(Duration(days: 6 - index));
