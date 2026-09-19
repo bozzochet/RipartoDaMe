@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'theme/app_theme.dart';
 import 'screens/home_screen.dart';
+import 'screens/il_mio_diario_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,6 +18,8 @@ void main() async {
   await Hive.openBox('bloodTestsBox');
   await Hive.openBox('mealsBox');
 
+  await dotenv.load(fileName: ".env");
+  
   runApp(const RipartoDaMeApp());
 }
 

@@ -1,9 +1,12 @@
-import 'dart:io'; // Aggiunto per gestire File
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart'; // Aggiunto per la fotocamera/galleria
-import 'package:path_provider/path_provider.dart' as path_provider; // Aggiunto per i path locali
-import 'package:path/path.dart' as path; // Aggiunto per il nome file
-import 'package:gal/gal.dart'; // Aggiunto per salvare nel rullino
+import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart' as path_provider;
+import 'package:path/path.dart' as path;
+import 'package:gal/gal.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../services/local_storage_service.dart';
 import '../models/user_model.dart';
 import '../models/meal_entry_model.dart';
@@ -21,19 +24,22 @@ class IlMioDiarioScreen extends StatefulWidget {
 
 class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
   final LocalStorageService _storageService = LocalStorageService();
-  final ImagePicker _picker = ImagePicker(); // Inizializzatore image_picker
+  final ImagePicker _picker = ImagePicker();
   late UserModel _user;
 
   // Data selezionata per lo storico
   DateTime _selectedDate = DateTime.now();
   
-  // Lista locale dei pasti in memoria per evitare ricaricamenti errati
+  // Lista locale dei pasti in memoria
   List<MealEntryModel> _currentMealsList = [];
 
-  // Controller temporanei per l'inserimento della nuova portata
+  // Controller temporanei per l'inserimento manuale della portata
   final TextEditingController _foodController = TextEditingController();
   final TextEditingController _quantityController = TextEditingController();
   final TextEditingController _caloriesController = TextEditingController();
+
+  // Chiave API Gemini
+  final String _apiKey = dotenv.env['GEMINI_API_KEY'] ?? '';
 
   @override
   void initState() {
@@ -104,7 +110,7 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
     _storageService.saveMealsForDate(_selectedDate, _currentMealsList);
   }
 
-  // --- GESTIONE FOTO E ANALISI IA REALE ---
+  // --- SELETTORE FONTE FOTO ---
   void _showImageSourceDialog(MealEntryModel meal) {
     showModalBottomSheet(
       context: context,
@@ -128,7 +134,7 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
               title: const Text('Scatta una foto', style: TextStyle(color: AppColors.textPrimary)),
               onTap: () {
                 Navigator.pop(context);
-                _pickAndSaveMealPhoto(meal, ImageSource.camera);
+                _pickAndProcessMeal(meal, ImageSource.camera);
               },
             ),
             ListTile(
@@ -136,7 +142,7 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
               title: const Text('Scegli dalla galleria', style: TextStyle(color: AppColors.textPrimary)),
               onTap: () {
                 Navigator.pop(context);
-                _pickAndSaveMealPhoto(meal, ImageSource.gallery);
+                _pickAndProcessMeal(meal, ImageSource.gallery);
               },
             ),
           ],
@@ -145,81 +151,278 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
     );
   }
 
-  Future<void> _pickAndSaveMealPhoto(MealEntryModel meal, ImageSource source) async {
-    final XFile? image = await _picker.pickImage(
-      source: source,
-      imageQuality: 80,
-    );
+  // --- CHIAMATA HTTP CON RETRY ESPONENZIALE ---
+  Future<http.Response> _postWithExponentialBackoff(Uri url, Map<String, String> headers, String body) async {
+    int maxAttempts = 4;
+    int delayMs = 1500; // 1.5 secondi di attesa iniziale
+
+    for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        final response = await http.post(url, headers: headers, body: body);
+        
+        // Se il server è occupato (503) o sovraccarico/rate-limited (429) e abbiamo tentativi residui
+        if ((response.statusCode == 503 || response.statusCode == 429) && attempt < maxAttempts) {
+          await Future.delayed(Duration(milliseconds: delayMs));
+          delayMs *= 2; // Raddoppia l'attesa per il tentativo successivo (esponenziale)
+          continue;
+        }
+        return response;
+      } catch (e) {
+        if (attempt == maxAttempts) rethrow;
+        await Future.delayed(Duration(milliseconds: delayMs));
+        delayMs *= 2;
+      }
+    }
+    throw Exception("Impossibile contattare i server dopo vari tentativi.");
+  }
+
+  // --- GESTIONE FOTO, SALVATAGGIO LOCALE E CHIAMATA API GEMINI ---
+  Future<void> _pickAndProcessMeal(MealEntryModel meal, ImageSource source) async {
+    final XFile? image = await _picker.pickImage(source: source, imageQuality: 85);
 
     if (image != null) {
-      // Mostra dialog di caricamento IA
       if (!mounted) return;
+      
+      // Mostra loader IA con context dedicato per evitare chiusure accidentali della schermata
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) => const Center(
-          child: CozyCard(
-            child: Padding(
-              padding: EdgeInsets.all(20.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CircularProgressIndicator(color: AppColors.woodAccent),
-                  SizedBox(height: 16),
-                  Text(
-                    '🪄 L\'Elfo Magico IA sta analizzando il piatto...',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold),
-                  ),
-                ],
+        builder: (BuildContext dialogContext) => PopScope(
+          canPop: false,
+          child: const Center(
+            child: CozyCard(
+              child: Padding(
+                padding: EdgeInsets.all(20.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(color: AppColors.woodAccent),
+                    SizedBox(height: 16),
+                    Text(
+                      '🪄 L\'Elfo Magico IA sta analizzando il piatto...\n(Se c\'è traffico, attendo qualche secondo in più)',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
         ),
       );
 
-      // Salvataggio persistente nella cartella documenti dell'app
-      final appDir = await path_provider.getApplicationDocumentsDirectory();
-      final String fileName = 'meal_photo_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      final File savedImage = await File(image.path).copy('${appDir.path}/$fileName');
-
-      // Salva anche nel rullino di sistema tramite Gal
       try {
-        await Gal.putImage(savedImage.path);
-      } catch (_) {}
+        // Salvataggio locale persistente
+        final appDir = await path_provider.getApplicationDocumentsDirectory();
+        final String fileName = 'meal_photo_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        final File savedImage = await File(image.path).copy('${appDir.path}/$fileName');
 
-      await Future.delayed(const Duration(seconds: 2)); // Simulazione elaborazione IA
-      if (!mounted) return;
-      Navigator.pop(context); // Chiude il loader
+        // Salva nel rullino di sistema
+        try {
+          await Gal.putImage(savedImage.path);
+        } catch (_) {}
 
-      setState(() {
-        meal.photoPath = fileName; // Memorizza il nome del file persistente
-        meal.items.add(FoodItemModel(
-          name: 'Piatto analizzato da foto',
-          quantity: '1 porzione',
-          calories: 450,
-        ));
+        // Chiamata API Gemini
+        final bytes = await savedImage.readAsBytes();
+        final base64Image = base64Encode(bytes);
 
-        if (!meal.isRewardClaimed) {
-          meal.isRewardClaimed = true;
-          _user.coins += 5;
+        final url = Uri.parse(
+          'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=$_apiKey'
+        );
+
+        final prompt = '''
+Analizza questa foto di cibo. Restituisci unicamente un oggetto JSON valido con questa struttura esatta:
+{
+  "piatto": "Nome del piatto",
+  "calorie_totali_stimate": 0,
+  "proteine_totali": 0,
+  "carboidrati_totali": 0,
+  "grassi_totali": 0,
+  "ingredienti": [
+    {"nome": "Nome ingrediente", "peso_grammi": 100, "calorie": 150}
+  ],
+  "domande_per_utente": [
+    {"domanda": "Hai aggiunto olio d'oliva o burro?", "impatto_calorie": 90, "selezionato": false}
+  ]
+}
+Stima in modo realistico i grammi e i macronutrienti.
+''';
+
+        final body = jsonEncode({
+          "contents": [
+            {
+              "parts": [
+                {"text": prompt},
+                {
+                  "inline_data": {
+                    "mime_type": "image/jpeg",
+                    "data": base64Image
+                  }
+                }
+              ]
+            }
+          ],
+          "generationConfig": {
+            "responseMimeType": "application/json"
+          }
+        });
+
+        // Invio con retry esponenziale automatico
+        final response = await _postWithExponentialBackoff(url, {'Content-Type': 'application/json'}, body);
+
+        if (!mounted) return;
+        Navigator.of(context).pop(); // Chiude solo il loader in modo sicuro
+
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          final jsonString = data['candidates'][0]['content']['parts'][0]['text'];
+          final Map<String, dynamic> risultatoIA = jsonDecode(jsonString);
+
+          // Mostra il dialog di dettaglio con i risultati dell'IA
+          _showAiResultModal(meal, fileName, risultatoIA);
+        } else {
+          throw Exception("Errore server (${response.statusCode}): ${response.body}");
         }
-      });
-
-      await _storageService.saveUser(_user);
-      await _storageService.saveMealsForDate(_selectedDate, _currentMealsList);
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          backgroundColor: Color(0xFF2E7D32),
-          content: Text('✨ Foto salvata e IA: +450 kcal! +5 Rupie! 💎'),
-        ),
-      );
+      } catch (e) {
+        if (mounted) {
+          Navigator.of(context).pop(); // Chiude il loader in caso di errore
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: Colors.brown[800],
+              content: Text('Errore durante l\'analisi IA: $e'),
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      }
     }
   }
 
-  // Visualizzatore a schermo intero della foto del pasto con zoom
+  // --- MODALE INTERATTIVA PER LA REVISIONE DEI RISULTATI IA ---
+  void _showAiResultModal(MealEntryModel meal, String photoFileName, Map<String, dynamic> risultatoIA) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setStateModal) {
+            int calcolaTotaleDinamicamente() {
+              int totale = 0;
+              for (var ing in risultatoIA['ingredienti']) {
+                totale += (ing['calorie'] as num).toInt();
+              }
+              if (risultatoIA['domande_per_utente'] != null) {
+                for (var d in risultatoIA['domande_per_utente']) {
+                  if (d['selezionato'] == true) {
+                    totale += (d['impatto_calorie'] as num).toInt();
+                  }
+                }
+              }
+              return totale;
+            }
+
+            return AlertDialog(
+              backgroundColor: const Color(0xFFFDF6E3),
+              title: Text(risultatoIA['piatto'] ?? 'Piatto Riconosciuto', style: const TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold)),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          _buildNutrienteChip('Calorie', '${calcolaTotaleDinamicamente()} kcal', Colors.orange),
+                          _buildNutrienteChip('Proteine', '${risultatoIA['proteine_totali']}g', Colors.red),
+                          _buildNutrienteChip('Carb.', '${risultatoIA['carboidrati_totali']}g', Colors.blue),
+                          _buildNutrienteChip('Grassi', '${risultatoIA['grassi_totali']}g', Colors.green),
+                        ],
+                      ),
+                      const Divider(height: 20),
+                      if (risultatoIA['domande_per_utente'] != null && (risultatoIA['domande_per_utente'] as List).isNotEmpty) ...[
+                        const Text('Personalizzazione condimenti:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                        ...((risultatoIA['domande_per_utente'] as List).map((d) {
+                          return CheckboxListTile(
+                            dense: true,
+                            title: Text(d['domanda'], style: const TextStyle(fontSize: 12)),
+                            subtitle: Text('+${d['impatto_calorie']} kcal', style: const TextStyle(fontSize: 10)),
+                            value: d['selezionato'] ?? false,
+                            onChanged: (val) {
+                              setStateModal(() {
+                                d['selezionato'] = val ?? false;
+                              });
+                            },
+                          );
+                        })),
+                        const Divider(height: 20),
+                      ],
+                      const Text('Ingredienti rilevati:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      ...((risultatoIA['ingredienti'] as List).map((ing) {
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 2.0),
+                          child: Text('• ${ing['nome']} (${ing['peso_grammi']}g) - ${ing['calorie']} kcal', style: const TextStyle(fontSize: 12)),
+                        );
+                      })),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Annulla', style: TextStyle(color: Colors.grey)),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.woodAccent, foregroundColor: Colors.white),
+                  onPressed: () {
+                    final int finalCalories = calcolaTotaleDinamicamente();
+                    setState(() {
+                      meal.photoPath = photoFileName;
+                      meal.items.add(FoodItemModel(
+                        name: risultatoIA['piatto'] ?? 'Piatto IA',
+                        quantity: '1 porzione',
+                        calories: finalCalories,
+                      ));
+
+                      if (!meal.isRewardClaimed) {
+                        meal.isRewardClaimed = true;
+                        _user.coins += 5;
+                      }
+                    });
+
+                    _storageService.saveUser(_user);
+                    _storageService.saveMealsForDate(_selectedDate, _currentMealsList);
+
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        backgroundColor: Color(0xFF2E7D32),
+                        content: Text('✨ Piatto analizzato dall\'IA aggiunto con successo! +5 Rupie! 💎'),
+                      ),
+                    );
+                  },
+                  child: const Text('Conferma e Salva'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildNutrienteChip(String label, String valore, Color colore) {
+    return Column(
+      children: [
+        Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+        const SizedBox(height: 2),
+        Text(valore, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: colore)),
+      ],
+    );
+  }
+
+  // --- VISUALIZZATORE FOTO A SCHERMO INTERO ---
   void _showMealPhotoDetail(String imagePath) {
     showDialog(
       context: context,
@@ -249,7 +452,6 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
     );
   }
 
-  // Widget helper per caricare in sicurezza l'immagine salvata localmente
   Widget _buildSafeImage(String imagePathOrName, {BoxFit fit = BoxFit.cover, double? height, double? width}) {
     return FutureBuilder<Directory>(
       future: path_provider.getApplicationDocumentsDirectory(),
@@ -282,14 +484,12 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
           fit: fit,
           height: height,
           width: width,
-          errorBuilder: (context, error, stackTrace) {
-            return Container(
-              height: height,
-              width: width,
-              color: Colors.grey[300],
-              child: const Icon(Icons.broken_image, color: Colors.grey, size: 36),
-            );
-          },
+          errorBuilder: (context, error, stackTrace) => Container(
+            height: height,
+            width: width,
+            color: Colors.grey[300],
+            child: const Icon(Icons.broken_image, color: Colors.grey, size: 36),
+          ),
         );
       },
     );
@@ -326,7 +526,7 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 📅 Selettore Storico Data
+                    // Selettore Data
                     CozyWoodCard(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       child: Row(
@@ -342,12 +542,7 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
                               const SizedBox(width: 8),
                               Text(
                                 formattedDate,
-                                style: const TextStyle(
-                                  fontFamily: 'Serif',
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 15,
-                                  color: AppColors.textPrimary,
-                                ),
+                                style: const TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.textPrimary),
                               ),
                             ],
                           ),
@@ -360,7 +555,7 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
                     ),
                     const SizedBox(height: 12),
 
-                    // 📊 Riepilogo Calorie Totali Giornaliere
+                    // Calorie Totali Giornaliere
                     CozyCard(
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -369,19 +564,14 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
                           const SizedBox(width: 8),
                           Text(
                             'Totale Giornaliero: $_totalDailyCalories kcal',
-                            style: const TextStyle(
-                              fontFamily: 'Serif',
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                              color: AppColors.textPrimary,
-                            ),
+                            style: const TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.textPrimary),
                           ),
                         ],
                       ),
                     ),
                     const SizedBox(height: 16),
 
-                    // 📝 Lista Pasti
+                    // Lista Pasti
                     ListView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
@@ -402,12 +592,7 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
                                     const SizedBox(width: 8),
                                     Text(
                                       meal.title,
-                                      style: const TextStyle(
-                                        fontFamily: 'Serif',
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
-                                        color: AppColors.textPrimary,
-                                      ),
+                                      style: const TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.textPrimary),
                                     ),
                                     const Spacer(),
                                     Container(
@@ -426,7 +611,6 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
                                 ),
                                 const SizedBox(height: 10),
 
-                                // Anteprima Foto se presente
                                 if (meal.photoPath != null && meal.photoPath!.isNotEmpty) ...[
                                   GestureDetector(
                                     onTap: () => _showMealPhotoDetail(meal.photoPath!),
@@ -444,10 +628,7 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
                                               right: 6,
                                               child: Container(
                                                 padding: const EdgeInsets.all(4),
-                                                decoration: BoxDecoration(
-                                                  color: Colors.black.withOpacity(0.6),
-                                                  shape: BoxShape.circle,
-                                                ),
+                                                decoration: BoxDecoration(color: Colors.black.withOpacity(0.6), shape: BoxShape.circle),
                                                 child: const Icon(Icons.zoom_in, color: Colors.white, size: 16),
                                               ),
                                             ),
@@ -584,10 +765,7 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
                         );
                       },
                     ),
-
                     const SizedBox(height: 10),
-
-                    // 📈 GRAFICO DELLE CALORIE DEGLI ULTIMI 7 GIORNI
                     _buildWeeklyCaloriesChart(),
                   ],
                 ),
@@ -644,12 +822,7 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
               SizedBox(width: 8),
               Text(
                 'Andamento Calorie (Ultimi 7 Giorni)',
-                style: TextStyle(
-                  fontFamily: 'Serif',
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                  color: AppColors.textPrimary,
-                ),
+                style: TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.textPrimary),
               ),
             ],
           ),
@@ -670,11 +843,7 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
                   children: [
                     Text(
                       '$cals',
-                      style: TextStyle(
-                        fontSize: 9,
-                        fontWeight: FontWeight.bold,
-                        color: isSelectedDay ? AppColors.woodAccent : AppColors.textSecondary,
-                      ),
+                      style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: isSelectedDay ? AppColors.woodAccent : AppColors.textSecondary),
                     ),
                     const SizedBox(height: 4),
                     Container(
@@ -688,11 +857,7 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
                     const SizedBox(height: 6),
                     Text(
                       dayLabel,
-                      style: TextStyle(
-                        fontSize: 9,
-                        color: isSelectedDay ? AppColors.textPrimary : AppColors.textSecondary,
-                        fontWeight: isSelectedDay ? FontWeight.bold : FontWeight.normal,
-                      ),
+                      style: TextStyle(fontSize: 9, color: isSelectedDay ? AppColors.textPrimary : AppColors.textSecondary, fontWeight: isSelectedDay ? FontWeight.bold : FontWeight.normal),
                     ),
                   ],
                 );
