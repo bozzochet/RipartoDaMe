@@ -2,19 +2,35 @@ class FoodItemModel {
   final String name;
   final String quantity;
   final int calories;
+  final double proteins;
+  final double carbs;
+  final double fats;
 
-  FoodItemModel({required this.name, required this.quantity, required this.calories});
+  FoodItemModel({
+    required this.name,
+    required this.quantity,
+    required this.calories,
+    this.proteins = 0.0,
+    this.carbs = 0.0,
+    this.fats = 0.0,
+  });
 
   Map<String, dynamic> toMap() => {
     'name': name,
     'quantity': quantity,
     'calories': calories,
+    'proteins': proteins,
+    'carbs': carbs,
+    'fats': fats,
   };
 
   factory FoodItemModel.fromMap(Map<String, dynamic> map) => FoodItemModel(
     name: map['name'] ?? '',
     quantity: map['quantity'] ?? '',
     calories: (map['calories'] as num?)?.toInt() ?? 0,
+    proteins: (map['proteins'] as num?)?.toDouble() ?? 0.0,
+    carbs: (map['carbs'] as num?)?.toDouble() ?? 0.0,
+    fats: (map['fats'] as num?)?.toDouble() ?? 0.0,
   );
 }
 
