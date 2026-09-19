@@ -76,6 +76,24 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
     return meals.fold(0, (sum, meal) => sum + meal.totalCalories);
   }
 
+  // --- GESTIONE FOTO MULTIPLE (Supporto retrocompatibile) ---
+  List<String> _getMealPhotos(MealEntryModel meal) {
+    if (meal.photoPath == null || meal.photoPath!.isEmpty) return [];
+    // Se contiene un separatore (es. virgola o pipe), separiamo, altrimenti restituiamo l'elemento singolo in una lista
+    if (meal.photoPath!.contains('|')) {
+      return meal.photoPath!.split('|').where((s) => s.isNotEmpty).toList();
+    }
+    return [meal.photoPath!];
+  }
+
+  void _saveMealPhotos(MealEntryModel meal, List<String> photos) {
+    setState(() {
+      meal.photoPath = photos.isEmpty ? null : photos.join('|');
+    });
+    _storageService.saveUser(_user);
+    _storageService.saveMealsForDate(_selectedDate, _currentMealsList);
+  }
+
   void _addFoodItemToMeal(MealEntryModel meal) {
     if (_foodController.text.trim().isEmpty) return;
 
@@ -154,16 +172,14 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
   // --- CHIAMATA HTTP CON RETRY ESPONENZIALE ---
   Future<http.Response> _postWithExponentialBackoff(Uri url, Map<String, String> headers, String body) async {
     int maxAttempts = 4;
-    int delayMs = 1500; // 1.5 secondi di attesa iniziale
+    int delayMs = 1500;
 
     for (int attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
         final response = await http.post(url, headers: headers, body: body);
-        
-        // Se il server è occupato (503) o sovraccarico/rate-limited (429) e abbiamo tentativi residui
         if ((response.statusCode == 503 || response.statusCode == 429) && attempt < maxAttempts) {
           await Future.delayed(Duration(milliseconds: delayMs));
-          delayMs *= 2; // Raddoppia l'attesa per il tentativo successivo (esponenziale)
+          delayMs *= 2;
           continue;
         }
         return response;
@@ -182,55 +198,78 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
 
     if (image != null) {
       if (!mounted) return;
-      
-      // Mostra loader IA con context dedicato per evitare chiusure accidentali della schermata
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (BuildContext dialogContext) => PopScope(
-          canPop: false,
-          child: const Center(
-            child: CozyCard(
-              child: Padding(
-                padding: EdgeInsets.all(20.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CircularProgressIndicator(color: AppColors.woodAccent),
-                    SizedBox(height: 16),
-                    Text(
-                      '🪄 L\'Elfo Magico IA sta analizzando il piatto...\n(Se c\'è traffico, attendo qualche secondo in più)',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold),
-                    ),
-                  ],
-                ),
+      _processImageFile(meal, image.path);
+    }
+  }
+
+  // Metodo per rianalizzare una foto già esistente
+  Future<void> _reanalyzeExistingPhoto(MealEntryModel meal, String photoPathOrName) async {
+    final appDir = await path_provider.getApplicationDocumentsDirectory();
+    final fileName = path.basename(photoPathOrName.replaceFirst('file://', ''));
+    final fullPath = '${appDir.path}/$fileName';
+    
+    if (File(fullPath).existsSync()) {
+      _processImageFile(meal, fullPath, existingFileName: fileName);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Impossibile trovare il file immagine sul dispositivo.')),
+      );
+    }
+  }
+
+  Future<void> _processImageFile(MealEntryModel meal, String sourcePath, {String? existingFileName}) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) => PopScope(
+        canPop: false,
+        child: const Center(
+          child: CozyCard(
+            child: Padding(
+              padding: EdgeInsets.all(20.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(color: AppColors.woodAccent),
+                  SizedBox(height: 16),
+                  Text(
+                    '🪄 L\'Elfo Magico IA sta analizzando il piatto...\n(Se c\'è traffico, attendo qualche secondo in più)',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold),
+                  ),
+                ],
               ),
             ),
           ),
         ),
-      );
+      ),
+    );
 
-      try {
-        // Salvataggio locale persistente
+    try {
+      String fileName;
+      if (existingFileName != null) {
+        fileName = existingFileName;
+      } else {
         final appDir = await path_provider.getApplicationDocumentsDirectory();
-        final String fileName = 'meal_photo_${DateTime.now().millisecondsSinceEpoch}.jpg';
-        final File savedImage = await File(image.path).copy('${appDir.path}/$fileName');
-
-        // Salva nel rullino di sistema
+        fileName = 'meal_photo_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        final File savedImage = await File(sourcePath).copy('${appDir.path}/$fileName');
         try {
           await Gal.putImage(savedImage.path);
         } catch (_) {}
+      }
 
-        // Chiamata API Gemini
-        final bytes = await savedImage.readAsBytes();
-        final base64Image = base64Encode(bytes);
+      final appDir = await path_provider.getApplicationDocumentsDirectory();
+      final File targetFile = File('${appDir.path}/$fileName');
 
-        final url = Uri.parse(
-          'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=$_apiKey'
-        );
+      // Chiamata API Gemini
+      final bytes = await targetFile.readAsBytes();
+      final base64Image = base64Encode(bytes);
 
-        final prompt = '''
+      final url = Uri.parse(
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=$_apiKey'
+      );
+
+      final prompt = '''
 Analizza questa foto di cibo. Restituisci unicamente un oggetto JSON valido con questa struttura esatta:
 {
   "piatto": "Nome del piatto",
@@ -248,52 +287,49 @@ Analizza questa foto di cibo. Restituisci unicamente un oggetto JSON valido con 
 Stima in modo realistico i grammi e i macronutrienti.
 ''';
 
-        final body = jsonEncode({
-          "contents": [
-            {
-              "parts": [
-                {"text": prompt},
-                {
-                  "inline_data": {
-                    "mime_type": "image/jpeg",
-                    "data": base64Image
-                  }
+      final body = jsonEncode({
+        "contents": [
+          {
+            "parts": [
+              {"text": prompt},
+              {
+                "inline_data": {
+                  "mime_type": "image/jpeg",
+                  "data": base64Image
                 }
-              ]
-            }
-          ],
-          "generationConfig": {
-            "responseMimeType": "application/json"
+              }
+            ]
           }
-        });
-
-        // Invio con retry esponenziale automatico
-        final response = await _postWithExponentialBackoff(url, {'Content-Type': 'application/json'}, body);
-
-        if (!mounted) return;
-        Navigator.of(context).pop(); // Chiude solo il loader in modo sicuro
-
-        if (response.statusCode == 200) {
-          final data = jsonDecode(response.body);
-          final jsonString = data['candidates'][0]['content']['parts'][0]['text'];
-          final Map<String, dynamic> risultatoIA = jsonDecode(jsonString);
-
-          // Mostra il dialog di dettaglio con i risultati dell'IA
-          _showAiResultModal(meal, fileName, risultatoIA);
-        } else {
-          throw Exception("Errore server (${response.statusCode}): ${response.body}");
+        ],
+        "generationConfig": {
+          "responseMimeType": "application/json"
         }
-      } catch (e) {
-        if (mounted) {
-          Navigator.of(context).pop(); // Chiude il loader in caso di errore
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              backgroundColor: Colors.brown[800],
-              content: Text('Errore durante l\'analisi IA: $e'),
-              duration: const Duration(seconds: 4),
-            ),
-          );
-        }
+      });
+
+      final response = await _postWithExponentialBackoff(url, {'Content-Type': 'application/json'}, body);
+
+      if (!mounted) return;
+      Navigator.of(context).pop(); // Chiude il loader
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final jsonString = data['candidates'][0]['content']['parts'][0]['text'];
+        final Map<String, dynamic> risultatoIA = jsonDecode(jsonString);
+
+        _showAiResultModal(meal, fileName, risultatoIA);
+      } else {
+        throw Exception("Errore server (${response.statusCode}): ${response.body}");
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: Colors.brown[800],
+            content: Text('Errore durante l\'analisi IA: $e'),
+            duration: const Duration(seconds: 4),
+          ),
+        );
       }
     }
   }
@@ -378,7 +414,13 @@ Stima in modo realistico i grammi e i macronutrienti.
                   onPressed: () {
                     final int finalCalories = calcolaTotaleDinamicamente();
                     setState(() {
-                      meal.photoPath = photoFileName;
+                      // Aggiunge la foto alla lista esistente senza sovrascrivere le altre
+                      final photos = _getMealPhotos(meal);
+                      if (!photos.contains(photoFileName)) {
+                        photos.add(photoFileName);
+                      }
+                      _saveMealPhotos(meal, photos);
+
                       meal.items.add(FoodItemModel(
                         name: risultatoIA['piatto'] ?? 'Piatto IA',
                         quantity: '1 porzione',
@@ -390,9 +432,6 @@ Stima in modo realistico i grammi e i macronutrienti.
                         _user.coins += 5;
                       }
                     });
-
-                    _storageService.saveUser(_user);
-                    _storageService.saveMealsForDate(_selectedDate, _currentMealsList);
 
                     Navigator.pop(context);
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -578,6 +617,7 @@ Stima in modo realistico i grammi e i macronutrienti.
                       itemCount: mealsList.length,
                       itemBuilder: (context, index) {
                         final meal = mealsList[index];
+                        final mealPhotos = _getMealPhotos(meal);
 
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 14.0),
@@ -611,30 +651,71 @@ Stima in modo realistico i grammi e i macronutrienti.
                                 ),
                                 const SizedBox(height: 10),
 
-                                if (meal.photoPath != null && meal.photoPath!.isNotEmpty) ...[
-                                  GestureDetector(
-                                    onTap: () => _showMealPhotoDetail(meal.photoPath!),
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(10),
-                                      child: SizedBox(
-                                        height: 120,
-                                        width: double.infinity,
-                                        child: Stack(
-                                          fit: StackFit.expand,
-                                          children: [
-                                            _buildSafeImage(meal.photoPath!, fit: BoxFit.cover),
-                                            Positioned(
-                                              top: 6,
-                                              right: 6,
-                                              child: Container(
-                                                padding: const EdgeInsets.all(4),
-                                                decoration: BoxDecoration(color: Colors.black.withOpacity(0.6), shape: BoxShape.circle),
-                                                child: const Icon(Icons.zoom_in, color: Colors.white, size: 16),
+                                // --- GRIGLIA / LISTA FOTO MULTIPLE CON ELIMINAZIONE E RIPRESA ANALISI IA ---
+                                if (mealPhotos.isNotEmpty) ...[
+                                  SizedBox(
+                                    height: 130,
+                                    child: ListView.builder(
+                                      scrollDirection: Axis.horizontal,
+                                      itemCount: mealPhotos.length,
+                                      itemBuilder: (context, photoIndex) {
+                                        final photoPath = mealPhotos[photoIndex];
+                                        return Padding(
+                                          padding: const EdgeInsets.only(right: 8.0),
+                                          child: ClipRRect(
+                                            borderRadius: BorderRadius.circular(10),
+                                            child: SizedBox(
+                                              width: 130,
+                                              child: Stack(
+                                                fit: StackFit.expand,
+                                                children: [
+                                                  GestureDetector(
+                                                    onTap: () => _showMealPhotoDetail(photoPath),
+                                                    child: _buildSafeImage(photoPath, fit: BoxFit.cover),
+                                                  ),
+                                                  // Bottone X rossa in basso a destra per eliminare la foto
+                                                  Positioned(
+                                                    bottom: 4,
+                                                    right: 4,
+                                                    child: GestureDetector(
+                                                      onTap: () {
+                                                        setState(() {
+                                                          mealPhotos.removeAt(photoIndex);
+                                                          _saveMealPhotos(meal, mealPhotos);
+                                                        });
+                                                      },
+                                                      child: Container(
+                                                        padding: const EdgeInsets.all(4),
+                                                        decoration: const BoxDecoration(
+                                                          color: Colors.red,
+                                                          shape: BoxShape.circle,
+                                                        ),
+                                                        child: const Icon(Icons.close, color: Colors.white, size: 14),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  // Bottone IA in basso a sinistra per rianalizzare la foto esistente
+                                                  Positioned(
+                                                    bottom: 4,
+                                                    left: 4,
+                                                    child: GestureDetector(
+                                                      onTap: () => _reanalyzeExistingPhoto(meal, photoPath),
+                                                      child: Container(
+                                                        padding: const EdgeInsets.all(4),
+                                                        decoration: BoxDecoration(
+                                                          color: AppColors.woodAccent.withOpacity(0.9),
+                                                          shape: BoxShape.circle,
+                                                        ),
+                                                        child: const Icon(Icons.auto_awesome, color: Colors.white, size: 14),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
                                             ),
-                                          ],
-                                        ),
-                                      ),
+                                          ),
+                                        );
+                                      },
                                     ),
                                   ),
                                   const SizedBox(height: 10),
@@ -753,7 +834,7 @@ Stima in modo realistico i grammi e i macronutrienti.
                                       onPressed: () => _showImageSourceDialog(meal),
                                       icon: const Icon(Icons.camera_alt_outlined, size: 16, color: AppColors.woodAccent),
                                       label: const Text(
-                                        'Foto & Calcola IA 🪄',
+                                        'Aggiungi Foto & IA 🪄',
                                         style: TextStyle(fontSize: 11, color: AppColors.woodAccent, fontWeight: FontWeight.bold),
                                       ),
                                     ),
@@ -798,7 +879,7 @@ Stima in modo realistico i grammi e i macronutrienti.
     );
   }
 
-  Widget _buildWeeklyCaloriesChart() {
+Widget _buildWeeklyCaloriesChart() {
     final List<DateTime> pastDays = List.generate(7, (index) {
       return _selectedDate.subtract(Duration(days: 6 - index));
     });
@@ -832,6 +913,7 @@ Stima in modo realistico i grammi e i macronutrienti.
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               crossAxisAlignment: CrossAxisAlignment.end,
+              // CORRETTO da .app a .map
               children: pastDays.map((day) {
                 final cals = _getCaloriesForDate(day);
                 final double barHeight = maxCals > 0 ? (cals / maxCals) * 80 : 0.0;
