@@ -88,13 +88,13 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
   int get _totalDailyProteins {
     try {
       return _currentMealsList.fold(0, (sum, meal) {
-        return sum + meal.items.fold(0, (itemSum, item) {
-          try {
-            return itemSum + (item.proteins ?? 0).toInt();
-          } catch (_) {
-            return itemSum;
-          }
-        });
+          return sum + meal.items.fold(0, (itemSum, item) {
+              try {
+                return itemSum + (item.proteins ?? 0).toInt();
+              } catch (_) {
+                return itemSum;
+              }
+          });
       });
     } catch (_) {
       return 0;
@@ -104,13 +104,13 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
   int get _totalDailyCarbs {
     try {
       return _currentMealsList.fold(0, (sum, meal) {
-        return sum + meal.items.fold(0, (itemSum, item) {
-          try {
-            return itemSum + (item.carbs ?? 0).toInt();
-          } catch (_) {
-            return itemSum;
-          }
-        });
+          return sum + meal.items.fold(0, (itemSum, item) {
+              try {
+                return itemSum + (item.carbs ?? 0).toInt();
+              } catch (_) {
+                return itemSum;
+              }
+          });
       });
     } catch (_) {
       return 0;
@@ -120,13 +120,13 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
   int get _totalDailyFats {
     try {
       return _currentMealsList.fold(0, (sum, meal) {
-        return sum + meal.items.fold(0, (itemSum, item) {
-          try {
-            return itemSum + (item.fats ?? 0).toInt();
-          } catch (_) {
-            return itemSum;
-          }
-        });
+          return sum + meal.items.fold(0, (itemSum, item) {
+              try {
+                return itemSum + (item.fats ?? 0).toInt();
+              } catch (_) {
+                return itemSum;
+              }
+          });
       });
     } catch (_) {
       return 0;
@@ -142,13 +142,13 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
         return meals.fold(0, (sum, meal) => sum + (meal.totalCalories ?? 0));
       } else {
         return meals.fold(0, (sum, meal) => sum + meal.items.fold(0, (iSum, item) {
-          try {
-            if (metric == 'proteins') return iSum + (item.proteins ?? 0).toInt();
-            if (metric == 'carbs') return iSum + (item.carbs ?? 0).toInt();
-            return iSum + (item.fats ?? 0).toInt();
-          } catch (_) {
-            return iSum;
-          }
+              try {
+                if (metric == 'proteins') return iSum + (item.proteins ?? 0).toInt();
+                if (metric == 'carbs') return iSum + (item.carbs ?? 0).toInt();
+                return iSum + (item.fats ?? 0).toInt();
+              } catch (_) {
+                return iSum;
+              }
         }));
       }
     } catch (_) {
@@ -256,8 +256,9 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annulla', style: TextStyle(color: Colors.grey))),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.woodAccent, foregroundColor: Colors.white),
+            // Sostituito con CozyButton
+            CozyButton(
+              text: 'Salva Modifiche',
               onPressed: () {
                 setState(() {
                     final updatedItem = FoodItemModel(
@@ -274,7 +275,6 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
                 _storageService.saveMealsForDate(_selectedDate, _currentMealsList);
                 Navigator.pop(context);
               },
-              child: const Text('Salva Modifiche'),
             ),
           ],
         );
@@ -374,7 +374,7 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
                 children: [
                   CircularProgressIndicator(color: AppColors.woodAccent),
                   SizedBox(height: 16),
-                  Text('🪄 L\'Elfo Magico IA sta analizzando il piatto...', textAlign: TextAlign.center, style: TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold)),
+                  Text('🪄 L\'IA sta analizzando il piatto...', textAlign: TextAlign.center, style: TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold)),
                 ],
               ),
             ),
@@ -426,19 +426,16 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
       
       if (!mounted) return;
       
-      // 1. Chiudiamo in modo sicuro il dialog di caricamento dell'Elfo Magico
       if (Navigator.canPop(context)) {
         Navigator.of(context).pop();
       }
 
-      // 2. Gestiamo i codici di risposta HTTP senza sollevare eccezioni distruttive
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final jsonString = data['candidates'][0]['content']['parts'][0]['text'];
         final Map<String, dynamic> risultatoIA = jsonDecode(jsonString);
         _showAiResultModal(meal, fileName, risultatoIA);
       } else if (response.statusCode == 429) {
-        // Gestione specifica per troppe richieste (Too Many Requests)
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             backgroundColor: Colors.orange,
@@ -446,7 +443,6 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
           ),
         );
       } else {
-        // Altri errori del server
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             backgroundColor: Colors.red[700],
@@ -458,12 +454,10 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
     } catch (e) {
       if (!mounted) return;
       
-      // Se si verifica un'eccezione di rete, chiudiamo il loader se è ancora aperto
       if (Navigator.canPop(context)) {
         Navigator.of(context).pop();
       }
 
-      // Mostriamo l'errore in basso con uno SnackBar, SENZA uscire dalla schermata del diario
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           backgroundColor: Colors.red[700],
@@ -474,7 +468,7 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
   }    
 
   void _showAiResultModal(MealEntryModel meal, String photoFileName, Map<String, dynamic> risultatoIA) {
-    final parentContext = context; // Catturiamo il context della schermata principale
+    final parentContext = context;
 
     showDialog(
       context: context,
@@ -554,12 +548,11 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
               ),
               actions: [
                 TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annulla', style: TextStyle(color: Colors.grey))),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.woodAccent, foregroundColor: Colors.white),
+                // Sostituito con CozyButton
+                CozyButton(
+                  text: 'Conferma e Salva',
                   onPressed: () {
                     try {
-                      print("DEBUG: Avvio salvataggio pasto IA...");
-                      
                       setState(() {
                           final photos = _getMealPhotos(meal);
                           if (!photos.contains(photoFileName)) photos.add(photoFileName);
@@ -584,25 +577,17 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
                       _storageService.saveUser(_user);
                       _storageService.saveMealsForDate(_selectedDate, _currentMealsList);
                       
-                      print("DEBUG: Salvataggio completato, chiusura dialog...");
-                      
-                      // Chiudiamo il dialog
                       Navigator.of(context).pop();
                       
-                      // Mostriamo il feedback
                       ScaffoldMessenger.of(parentContext).showSnackBar(
                         const SnackBar(backgroundColor: Color(0xFF2E7D32), content: Text('✨ Piatto analizzato aggiunto con successo! +5 Rupie! 💎')),
                       );
                     } catch (e, stackTrace) {
-                      print("ERRORE CRITICO SALVATAGGIO IA: $e");
-                      print(stackTrace);
-                      
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(backgroundColor: Colors.red[700], content: Text('Errore nel salvataggio: $e')),
                       );
                     }
                   },
-                  child: const Text('Conferma e Salva'),
                 ),
               ],
             );
@@ -865,13 +850,12 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
                                         ],
                                       ),
                                       const SizedBox(height: 6),
+                                      // Sostituito con CozyButton
                                       SizedBox(
                                         width: double.infinity,
-                                        height: 30,
-                                        child: ElevatedButton(
-                                          style: ElevatedButton.styleFrom(backgroundColor: AppColors.woodAccent, foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+                                        child: CozyButton(
+                                          text: 'Salva Portata ➕',
                                           onPressed: () => _addFoodItemToMeal(meal),
-                                          child: const Text('Salva Portata ➕', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                                         ),
                                       ),
                                     ],
@@ -932,8 +916,8 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
     String metricTitle = 'Calorie';
     if (_selectedChartMetric == 'proteins') metricTitle = 'Proteine (g)';
     if (_selectedChartMetric == 'carbs') metricTitle = 'Carboidrati (g)';
-    if (_selectedChartMetric == 'fats') metricTitle = 'Grassi (g)';
-
+    if (_selectedChartMetric == 'fats') metricTitle = 'Grassi (g)'; // Aggiunta la '(' mancante
+    
     return CozyWoodCard(
       padding: const EdgeInsets.all(16),
       child: Column(
