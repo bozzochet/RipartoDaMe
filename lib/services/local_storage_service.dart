@@ -115,9 +115,16 @@ class LocalStorageService {
     final user = getUser();
     user.xp += xpGained;
     user.coins += coinsGained;
+
     if (user.heartsToday < user.maxHeartsDaily) {
+      final int oldHearts = user.heartsToday;
       user.heartsToday += heartsGained;
+
+      if (oldHearts < user.maxHeartsDaily && user.heartsToday >= user.maxHeartsDaily) {
+        user.goldenChests += 1;
+      }
     }
+    
     await saveUser(user);
   }
 

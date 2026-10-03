@@ -66,7 +66,7 @@ class _ShopScreenState extends State<ShopScreen> with SingleTickerProviderStateM
       title: 'Poltrona da Lettura',
       category: 'casa',
       room: 'salone',
-      icon: '🛋️',
+      icon: '🛋',
       price: 40,
       currency: CurrencyType.rupees,
     ),
@@ -121,9 +121,17 @@ class _ShopScreenState extends State<ShopScreen> with SingleTickerProviderStateM
   void initState() {
     super.initState();
     _user = _storageService.getUser();
-    _tabController = TabController(length: 3, vsync: this); // Portato a 3 per includere le Casse
+    _tabController = TabController(length: 3, vsync: this);
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    setState(() {
+        _user = _storageService.getUser();
+    });
+  }
+  
   void _buyItem(ShopItem item) async {
     if (item.isPurchased) return;
 
@@ -170,49 +178,54 @@ class _ShopScreenState extends State<ShopScreen> with SingleTickerProviderStateM
 
     if (success) {
       setState(() {
-        _user = _storageService.getUser(); // Aggiorna lo stato locale dell'utente
+        _user = _storageService.getUser();
       });
 
       showDialog(
         context: context,
         barrierDismissible: false,
         builder: (context) {
-          return AlertDialog(
-            backgroundColor: const Color(0xFFFDF6E3),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-              side: const BorderSide(color: AppColors.woodAccent, width: 2),
-            ),
-            title: const Text(
-              '✨ Tesoro Sbloccato! ✨',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: const [
-                Icon(Icons.auto_awesome, size: 56, color: Colors.amber),
-                SizedBox(height: 12),
-                Text(
-                  'La cassa si è aperta rivelando un abito o un arredo a sorpresa per la tua collezione!',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
-                ),
-              ],
-            ),
-            actions: [
-              Center(
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.woodAccent,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Evviva! 🎉'),
+          return Dialog(
+            backgroundColor: Colors.transparent,
+            child: CozyWoodCard(
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      '✨ Tesoro Sbloccato! ✨',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontFamily: 'Serif',
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    const Icon(
+                      Icons.auto_awesome,
+                      size: 56,
+                      color: Colors.amber,
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'La cassa si è aperta rivelando un abito o un arredo a sorpresa per la tua collezione!',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                    ),
+                    const SizedBox(height: 20),
+                    Center(
+                      child: CozyButton(
+                        text: 'Evviva! 🎉',
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
+            ),
           );
         },
       );
@@ -253,7 +266,7 @@ class _ShopScreenState extends State<ShopScreen> with SingleTickerProviderStateM
             tabs: const [
               Tab(icon: Icon(Icons.home_work_outlined), text: 'Arredo'),
               Tab(icon: Icon(Icons.checkroom_outlined), text: 'Abiti'),
-              Tab(icon: Icon(Icons.card_giftcard), text: 'Casse'), // <--- Nuova Tab Casse
+              Tab(icon: Icon(Icons.card_giftcard), text: 'Casse'),
             ],
           ),
         ),
@@ -265,11 +278,11 @@ class _ShopScreenState extends State<ShopScreen> with SingleTickerProviderStateM
                 children: [
                   _buildShopGrid('casa'),
                   _buildShopGrid('vestiti'),
-                  _buildChestSection(), // <--- Vista dedicata alle casse
+                  _buildChestSection(),
                 ],
               ),
             ),
-            // Contatore rupie in alto a destra (stile Home)
+            // Contatore rupie in alto a destra
             Positioned(
               top: MediaQuery.of(context).padding.top - 18,
               right: 42.0,
@@ -291,7 +304,7 @@ class _ShopScreenState extends State<ShopScreen> with SingleTickerProviderStateM
                 ),
               ),
             ),
-            // Contatore cuori in alto a sinistra (stile Home)
+            // Contatore cuori in alto a sinistra
             Positioned(
               top: MediaQuery.of(context).padding.top - 18,
               left: 42.0,
@@ -328,35 +341,38 @@ class _ShopScreenState extends State<ShopScreen> with SingleTickerProviderStateM
         crossAxisCount: 2,
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
-        childAspectRatio: 0.85,
+        childAspectRatio: 0.88, // Ottimizzato per ridurre lo spazio verticale in eccesso
       ),
       itemCount: items.length,
       itemBuilder: (context, index) {
         final item = items[index];
 
         return CozyWoodCard(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), // Padding interno super compatto per eliminare spazi vuoti
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Text(item.icon, style: const TextStyle(fontSize: 42)),
-              const SizedBox(height: 8),
+              Text(item.icon, style: const TextStyle(fontSize: 30)),
+              const SizedBox(height: 2),
               Text(
                 item.title,
                 textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 12,
                   color: AppColors.textPrimary,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 2),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(
                     item.currency == CurrencyType.rupees ? Icons.diamond : Icons.favorite,
-                    size: 16,
+                    size: 13,
                     color: item.currency == CurrencyType.rupees ? const Color(0xFF00E676) : Colors.redAccent,
                   ),
                   const SizedBox(width: 4),
@@ -364,25 +380,39 @@ class _ShopScreenState extends State<ShopScreen> with SingleTickerProviderStateM
                     '${item.price}',
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
-                      fontSize: 13,
+                      fontSize: 12,
                       color: AppColors.woodAccent,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-              SizedBox(
-                height: 30,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: item.isPurchased ? AppColors.textSecondary : AppColors.woodAccent,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              const SizedBox(height: 4),
+              ConstrainedBox(
+                constraints: const BoxConstraints(
+                  minHeight: 18,
+                  maxHeight: 36,
+                ),
+                child: item.isPurchased
+                ? Container(
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: AppColors.woodAccent.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.woodAccent, width: 1),
                   ),
-                  onPressed: item.isPurchased ? null : () => _buyItem(item),
-                  child: Text(
-                    item.isPurchased ? 'Sbloccato' : 'Acquista',
-                    style: const TextStyle(fontSize: 11, color: Colors.white),
+                  child: const Text(
+                    'Sbloccato',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.woodAccent,
+                    ),
                   ),
+                )
+                : CozyButton(
+                  verticalPadding: 4,
+                  text: 'Acquista',
+                  onPressed: () => _buyItem(item),
                 ),
               ),
             ],
@@ -392,93 +422,81 @@ class _ShopScreenState extends State<ShopScreen> with SingleTickerProviderStateM
     );
   }
 
-  // Widget per la sezione delle Casse Dorate all'interno della Bottega
+  // Sezione delle Casse Dorate
   Widget _buildChestSection() {
-    return Padding(
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CozyWoodCard(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              children: [
-                const Text(
-                  '📦 Emporio delle Casse Dorate',
-                  style: TextStyle(
-                    fontFamily: 'Serif',
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'Colleziona le casse completando le tue attività nella sezione "Cura di me" e aprila qui per scoprire premi a sorpresa!',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
-                ),
-                const SizedBox(height: 24),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.amber[100],
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.amber[700]!, width: 1.5),
-                  ),
-                  child: Text(
-                    'Casse disponibili: ${_user.goldenChests}',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                      color: Colors.amber[900],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 28),
-                GestureDetector(
-                  onTap: _user.goldenChests > 0 ? _openGoldenChest : null,
-                  child: Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: _user.goldenChests > 0 ? Colors.amber[200] : Colors.grey[300],
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: _user.goldenChests > 0 ? Colors.amber[800]! : Colors.grey,
-                        width: 3,
-                      ),
-                      boxShadow: _user.goldenChests > 0
-                          ? [
-                              BoxShadow(
-                                color: Colors.amber.withOpacity(0.4),
-                                blurRadius: 12,
-                                spreadRadius: 4,
-                              )
-                            ]
-                          : [],
-                    ),
-                    child: Icon(
-                      Icons.card_giftcard,
-                      size: 64,
-                      color: _user.goldenChests > 0 ? Colors.amber[900] : Colors.grey[600],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  _user.goldenChests > 0 ? 'Tocca la cassa per aprirla!' : 'Nessuna cassa da aprire',
-                  style: TextStyle(
-                    fontFamily: 'Serif',
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                    color: _user.goldenChests > 0 ? AppColors.woodAccent : AppColors.textSecondary,
-                  ),
-                ),
-              ],
+      child: CozyWoodCard(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              '📦 Emporio delle Casse Dorate',
+              style: TextStyle(
+                fontFamily: 'Serif',
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 12),
+            const Text(
+              'Colleziona le casse completando le tue attività nella sezione "Cura di me" e aprila qui per scoprire premi a sorpresa!',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: 220,
+              child: CozyButton(
+                text: 'Casse disponibili: ${_user.goldenChests}',
+                onPressed: () {}, // Pulsante puramente informativo o disattivabile all'occorrenza
+              ),
+            ),
+            const SizedBox(height: 28),
+            GestureDetector(
+              onTap: _user.goldenChests > 0 ? _openGoldenChest : null,
+              child: Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: _user.goldenChests > 0 ? Colors.amber[200] : Colors.grey[300],
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: _user.goldenChests > 0 ? Colors.amber[800]! : Colors.grey,
+                    width: 3,
+                  ),
+                  boxShadow: _user.goldenChests > 0
+                  ? [
+                    BoxShadow(
+                      color: Colors.amber.withOpacity(0.4),
+                      blurRadius: 12,
+                      spreadRadius: 4,
+                    )
+                  ]
+                  : [],
+                ),
+                child: Icon(
+                  Icons.card_giftcard,
+                  size: 64,
+                  color: _user.goldenChests > 0 ? Colors.amber[900] : Colors.grey[600],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              _user.goldenChests > 0 ? 'Tocca la cassa per aprirla!' : 'Nessuna cassa da aprire',
+              style: TextStyle(
+                fontFamily: 'Serif',
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+                color: _user.goldenChests > 0 ? AppColors.woodAccent : AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
+
 }

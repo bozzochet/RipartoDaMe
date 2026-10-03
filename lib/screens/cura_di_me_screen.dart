@@ -17,6 +17,7 @@ class HabitItem {
   final String icon;
   final int rewardHearts;
   bool isCompleted;
+  bool isLockedToday;
 
   HabitItem({
     required this.id,
@@ -26,6 +27,7 @@ class HabitItem {
     required this.icon,
     this.rewardHearts = 1,
     this.isCompleted = false,
+    this.isLockedToday = false,
   });
 }
 
@@ -54,7 +56,7 @@ class _CuraDiMeScreenState extends State<CuraDiMeScreen> {
 
     HabitItem(id: 'r1', category: 'Relax e movimento', title: 'Guardare una puntata di una serie preferita', description: 'Concediti un episodio della tua serie del cuore senza sensi di colpa.', icon: '📺'),
     HabitItem(id: 'r2', category: 'Relax e movimento', title: 'Cinque minuti di stretching per la schiena', description: 'Scarica le tensioni della colonna vertebrale con qualche movimento dolce.', icon: '🧘‍♀'),
-    HabitItem(id: 'r3', category: 'Relax e movimento', title: 'Fare stretching leggero', description: 'Allunga dolcemente i muscoli per sciogliere le tensioni accumulate.', icon: '🤸‍♀️'),
+    HabitItem(id: 'r3', category: 'Relax e movimento', title: 'Fare stretching leggero', description: 'Allunga dolcemente i muscoli per sciogliere le tensioni accumulate.', icon: '🤸‍♀'),
     HabitItem(id: 'r4', category: 'Relax e movimento', title: 'Ascoltare una canzone del cuore', description: 'Metti le cuffie, chiudi gli occhi e goditi un brano che ami senza distrazioni.', icon: '🎧'),
     HabitItem(id: 'r5', category: 'Relax e movimento', title: 'Creare una playlist del buon umore', description: 'Raccogli 5-10 brani che ti danno subito energia positiva.', icon: '🎶'),
     HabitItem(id: 'r6', category: 'Relax e movimento', title: 'Profumare l’ambiente', description: 'Accendi una candela profumata o usa degli oli essenziali rilassanti (lavanda, agrumi).', icon: '🕯'),
@@ -72,23 +74,52 @@ class _CuraDiMeScreenState extends State<CuraDiMeScreen> {
     if (_user.maxHearts < 10) {
       _user.maxHearts = 10;
     }
+    _verificaCambioGiornoEcarica();
+  }
+
+  Future<void> _verificaCambioGiornoEcarica() async {
+    final prefs = await SharedPreferences.getInstance();
+    final oggi = DateTime.now().toIso8601String().split('T')[0];
+    final ultimoGiorno = prefs.getString('ultimo_giorno_attivo');
+
+    // Se la data odierna è diversa dall'ultimo accesso registrato, è mezzanotte passata!
+    if (ultimoGiorno != oggi) {
+      // 1. Azzeriamo i cuori giornalieri
+      _user.currentHearts = 0;
+      await _storageService.saveUser(_user);
+
+      // 2. Registriamo il nuovo giorno
+      await prefs.setString('ultimo_giorno_attivo', oggi);
+      
+      // (Le chiavi SharedPreferences 'completate_$oggi' e 'bloccate_$oggi' saranno vuote per il nuovo giorno,
+      // azzerando così in modo naturale tutte le spunte e i lock precedenti).
+    }
+
     _caricaStatoAzioni();
   }
 
   Future<void> _caricaStatoAzioni() async {
     final prefs = await SharedPreferences.getInstance();
     final oggi = DateTime.now().toIso8601String().split('T')[0];
+    
     final List<String>? completateOggi = prefs.getStringList('completate_$oggi');
+    final List<String>? bloccateOggi = prefs.getStringList('bloccate_$oggi');
 
-    if (completateOggi != null) {
-      setState(() {
-        for (var habit in _habits) {
-          if (completateOggi.contains(habit.id)) {
-            habit.isCompleted = true;
-          }
+    setState(() {
+      for (var habit in _habits) {
+        habit.isCompleted = false;
+        habit.isLockedToday = false;
+
+        if (completateOggi != null && completateOggi.contains(habit.id)) {
+          habit.isCompleted = true;
         }
-      });
-    }
+        if (bloccateOggi != null && bloccateOggi.contains(habit.id)) {
+          habit.isLockedToday = true;
+          habit.isCompleted = true;
+        }
+      }
+      _user = _storageService.getUser();
+    });
   }
 
   Future<void> _salvaStatoAzioni() async {
@@ -96,11 +127,17 @@ class _CuraDiMeScreenState extends State<CuraDiMeScreen> {
     final oggi = DateTime.now().toIso8601String().split('T')[0];
     
     List<String> idCompletati = _habits
-        .where((h) => h.isCompleted)
+        .where((h) => h.isCompleted && !h.isLockedToday)
+        .map((h) => h.id)
+        .toList();
+
+    List<String> idBloccati = _habits
+        .where((h) => h.isLockedToday)
         .map((h) => h.id)
         .toList();
 
     await prefs.setStringList('completate_$oggi', idCompletati);
+    await prefs.setStringList('bloccate_$oggi', idBloccati);
   }
 
   @override
@@ -110,6 +147,17 @@ class _CuraDiMeScreenState extends State<CuraDiMeScreen> {
   }
 
   void _toggleHabit(HabitItem habit) async {
+    if (habit.isLockedToday) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: Color(0xFFC62828),
+          content: Text('🔒 Questa attività è già stata completata e riscattata oggi!'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
     setState(() {
       habit.isCompleted = !habit.isCompleted;
     });
@@ -120,10 +168,6 @@ class _CuraDiMeScreenState extends State<CuraDiMeScreen> {
       } catch (_) {}
 
       _user.currentHearts = (_user.currentHearts + habit.rewardHearts).clamp(0, 10);
-      
-      if (_user.currentHearts == 10) {
-        _mostraCassaDorata(context);
-      }
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -151,9 +195,97 @@ class _CuraDiMeScreenState extends State<CuraDiMeScreen> {
     });
   }
 
+  Future<void> _riscattaCassaOggi() async {
+    _user.goldenChests++;
+    _user.currentHearts = 0;
+    
+    for (var habit in _habits) {
+      if (habit.isCompleted) {
+        habit.isLockedToday = true;
+      }
+    }
+
+    await _storageService.saveUser(_user);
+    await _salvaStatoAzioni();
+
+    setState(() {
+      _user = _storageService.getUser();
+    });
+
+    if (!mounted) return;
+    
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: CozyWoodCard(
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  '✨ Cassa Riscattata! ✨',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontFamily: 'Serif',
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    color: Color(0xFFD4AF37),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Icon(
+                  Icons.card_giftcard,
+                  size: 52,
+                  color: Color(0xFFD4AF37),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Hai ottenuto una Cassa Dorata! I cuori sono stati azzerati. Le attività usate per questo traguardo sono state bloccate per oggi, mentre le altre sono pronte per un nuovo ciclo.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textPrimary,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text(
+                        'Chiudi',
+                        style: TextStyle(color: AppColors.textSecondary),
+                      ),
+                    ),
+                    CozyButton(
+                      text: 'Vai alla Bottega',
+                      onPressed: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const ShopScreen(),
+                          ),
+                        );
+                      },
+                    ),                    
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    bool giornoPerfetto = _user.currentHearts >= 10;
+    bool puoRiscattare = _user.currentHearts >= 10;
 
     return CozyBackground(
       child: Scaffold(
@@ -185,7 +317,7 @@ class _CuraDiMeScreenState extends State<CuraDiMeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // 1. BARRA CUORI & ACCESSO BOTTEGA
+                  // 1. BARRA CUORI & PULSANTE RISCATTA
                   CozyWoodCard(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.center,
@@ -229,13 +361,12 @@ class _CuraDiMeScreenState extends State<CuraDiMeScreen> {
                             color: AppColors.textSecondary,
                           ),
                         ),
-                        if (giornoPerfetto) ...[
+                        if (puoRiscattare) ...[
                           const SizedBox(height: 12),
-                          // Sostituito con CozyButton per avere la texture legno corretta
                           CozyButton(
-                            text: 'Riscatta Cassa in Bottega!',
+                            text: 'Riscatta Cassa Dorata!',
                             icon: Icons.card_giftcard,
-                            onPressed: () => _mostraCassaDorata(context),
+                            onPressed: _riscattaCassaOggi,
                           ),
                         ],
                       ],
@@ -310,16 +441,22 @@ class _CuraDiMeScreenState extends State<CuraDiMeScreen> {
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: habit.isCompleted ? const Color(0xFF2E7D32) : Colors.transparent,
+                                color: habit.isLockedToday
+                                    ? Colors.grey.withOpacity(0.6)
+                                    : (habit.isCompleted ? const Color(0xFF2E7D32) : Colors.transparent),
                                 border: Border.all(
-                                  color: habit.isCompleted ? const Color(0xFF2E7D32) : AppColors.woodAccent,
+                                  color: habit.isLockedToday
+                                      ? Colors.grey
+                                      : (habit.isCompleted ? const Color(0xFF2E7D32) : AppColors.woodAccent),
                                   width: 2,
                                 ),
                               ),
                               child: Icon(
-                                habit.isCompleted ? Icons.check : Icons.favorite_outline,
+                                habit.isLockedToday
+                                    ? Icons.lock
+                                    : (habit.isCompleted ? Icons.check : Icons.favorite_outline),
                                 size: 18,
-                                color: habit.isCompleted ? Colors.white : AppColors.woodAccent,
+                                color: habit.isLockedToday || habit.isCompleted ? Colors.white : AppColors.woodAccent,
                               ),
                             ),
                           ),
@@ -353,77 +490,6 @@ class _CuraDiMeScreenState extends State<CuraDiMeScreen> {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  void _mostraCassaDorata(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        child: CozyWoodCard(
-          child: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  '✨ Giorno Perfetto! ✨',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: 'Serif',
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                    color: Color(0xFFD4AF37), // Oro Zelda
-                  ),
-                ),
-                const SizedBox(height: 12),
-                const Icon(
-                  Icons.card_giftcard,
-                  size: 52,
-                  color: Color(0xFFD4AF37),
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'Hai completato 10 azioni di cura personale oggi! La Pozione dei Cuori ha fatto comparire una Cassa Dorata nella Bottega. Vai a vederla per riscuotere il tuo premio raro.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: AppColors.textPrimary,
-                    height: 1.4,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text(
-                        'Più tardi',
-                        style: TextStyle(color: AppColors.textSecondary),
-                      ),
-                    ),
-                    // Sostituito con CozyButton anche nel popup
-                    CozyButton(
-                      text: 'Vai alla Bottega',
-                      onPressed: () {
-                        Navigator.pop(context);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const ShopScreen(),
-                          ),
-                        );
-                      },
-                    ),                    
-                  ],
-                ),
-              ],
-            ),
-          ),
         ),
       ),
     );
