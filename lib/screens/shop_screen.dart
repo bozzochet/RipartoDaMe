@@ -121,7 +121,7 @@ class _ShopScreenState extends State<ShopScreen> with SingleTickerProviderStateM
   void initState() {
     super.initState();
     _user = _storageService.getUser();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this); // Portato a 3 per includere le Casse
   }
 
   void _buyItem(ShopItem item) async {
@@ -164,6 +164,68 @@ class _ShopScreenState extends State<ShopScreen> with SingleTickerProviderStateM
     }
   }
 
+  void _openGoldenChest() async {
+    bool success = await _storageService.consumeGoldenChest();
+    if (!mounted) return;
+
+    if (success) {
+      setState(() {
+        _user = _storageService.getUser(); // Aggiorna lo stato locale dell'utente
+      });
+
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) {
+          return AlertDialog(
+            backgroundColor: const Color(0xFFFDF6E3),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: const BorderSide(color: AppColors.woodAccent, width: 2),
+            ),
+            title: const Text(
+              '✨ Tesoro Sbloccato! ✨',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: const [
+                Icon(Icons.auto_awesome, size: 56, color: Colors.amber),
+                SizedBox(height: 12),
+                Text(
+                  'La cassa si è aperta rivelando un abito o un arredo a sorpresa per la tua collezione!',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                ),
+              ],
+            ),
+            actions: [
+              Center(
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.woodAccent,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Evviva! 🎉'),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: Color(0xFFC62828),
+          content: Text('❌ Non hai casse dorate disponibili! Completa le attività nella sezione Cura di me.'),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return CozyBackground(
@@ -189,8 +251,9 @@ class _ShopScreenState extends State<ShopScreen> with SingleTickerProviderStateM
             labelColor: AppColors.woodAccent,
             unselectedLabelColor: AppColors.textSecondary,
             tabs: const [
-              Tab(icon: Icon(Icons.home_work_outlined), text: 'Arredo Casa'),
-              Tab(icon: Icon(Icons.checkroom_outlined), text: 'Guardaroba'),
+              Tab(icon: Icon(Icons.home_work_outlined), text: 'Arredo'),
+              Tab(icon: Icon(Icons.checkroom_outlined), text: 'Abiti'),
+              Tab(icon: Icon(Icons.card_giftcard), text: 'Casse'), // <--- Nuova Tab Casse
             ],
           ),
         ),
@@ -202,6 +265,7 @@ class _ShopScreenState extends State<ShopScreen> with SingleTickerProviderStateM
                 children: [
                   _buildShopGrid('casa'),
                   _buildShopGrid('vestiti'),
+                  _buildChestSection(), // <--- Vista dedicata alle casse
                 ],
               ),
             ),
@@ -245,14 +309,6 @@ class _ShopScreenState extends State<ShopScreen> with SingleTickerProviderStateM
                       iconColor: AppColors.heartRed,
                       value: '${_user.currentHearts}',
                     ),
-                    /*
-                    const SizedBox(width: 12),
-                    CurrencyBadge(
-                      icon: Icons.diamond,
-                      iconColor: AppColors.rupeeGreen,
-                      value: '${_user.coins}',
-                    ),
-                    */
                   ],
                 ),
               ),
@@ -333,6 +389,96 @@ class _ShopScreenState extends State<ShopScreen> with SingleTickerProviderStateM
           ),
         );
       },
+    );
+  }
+
+  // Widget per la sezione delle Casse Dorate all'interno della Bottega
+  Widget _buildChestSection() {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CozyWoodCard(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              children: [
+                const Text(
+                  '📦 Emporio delle Casse Dorate',
+                  style: TextStyle(
+                    fontFamily: 'Serif',
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Colleziona le casse completando le tue attività nella sezione "Cura di me" e aprila qui per scoprire premi a sorpresa!',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                ),
+                const SizedBox(height: 24),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.amber[100],
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.amber[700]!, width: 1.5),
+                  ),
+                  child: Text(
+                    'Casse disponibili: ${_user.goldenChests}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                      color: Colors.amber[900],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 28),
+                GestureDetector(
+                  onTap: _user.goldenChests > 0 ? _openGoldenChest : null,
+                  child: Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: _user.goldenChests > 0 ? Colors.amber[200] : Colors.grey[300],
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: _user.goldenChests > 0 ? Colors.amber[800]! : Colors.grey,
+                        width: 3,
+                      ),
+                      boxShadow: _user.goldenChests > 0
+                          ? [
+                              BoxShadow(
+                                color: Colors.amber.withOpacity(0.4),
+                                blurRadius: 12,
+                                spreadRadius: 4,
+                              )
+                            ]
+                          : [],
+                    ),
+                    child: Icon(
+                      Icons.card_giftcard,
+                      size: 64,
+                      color: _user.goldenChests > 0 ? Colors.amber[900] : Colors.grey[600],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  _user.goldenChests > 0 ? 'Tocca la cassa per aprirla!' : 'Nessuna cassa da aprire',
+                  style: TextStyle(
+                    fontFamily: 'Serif',
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: _user.goldenChests > 0 ? AppColors.woodAccent : AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

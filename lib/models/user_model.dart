@@ -12,6 +12,7 @@ class UserModel {
   List<String> claimedStageIds; // Tappe della mappa già riscattate
   int coins;            // Monete/Rupie per comprare abiti e mobili
   int xp;               // Punti esperienza per la progressione
+  int goldenChests;     // Casse dorate accumulate dal benessere
   AvatarConfig avatarConfig;
 
   UserModel({
@@ -25,6 +26,7 @@ class UserModel {
     this.maxHearts = 10,
     this.coins = 0,
     this.xp = 0,
+    this.goldenChests = 0,
     required this.avatarConfig,
     List<String>? claimedStageIds,
   }) : claimedStageIds = claimedStageIds ?? [];
@@ -44,9 +46,10 @@ class UserModel {
       'height': height,
       'currentHearts': currentHearts,
       'maxHearts': maxHearts,
-      'claimedStageIds': claimedStageIds, // <--- Aggiunto nel toMap
+      'claimedStageIds': claimedStageIds,
       'coins': coins,
       'xp': xp,
+      'goldenChests': goldenChests,
       'avatarConfig': avatarConfig.toMap(),
     };
   }
@@ -62,10 +65,11 @@ class UserModel {
       currentHearts: map['currentHearts'] ?? 4,
       maxHearts: map['maxHearts'] ?? 10,
       claimedStageIds: map['claimedStageIds'] != null
-          ? List<String>.from(map['claimedStageIds']) // <--- Aggiunto nel fromMap
+          ? List<String>.from(map['claimedStageIds'])
           : [],
       coins: map['coins'] ?? 0,
       xp: map['xp'] ?? 0,
+      goldenChests: map['goldenChests'] ?? 0,
       avatarConfig: map['avatarConfig'] != null
           ? AvatarConfig.fromMap(Map<String, dynamic>.from(map['avatarConfig']))
           : AvatarConfig(),
