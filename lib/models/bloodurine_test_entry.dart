@@ -3,9 +3,6 @@ class BloodUrineTestEntry {
   final DateTime date;
 
   // --- ESAME URINE (Chimico-fisico, Striscia, Sedimento) ---
-  final String? sampleType;
-  final String? appearance;
-  final String? color;
   final double? specificGravity;
   final double? ph;
   final double? proteins;
@@ -20,8 +17,7 @@ class BloodUrineTestEntry {
   final double? urineWhiteBloodCells;   // Distinto dai globuli bianchi del sangue (double)
   final double? casts;
   final double? epithelialCells;
-  final String? crystals;
-  final String? bacteria;
+
   final String? urineSediment;
 
   // --- ESAME SANGUE (Emocromo, Metabolico, Lipidico, Renale, ecc.) ---
@@ -61,9 +57,6 @@ class BloodUrineTestEntry {
     required this.id,
     required this.date,
     // Urine
-    this.sampleType,
-    this.appearance,
-    this.color,
     this.specificGravity,
     this.ph,
     this.proteins,
@@ -78,8 +71,6 @@ class BloodUrineTestEntry {
     this.urineWhiteBloodCells,
     this.casts,
     this.epithelialCells,
-    this.crystals,
-    this.bacteria,
     this.urineSediment,
     // Blood
     this.glycemia,
@@ -118,9 +109,6 @@ class BloodUrineTestEntry {
     'id': id,
     'date': date.toIso8601String(),
     // Urine mapping
-    'sampleType': sampleType,
-    'appearance': appearance,
-    'color': color,
     'specificGravity': specificGravity,
     'ph': ph,
     'proteins': proteins,
@@ -135,8 +123,6 @@ class BloodUrineTestEntry {
     'urineWhiteBloodCells': urineWhiteBloodCells,
     'casts': casts,
     'epithelialCells': epithelialCells,
-    'crystals': crystals,
-    'bacteria': bacteria,
     'urineSediment': urineSediment,
     // Blood mapping
     'glycemia': glycemia,
@@ -175,9 +161,6 @@ class BloodUrineTestEntry {
     id: map['id'] ?? '',
     date: DateTime.parse(map['date']),
     // Urine unmarshaling
-    sampleType: map['sampleType'],
-    appearance: map['appearance'],
-    color: map['color'],
     specificGravity: map['specificGravity'] != null ? (map['specificGravity'] as num).toDouble() : null,
     ph: map['ph'] != null ? (map['ph'] as num).toDouble() : null,
     proteins: map['proteins'],
@@ -188,12 +171,10 @@ class BloodUrineTestEntry {
     ketones: map['ketones'],
     urobilinogen: map['urobilinogen'] != null ? (map['urobilinogen'] as num).toDouble() : null,
     bilirubin: map['bilirubin'] != null ? (map['bilirubin'] as num).toDouble() : null,
-    urineRedBloodCells: map['urineRedBloodCells'],
-    urineWhiteBloodCells: map['urineWhiteBloodCells'],
-    casts: map['casts'],
-    epithelialCells: map['epithelialCells'],
-    crystals: map['crystals'],
-    bacteria: map['bacteria'],
+    urineRedBloodCells: map['urineRedBloodCells'] != null ? (map['urineRedBloodCells'] as num).toDouble() : null,
+    urineWhiteBloodCells: map['urineWhiteBloodCells'] != null ? (map['urineWhiteBloodCells'] as num).toDouble() : null,
+    casts: map['casts'] != null ? (map['casts'] as num).toDouble() : null,
+    epithelialCells: map['epithelialCells'] != null ? (map['epithelialCells'] as num).toDouble() : null,
     urineSediment: map['urineSediment'],
     // Blood unmarshaling
     glycemia: map['glycemia'] != null ? (map['glycemia'] as num).toDouble() : null,

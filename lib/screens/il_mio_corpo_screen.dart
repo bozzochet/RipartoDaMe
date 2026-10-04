@@ -517,50 +517,52 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
       );
 
       const prompt = '''
-      Analizza questo documento (referto di analisi del sangue e/o delle urine). Estrai i valori numerici o testuali corrispondenti a questi campi se presenti e restituisci unicamente un oggetto JSON valido con questa struttura esatta (usa null se il valore non è presente):
+      Analizza questo documento (referto di analisi del sangue e/o delle urine). Estrai i valori corrispondenti a questi campi se presenti.
+      Nota: Per i campi delle urine che possono riportare esiti testuali (es. "Negativo", "Tracce", "Assente") o numerici, restituisci esattamente il valore letto nel referto (come numero o stringa). Usa null se il campo non è presente.
+      Restituisci unicamente un oggetto JSON valido con questa struttura esatta:
       {
-        "glycemia": 0.0,
-        "hba1c": 0.0,
-        "insulin": 0.0,
-        "iron": 0.0,
-        "ferritin": 0.0,
-        "potassium": 0.0,
-        "vitaminD": 0.0,
-        "vitaminB12": 0.0,
-        "ast": 0.0,
-        "alt": 0.0,
-        "ggt": 0.0,
-        "hemoglobin": 0.0,
-        "redBloodCells": 0.0,
-        "whiteBloodCells": 0.0,
-        "platelets": 0.0,
-        "hematocrit": 0.0,
-        "mcv": 0.0,
-        "neutrophils": 0.0,
-        "lymphocytes": 0.0,
-        "totalCholesterol": 0.0,
-        "hdlCholesterol": 0.0,
-        "ldlCholesterol": 0.0,
-        "triglycerides": 0.0,
-        "creatinine": 0.0,
-        "gfr": 0.0,
-        "pt": 0.0,
-        "aptt": 0.0,
-        "fibrinogen": 0.0,
-        "ves": 0.0,
-        "urineSpecificGravity": 0.0,
-        "urinePh": 0.0,
-        "urineProteins": 0.0,
-        "urineGlucose": 0.0,
-        "urineKetones": 0.0,
-        "urineHemoglobin": 0.0,
-        "urineBilirubin": 0.0,
-        "urineUrobilinogen": 0.0,
-        "urineNitrites": 0.0,
-        "urineLeukocytes": 0.0,
-        "urineSediment": ""
-      }
-      ''';
+      "glycemia": 0.0,
+      "hba1c": 0.0,
+      "insulin": 0.0,
+      "iron": 0.0,
+      "ferritin": 0.0,
+      "potassium": 0.0,
+      "vitaminD": 0.0,
+      "vitaminB12": 0.0,
+      "ast": 0.0,
+      "alt": 0.0,
+      "ggt": 0.0,
+      "hemoglobin": 0.0,
+      "redBloodCells": 0.0,
+      "whiteBloodCells": 0.0,
+      "platelets": 0.0,
+      "hematocrit": 0.0,
+      "mcv": 0.0,
+      "neutrophils": 0.0,
+      "lymphocytes": 0.0,
+      "totalCholesterol": 0.0,
+      "hdlCholesterol": 0.0,
+      "ldlCholesterol": 0.0,
+      "triglycerides": 0.0,
+      "creatinine": 0.0,
+      "gfr": 0.0,
+      "pt": 0.0,
+      "aptt": 0.0,
+      "fibrinogen": 0.0,
+      "ves": 0.0,
+      "urineSpecificGravity": 0.0,
+      "urinePh": 0.0,
+      "urineProteins": null,
+      "urineGlucose": null,
+      "urineKetones": null,
+      "urineHemoglobin": null,
+      "urineBilirubin": null,
+      "urineUrobilinogen": null,
+      "urineNitrites": null,
+      "urineLeukocytes": null,
+      "urineSediment": ""
+    }
+      ''';      
 
       int maxAttempts = 4;
       int delayMs = 1500;
@@ -994,7 +996,7 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
       return double.tryParse(entry.nitrites?.toString() ?? '');
       case 'urineLeukocytes': 
       return double.tryParse(entry.leukocyteEsterase?.toString() ?? '');
-      case 'urineHemoglobin': return entry.hemoglobin;
+      case 'urineHemoglobin': return entry.urineHemoglobin;
       case 'urineBilirubin': return entry.bilirubin;
       case 'urineUrobilinogen': return entry.urobilinogen;
       default: return null;
@@ -1991,10 +1993,10 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
       setState(() {});
     }
   }
-  
+
   void _showBloodTestDetailsDialog(BloodUrineTestEntry entry) {
     final dateStr =
-        "${entry.date.day.toString().padLeft(2, '0')}/${entry.date.month.toString().padLeft(2, '0')}/${entry.date.year}";
+    "${entry.date.day.toString().padLeft(2, '0')}/${entry.date.month.toString().padLeft(2, '0')}/${entry.date.year}";
 
     final Map<String, String> valuesMap = {
       if (entry.glycemia != null) 'Glicemia': '${entry.glycemia} mg/dL',
@@ -2028,16 +2030,16 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
       if (entry.ves != null) 'VES': '${entry.ves} mm/h',
       if (entry.specificGravity != null) 'Urine - Densità': '${entry.specificGravity}',
       if (entry.ph != null) 'Urine - pH': '${entry.ph}',
-      if (entry.proteins != null) 'Urine - Proteine': '${entry.proteins}',
-      if (entry.urineGlucose != null) 'Urine - Glucosio': '${entry.urineGlucose}',
+      if (entry.proteins != null) 'Urine - Proteine': '${entry.proteins} mg/dL',
+      if (entry.urineGlucose != null) 'Urine - Glucosio': '${entry.urineGlucose} mg/dL',
       if (entry.urineSediment != null && entry.urineSediment!.isNotEmpty) 'Urine - Sedimento': '${entry.urineSediment}',
-      if (entry.ketones != null) 'Urine - Corpi Chetonici': '${entry.ketones}',
-      if (entry.bilirubin != null) 'Urine - Bilirubina': '${entry.bilirubin}',
-      if (entry.urobilinogen != null) 'Urine - Urobilinogeno': '${entry.urobilinogen}',
+      if (entry.ketones != null) 'Urine - Corpi Chetonici': '${entry.ketones} mg/dL',
+      if (entry.bilirubin != null) 'Urine - Bilirubina': '${entry.bilirubin} mg/dL',
+      if (entry.urobilinogen != null) 'Urine - Urobilinogeno': '${entry.urobilinogen} mg/dL',
       if (entry.nitrites != null) 'Urine - Nitriti': '${entry.nitrites}',
-      if (entry.leukocyteEsterase != null) 'Urine - Leucociti': '${entry.leukocyteEsterase}',
+      if (entry.leukocyteEsterase != null) 'Urine - Leucociti': '${entry.leukocyteEsterase} n/uL',
     };
-
+  
     showDialog(
       context: context,
       builder: (context) {
