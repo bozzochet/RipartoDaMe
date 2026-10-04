@@ -1,47 +1,55 @@
-class BloodTestEntry {
+class BloodUrineTestEntry {
   final String id;
   final DateTime date;
 
-  // Glicemia & Insulina
+  // --- ESAME URINE (Chimico-fisico, Striscia, Sedimento) ---
+  final String? sampleType;
+  final String? appearance;
+  final String? color;
+  final double? specificGravity;
+  final double? ph;
+  final double? proteins;
+  final double? urineHemoglobin; // Distinto dall'emoglobina del sangue (double)
+  final double? leukocyteEsterase;
+  final double? nitrites;
+  final double? urineGlucose;    // Distinto dalla glicemia del sangue (double)
+  final double? ketones;
+  final double? urobilinogen;
+  final double? bilirubin;
+  final double? urineRedBloodCells;    // Distinto dai globuli rossi del sangue (double)
+  final double? urineWhiteBloodCells;   // Distinto dai globuli bianchi del sangue (double)
+  final double? casts;
+  final double? epithelialCells;
+  final String? crystals;
+  final String? bacteria;
+  final String? urineSediment;
+
+  // --- ESAME SANGUE (Emocromo, Metabolico, Lipidico, Renale, ecc.) ---
   final double? glycemia;
   final double? hba1c;
   final double? insulin;
-
-  // Assetto Marziale (Ferro)
   final double? iron;
   final double? ferritin;
-
-  // Vitamine ed Elettroliti
   final double? potassium;
   final double? vitaminD;
   final double? vitaminB12;
-
-  // Funzionalità Epatica
   final double? ast;
   final double? alt;
   final double? ggt;
-
-  // Emocromo Avanzato
-  final double? hemoglobin;
-  final double? redBloodCells;
-  final double? whiteBloodCells;
+  final double? hemoglobin;          // Emoglobina ematica (double)
+  final double? redBloodCells;       // Globuli rossi ematici (double)
+  final double? whiteBloodCells;     // Globuli bianchi ematici (double)
   final double? platelets;
   final double? hematocrit;
   final double? mcv;
   final double? neutrophils;
   final double? lymphocytes;
-
-  // Profilo Lipidico
   final double? totalCholesterol;
   final double? hdlCholesterol;
   final double? ldlCholesterol;
   final double? triglycerides;
-
-  // Profilo Renale
   final double? creatinine;
   final double? gfr;
-
-  // Coagulazione & Infiammazione
   final double? pt;
   final double? aptt;
   final double? fibrinogen;
@@ -49,9 +57,31 @@ class BloodTestEntry {
 
   final String? filePath;
 
-  BloodTestEntry({
+  BloodUrineTestEntry({
     required this.id,
     required this.date,
+    // Urine
+    this.sampleType,
+    this.appearance,
+    this.color,
+    this.specificGravity,
+    this.ph,
+    this.proteins,
+    this.urineHemoglobin,
+    this.leukocyteEsterase,
+    this.nitrites,
+    this.urineGlucose,
+    this.ketones,
+    this.urobilinogen,
+    this.bilirubin,
+    this.urineRedBloodCells,
+    this.urineWhiteBloodCells,
+    this.casts,
+    this.epithelialCells,
+    this.crystals,
+    this.bacteria,
+    this.urineSediment,
+    // Blood
     this.glycemia,
     this.hba1c,
     this.insulin,
@@ -87,6 +117,28 @@ class BloodTestEntry {
   Map<String, dynamic> toMap() => {
     'id': id,
     'date': date.toIso8601String(),
+    // Urine mapping
+    'sampleType': sampleType,
+    'appearance': appearance,
+    'color': color,
+    'specificGravity': specificGravity,
+    'ph': ph,
+    'proteins': proteins,
+    'urineHemoglobin': urineHemoglobin,
+    'leukocyteEsterase': leukocyteEsterase,
+    'nitrites': nitrites,
+    'urineGlucose': urineGlucose,
+    'ketones': ketones,
+    'urobilinogen': urobilinogen,
+    'bilirubin': bilirubin,
+    'urineRedBloodCells': urineRedBloodCells,
+    'urineWhiteBloodCells': urineWhiteBloodCells,
+    'casts': casts,
+    'epithelialCells': epithelialCells,
+    'crystals': crystals,
+    'bacteria': bacteria,
+    'urineSediment': urineSediment,
+    // Blood mapping
     'glycemia': glycemia,
     'hba1c': hba1c,
     'insulin': insulin,
@@ -119,9 +171,31 @@ class BloodTestEntry {
     'filePath': filePath,
   };
 
-  factory BloodTestEntry.fromMap(Map<String, dynamic> map) => BloodTestEntry(
+  factory BloodUrineTestEntry.fromMap(Map<String, dynamic> map) => BloodUrineTestEntry(
     id: map['id'] ?? '',
     date: DateTime.parse(map['date']),
+    // Urine unmarshaling
+    sampleType: map['sampleType'],
+    appearance: map['appearance'],
+    color: map['color'],
+    specificGravity: map['specificGravity'] != null ? (map['specificGravity'] as num).toDouble() : null,
+    ph: map['ph'] != null ? (map['ph'] as num).toDouble() : null,
+    proteins: map['proteins'],
+    urineHemoglobin: map['urineHemoglobin'],
+    leukocyteEsterase: map['leukocyteEsterase'],
+    nitrites: map['nitrites'],
+    urineGlucose: map['urineGlucose'],
+    ketones: map['ketones'],
+    urobilinogen: map['urobilinogen'] != null ? (map['urobilinogen'] as num).toDouble() : null,
+    bilirubin: map['bilirubin'] != null ? (map['bilirubin'] as num).toDouble() : null,
+    urineRedBloodCells: map['urineRedBloodCells'],
+    urineWhiteBloodCells: map['urineWhiteBloodCells'],
+    casts: map['casts'],
+    epithelialCells: map['epithelialCells'],
+    crystals: map['crystals'],
+    bacteria: map['bacteria'],
+    urineSediment: map['urineSediment'],
+    // Blood unmarshaling
     glycemia: map['glycemia'] != null ? (map['glycemia'] as num).toDouble() : null,
     hba1c: map['hba1c'] != null ? (map['hba1c'] as num).toDouble() : null,
     insulin: map['insulin'] != null ? (map['insulin'] as num).toDouble() : null,

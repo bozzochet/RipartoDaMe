@@ -13,7 +13,7 @@ void main() async {
   await Hive.openBox('habitsBox');
   await Hive.openBox('weightLogsBox');
   await Hive.openBox('measurementsBox');
-  await Hive.openBox('diaryBox');
+//  await Hive.openBox('diaryBox');
   await Hive.openBox('photosBox');
   await Hive.openBox('bloodTestsBox');
   await Hive.openBox('mealsBox');

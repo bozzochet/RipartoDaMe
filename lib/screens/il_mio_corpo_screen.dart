@@ -20,7 +20,7 @@ import '../services/local_storage_service.dart';
 import '../models/user_model.dart';
 import '../models/body_measurement_entry.dart';
 import '../models/progress_photo_entry.dart';
-import '../models/blood_test_entry.dart';
+import '../models/bloodurine_test_entry.dart';
 
 class IlMioCorpoScreen extends StatefulWidget {
   const IlMioCorpoScreen({super.key});
@@ -84,6 +84,19 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
   final TextEditingController _apttController = TextEditingController();
   final TextEditingController _fibrinogenController = TextEditingController();
   final TextEditingController _vesController = TextEditingController();
+
+  // Controllers Esame Urine
+  final TextEditingController _urineSpecificGravityController = TextEditingController();
+  final TextEditingController _urinePhController = TextEditingController();
+  final TextEditingController _urineProteinsController = TextEditingController();
+  final TextEditingController _urineGlucoseController = TextEditingController();
+  final TextEditingController _urineKetonesController = TextEditingController();
+  final TextEditingController _urineHemoglobinController = TextEditingController();
+  final TextEditingController _urineBilirubinController = TextEditingController();
+  final TextEditingController _urineUrobilinogenController = TextEditingController();
+  final TextEditingController _urineNitritesController = TextEditingController();
+  final TextEditingController _urineLeukocytesController = TextEditingController();
+  final TextEditingController _urineSedimentController = TextEditingController();
 
   // File temporaneo associato all'analisi corrente
   String? _tempBloodFilePath;
@@ -156,6 +169,17 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
     _apttController.dispose();
     _fibrinogenController.dispose();
     _vesController.dispose();
+    _urineSpecificGravityController.dispose();
+    _urinePhController.dispose();
+    _urineProteinsController.dispose();
+    _urineGlucoseController.dispose();
+    _urineKetonesController.dispose();
+    _urineHemoglobinController.dispose();
+    _urineBilirubinController.dispose();
+    _urineUrobilinogenController.dispose();
+    _urineNitritesController.dispose();
+    _urineLeukocytesController.dispose();
+    _urineSedimentController.dispose();
 
     super.dispose();
   }
@@ -493,7 +517,7 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
       );
 
       const prompt = '''
-      Analizza questo documento (referto di analisi del sangue). Estrai i valori numerici corrispondenti a questi campi se presenti e restituisci unicamente un oggetto JSON valido con questa struttura esatta (usa null se il valore non è presente):
+      Analizza questo documento (referto di analisi del sangue e/o delle urine). Estrai i valori numerici o testuali corrispondenti a questi campi se presenti e restituisci unicamente un oggetto JSON valido con questa struttura esatta (usa null se il valore non è presente):
       {
         "glycemia": 0.0,
         "hba1c": 0.0,
@@ -523,7 +547,18 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
         "pt": 0.0,
         "aptt": 0.0,
         "fibrinogen": 0.0,
-        "ves": 0.0
+        "ves": 0.0,
+        "urineSpecificGravity": 0.0,
+        "urinePh": 0.0,
+        "urineProteins": 0.0,
+        "urineGlucose": 0.0,
+        "urineKetones": 0.0,
+        "urineHemoglobin": 0.0,
+        "urineBilirubin": 0.0,
+        "urineUrobilinogen": 0.0,
+        "urineNitrites": 0.0,
+        "urineLeukocytes": 0.0,
+        "urineSediment": ""
       }
       ''';
 
@@ -584,6 +619,17 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
             if (parsedValues['aptt'] != null) _apttController.text = parsedValues['aptt'].toString();
             if (parsedValues['fibrinogen'] != null) _fibrinogenController.text = parsedValues['fibrinogen'].toString();
             if (parsedValues['ves'] != null) _vesController.text = parsedValues['ves'].toString();
+            if (parsedValues['urineSpecificGravity'] != null) _urineSpecificGravityController.text = parsedValues['urineSpecificGravity'].toString();
+            if (parsedValues['urinePh'] != null) _urinePhController.text = parsedValues['urinePh'].toString();
+            if (parsedValues['urineProteins'] != null) _urineProteinsController.text = parsedValues['urineProteins'].toString();
+            if (parsedValues['urineGlucose'] != null) _urineGlucoseController.text = parsedValues['urineGlucose'].toString();
+            if (parsedValues['urineKetones'] != null) _urineKetonesController.text = parsedValues['urineKetones'].toString();
+            if (parsedValues['urineHemoglobin'] != null) _urineHemoglobinController.text = parsedValues['urineHemoglobin'].toString();
+            if (parsedValues['urineBilirubin'] != null) _urineBilirubinController.text = parsedValues['urineBilirubin'].toString();
+            if (parsedValues['urineUrobilinogen'] != null) _urineUrobilinogenController.text = parsedValues['urineUrobilinogen'].toString();
+            if (parsedValues['urineNitrites'] != null) _urineNitritesController.text = parsedValues['urineNitrites'].toString();
+            if (parsedValues['urineLeukocytes'] != null) _urineLeukocytesController.text = parsedValues['urineLeukocytes'].toString();
+            if (parsedValues['urineSediment'] != null) _urineSedimentController.text = parsedValues['urineSediment'].toString();
         });
 
         _tempBloodFilePath = fileName;
@@ -905,7 +951,7 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
   }
 
   // --- METODI DI SUPPORTO PER IL GRAFICO DEGLI ESAMI DEL SANGUE ---
-  double? _getBloodMetricValue(BloodTestEntry entry, String metric) {
+  double? _getBloodMetricValue(BloodUrineTestEntry entry, String metric) {
     switch (metric) {
       case 'glycemia': return entry.glycemia;
       case 'hba1c': return entry.hba1c;
@@ -936,6 +982,21 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
       case 'aptt': return entry.aptt;
       case 'fibrinogen': return entry.fibrinogen;
       case 'ves': return entry.ves;
+      case 'urineSpecificGravity': return entry.specificGravity;
+      case 'urinePh': return entry.ph;
+      case 'urineProteins': 
+      return double.tryParse(entry.proteins?.toString() ?? '');
+      case 'urineGlucose': 
+      return double.tryParse(entry.urineGlucose?.toString() ?? '');
+      case 'urineKetones': 
+      return double.tryParse(entry.ketones?.toString() ?? '');
+      case 'urineNitrites': 
+      return double.tryParse(entry.nitrites?.toString() ?? '');
+      case 'urineLeukocytes': 
+      return double.tryParse(entry.leukocyteEsterase?.toString() ?? '');
+      case 'urineHemoglobin': return entry.hemoglobin;
+      case 'urineBilirubin': return entry.bilirubin;
+      case 'urineUrobilinogen': return entry.urobilinogen;
       default: return null;
     }
   }
@@ -971,6 +1032,16 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
       case 'aptt': return 'APTT (sec)';
       case 'fibrinogen': return 'Fibrinogeno (mg/dL)';
       case 'ves': return 'VES (mm/h)';
+      case 'urineSpecificGravity': return 'Peso Specifico Urine';
+      case 'urinePh': return 'pH Urine';
+      case 'urineProteins': return 'Proteine Urine';
+      case 'urineGlucose': return 'Glucosio Urine';
+      case 'urineKetones': return 'Corpi Chetonici';
+      case 'urineHemoglobin': return 'Emoglobina Urine';
+      case 'urineBilirubin': return 'Bilirubina Urine';
+      case 'urineUrobilinogen': return 'Urobilinogeno';
+      case 'urineNitrites': return 'Nitriti';
+      case 'urineLeukocytes': return 'Leucociti Urine';
       default: return 'Valore';
     }
   }
@@ -979,17 +1050,22 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
     final allEntries = _storageService.getBloodTestsHistory();
     if (allEntries.isEmpty) return const SizedBox.shrink();
 
-    final sortedEntries = List<BloodTestEntry>.from(allEntries)
+    final sortedEntries = List<BloodUrineTestEntry>.from(allEntries)
       ..sort((a, b) => a.date.compareTo(b.date));
 
     final chartEntries = sortedEntries.length > 7 ? sortedEntries.sublist(sortedEntries.length - 7) : sortedEntries;
 
-    double maxVal = 100.0;
+    double maxVal = 0.0;
     for (var entry in chartEntries) {
       final val = _getBloodMetricValue(entry, _selectedBloodChartMetric);
       if (val != null && val > maxVal) {
-        maxVal = val * 1.2;
+        maxVal = val;
       }
+    }
+    if (maxVal == 0.0) {
+      maxVal = 100.0;
+    } else {
+      maxVal *= 1.2;
     }
 
     final metricTitle = _getBloodMetricLabel(_selectedBloodChartMetric);
@@ -1052,6 +1128,16 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
                   DropdownMenuItem(value: 'aptt', child: Text('APTT')),
                   DropdownMenuItem(value: 'fibrinogen', child: Text('Fibrinogeno')),
                   DropdownMenuItem(value: 'ves', child: Text('VES')),
+                  DropdownMenuItem(value: 'urineSpecificGravity', child: Text('Urine - Densità')),
+                  DropdownMenuItem(value: 'urinePh', child: Text('Urine - pH')),
+                  DropdownMenuItem(value: 'urineProteins', child: Text('Urine - Proteine')),
+                  DropdownMenuItem(value: 'urineGlucose', child: Text('Urine - Glucosio')),
+                  DropdownMenuItem(value: 'urineKetones', child: Text('Urine - Corpi Chetonici')),
+                  DropdownMenuItem(value: 'urineHemoglobin', child: Text('Urine - Emoglobina')),
+                  DropdownMenuItem(value: 'urineBilirubin', child: Text('Urine - Bilirubina')),
+                  DropdownMenuItem(value: 'urineUrobilinogen', child: Text('Urine - Urobilinogeno')),
+                  DropdownMenuItem(value: 'urineNitrites', child: Text('Urine - Nitriti')),
+                  DropdownMenuItem(value: 'urineLeukocytes', child: Text('Urine - Leucociti')),
                 ],
                 onChanged: (val) {
                   if (val != null) setState(() { _selectedBloodChartMetric = val; });
@@ -1221,6 +1307,37 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
               _buildBloodField(_vesController, 'VES', 'mm/h'),
             ],
           ),
+          const SizedBox(height: 8),
+
+          _buildExpansionWoodSection(
+            title: 'Esame Urine',
+            children: [
+              _buildBloodField(_urineSpecificGravityController, 'Peso Specifico', 'densità'),
+              const SizedBox(height: 10),
+              _buildBloodField(_urinePhController, 'pH', 'unit'),
+              const SizedBox(height: 10),
+              _buildBloodField(_urineProteinsController, 'Proteine', 'mg/dL'),
+              const SizedBox(height: 10),
+              _buildBloodField(_urineGlucoseController, 'Glucosio', 'mg/dL'),
+              const SizedBox(height: 10),
+              _buildBloodField(_urineKetonesController, 'Corpi Chetonici', 'mg/dL'),
+              const SizedBox(height: 10),
+              _buildBloodField(_urineHemoglobinController, 'Emoglobina', 'mg/dL'),
+              const SizedBox(height: 10),
+              _buildBloodField(_urineBilirubinController, 'Bilirubina', 'mg/dL'),
+              const SizedBox(height: 10),
+              _buildBloodField(_urineUrobilinogenController, 'Urobilinogeno', 'mg/dL'),
+              const SizedBox(height: 10),
+              _buildBloodField(_urineNitritesController, 'Nitriti', 'pos/neg'),
+              const SizedBox(height: 10),
+              _buildBloodField(_urineLeukocytesController, 'Leucociti / Esterasi', 'cell/µL'),
+              const SizedBox(height: 10),
+              TextField(
+                controller: _urineSedimentController,
+                decoration: CozyStyles.cozyInputDecoration('Sedimento Urinario (note)'),
+              ),
+            ],
+          ),
           const SizedBox(height: 12),
 
           SizedBox(
@@ -1304,7 +1421,7 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
                       trailing: IconButton(
                         icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
                         onPressed: () async {
-                          await _storageService.deleteBloodTestEntry(entry.id);
+                          await _storageService.deleteBloodUrineTestEntry(entry.id);
                           setState(() {});
                         },
                       ),
@@ -1760,8 +1877,21 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
     );
   }
 
+  // Funzione di supporto locale per convertire in sicurezza (gestendo anche "Assente", "Negativo" o simili mappandoli a 0.0)
+  double? parseUrineValue(String text) {
+    final cleaned = text.trim().toLowerCase().replaceAll(',', '.');
+    if (cleaned.isEmpty) return null;
+    
+    // Se l'utente scrive "assente", "negativo" o simili, lo mappiamo a 0.0
+    if (cleaned == 'assente' || cleaned == 'negativo' || cleaned == 'neg' || cleaned == '-' || cleaned == 'ass') {
+      return 0.0;
+    }
+    
+    return double.tryParse(cleaned);
+  }
+  
   void _saveBloodTest() async {
-    final entry = BloodTestEntry(
+    final entry = BloodUrineTestEntry(
       id: DateTime.now().toIso8601String(),
       date: DateTime.now(),
       glycemia: double.tryParse(_glycemiaController.text.replaceAll(',', '.')),
@@ -1793,10 +1923,21 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
       aptt: double.tryParse(_apttController.text.replaceAll(',', '.')),
       fibrinogen: double.tryParse(_fibrinogenController.text.replaceAll(',', '.')),
       ves: double.tryParse(_vesController.text.replaceAll(',', '.')),
+      // Parametri urine gestiti con la nuova funzione protetta per "Assente" / "Negativo"
+      specificGravity: parseUrineValue(_urineSpecificGravityController.text),
+      ph: parseUrineValue(_urinePhController.text),
+      proteins: parseUrineValue(_urineProteinsController.text),
+      urineGlucose: parseUrineValue(_urineGlucoseController.text),
+      ketones: parseUrineValue(_urineKetonesController.text),
+      bilirubin: parseUrineValue(_urineBilirubinController.text),
+      urobilinogen: parseUrineValue(_urineUrobilinogenController.text),
+      nitrites: parseUrineValue(_urineNitritesController.text),
+      leukocyteEsterase: parseUrineValue(_urineLeukocytesController.text),
+      urineSediment: _urineSedimentController.text.trim().isNotEmpty ? _urineSedimentController.text.trim() : null,
       filePath: _tempBloodFilePath,
     );
-
-    await _storageService.addBloodTestEntry(entry);
+  
+    await _storageService.addBloodUrineTestEntry(entry);
     _tempBloodFilePath = null;
 
     _glycemiaController.clear();
@@ -1828,19 +1969,30 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
     _apttController.clear();
     _fibrinogenController.clear();
     _vesController.clear();
+    _urineSpecificGravityController.clear();
+    _urinePhController.clear();
+    _urineProteinsController.clear();
+    _urineGlucoseController.clear();
+    _urineKetonesController.clear();
+    _urineHemoglobinController.clear();
+    _urineBilirubinController.clear();
+    _urineUrobilinogenController.clear();
+    _urineNitritesController.clear();
+    _urineLeukocytesController.clear();
+    _urineSedimentController.clear();
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           backgroundColor: AppColors.success,
-          content: Text('🩸 Analisi del sangue salvate con successo!'),
+          content: Text('🩸 Analisi del sangue e urine salvate con successo!'),
         ),
       );
       setState(() {});
     }
   }
   
-  void _showBloodTestDetailsDialog(BloodTestEntry entry) {
+  void _showBloodTestDetailsDialog(BloodUrineTestEntry entry) {
     final dateStr =
         "${entry.date.day.toString().padLeft(2, '0')}/${entry.date.month.toString().padLeft(2, '0')}/${entry.date.year}";
 
@@ -1874,6 +2026,16 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
       if (entry.aptt != null) 'APTT': '${entry.aptt} sec',
       if (entry.fibrinogen != null) 'Fibrinogeno': '${entry.fibrinogen} mg/dL',
       if (entry.ves != null) 'VES': '${entry.ves} mm/h',
+      if (entry.specificGravity != null) 'Urine - Densità': '${entry.specificGravity}',
+      if (entry.ph != null) 'Urine - pH': '${entry.ph}',
+      if (entry.proteins != null) 'Urine - Proteine': '${entry.proteins}',
+      if (entry.urineGlucose != null) 'Urine - Glucosio': '${entry.urineGlucose}',
+      if (entry.urineSediment != null && entry.urineSediment!.isNotEmpty) 'Urine - Sedimento': '${entry.urineSediment}',
+      if (entry.ketones != null) 'Urine - Corpi Chetonici': '${entry.ketones}',
+      if (entry.bilirubin != null) 'Urine - Bilirubina': '${entry.bilirubin}',
+      if (entry.urobilinogen != null) 'Urine - Urobilinogeno': '${entry.urobilinogen}',
+      if (entry.nitrites != null) 'Urine - Nitriti': '${entry.nitrites}',
+      if (entry.leukocyteEsterase != null) 'Urine - Leucociti': '${entry.leukocyteEsterase}',
     };
 
     showDialog(

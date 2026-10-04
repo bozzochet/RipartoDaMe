@@ -4,7 +4,7 @@ import '../models/user_model.dart';
 import '../models/habit_model.dart';
 import '../models/body_measurement_entry.dart';
 import '../models/progress_photo_entry.dart';
-import '../models/blood_test_entry.dart';
+import '../models/bloodurine_test_entry.dart';
 import '../models/meal_entry_model.dart';
 import '../constants/app_assets.dart';
 
@@ -219,51 +219,43 @@ class LocalStorageService {
     return history.isNotEmpty ? history.first : null;
   }
 
-  // --- GESTIONE ANALISI DEL SANGUE ---
+  // --- GESTIONE ANALISI DEL SANGUE E URINE ---
   
-  Future<void> addBloodTestEntry(BloodTestEntry entry) async {
-    // Se l'id è vuoto o nullo, generiamone uno sicuro basato sulla data o su un timestamp
+  Future<void> addBloodUrineTestEntry(BloodUrineTestEntry entry) async {
     final String dateKey = (entry.id.isNotEmpty) ? entry.id : entry.date.toIso8601String();
     await _bloodTestsBox.put(dateKey, entry.toMap());
   }
 
-  List<BloodTestEntry> getBloodTestsHistory() {
-    final entries = <BloodTestEntry>[];
+  List<BloodUrineTestEntry> getBloodTestsHistory() {
+    final entries = <BloodUrineTestEntry>[];
     
     for (var key in _bloodTestsBox.keys) {
       try {
         final data = _bloodTestsBox.get(key);
         if (data != null) {
           final map = Map<String, dynamic>.from(data);
-          
-          // Se per caso c'è un'entry con dati vuoti o corrotti che blocca la UI, la scartiamo o la fixiamo
           map['id'] = map['id'] ?? key.toString();
           
-          // Controllo di sicurezza: se la data non è valida, evitiamo che faccia crashare la lista
           if (map['date'] != null) {
-            entries.add(BloodTestEntry.fromMap(map));
+            entries.add(BloodUrineTestEntry.fromMap(map));
           }
         }
       } catch (e) {
         print("⚠️ Trovata entry corrotta nel box bloodTestsBox con chiave $key, la rimuovo: $e");
-        // Rimuove automaticamente dal database Hive la chiave corrotta che non si riusciva a cancellare!
         _bloodTestsBox.delete(key);
       }
     }
     
-    entries.sort((a, b) => b.date.compareTo(a.date));
+    entries.sort((a, b) => b.date.compareTo(b.date));
     return entries;
   }
 
-  Future<void> deleteBloodTestEntry(String id) async {
-    // 1. Tentativo standard con la chiave diretta
+  Future<void> deleteBloodUrineTestEntry(String id) async {
     if (_bloodTestsBox.containsKey(id)) {
       await _bloodTestsBox.delete(id);
       return;
     }
 
-    // 2. Tentativo di ricerca avanzata: se la chiave diretta non corrisponde, 
-    // controlliamo tutti gli elementi per trovare quello che ha quell'id o quella data/percorso simile
     dynamic keyToDelete;
     for (var key in _bloodTestsBox.keys) {
       final data = _bloodTestsBox.get(key);
@@ -271,7 +263,6 @@ class LocalStorageService {
         final map = Map<String, dynamic>.from(data);
         final storedId = map['id']?.toString();
         
-        // Se troviamo corrispondenza con l'ID o la chiave contiene l'ID cercato
         if (storedId == id || key.toString() == id || key.toString().contains(id)) {
           keyToDelete = key;
           break;
@@ -279,18 +270,21 @@ class LocalStorageService {
       }
     }
 
-    if (keyToDelete != null) {
-      await _bloodTestsBox.delete(keyToDelete);
-      print("✅ Entry eliminata con successo tramite chiave secondaria: $keyToDelete");
+    if (keyToDelete != dataNullCheckSafe(keyToDelete)) { // Pulito
+      if (keyToDelete != null) {
+        await _bloodTestsBox.delete(keyToDelete);
+        print("✅ Entry eliminata con successo tramite chiave secondaria: $keyToDelete");
+      }
     } else {
-      print("⚠️ Impossibile trovare la chiave esatta per l'id: $id. Provo una pulizia forzata per ID parziale.");
-      // Ultimo tentativo estremo: cancella qualsiasi chiave che contenga la stringa dell'id
       final matchingKeys = _bloodTestsBox.keys.where((k) => k.toString().contains(id)).toList();
       for (var k in matchingKeys) {
         await _bloodTestsBox.delete(k);
       }
     }
   }
+
+  // Metodo di comodo richiesto dalle schermate
+  List<BloodUrineTestEntry> getBloodUrineTestEntries() => getBloodTestsHistory();
   
   // --- GESTIONE DIARIO ALIMENTARE (PASTI) ---
 
@@ -323,5 +317,8 @@ class LocalStorageService {
       MealEntryModel(title: 'Merenda', icon: '🍎'),
       MealEntryModel(title: 'Cena', icon: '🌙'),
     ];
-  }  
+  }
 }
+
+// Funzione di supporto interna per evitare ambiguità
+dataNullCheckSafe(val) => val;
