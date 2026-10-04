@@ -222,7 +222,7 @@ class LocalStorageService {
   // --- GESTIONE ANALISI DEL SANGUE ---
   
   Future<void> addBloodTestEntry(BloodTestEntry entry) async {
-    final String dateKey = entry.date.toIso8601String().split('T')[0];
+    final String dateKey = entry.id;
     await _bloodTestsBox.put(dateKey, entry.toMap());
   }
   

@@ -608,15 +608,6 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
             ),
           ],
         ),
-        floatingActionButton: _mainTabController.index == 3
-        ? FloatingActionButton.extended(
-          onPressed: _showImageSourceDialog,
-          icon: const Icon(Icons.add_a_photo),
-          label: const Text('Nuova Foto'),
-          backgroundColor: AppColors.woodAccent,
-          foregroundColor: Colors.white,
-        )
-        : null,
       ),
     );
   }
@@ -726,9 +717,13 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
           ),
           const SizedBox(height: 20),
 
-          const Text(
-            'Andamento Peso',
-            style: TextStyle(fontFamily: 'Serif', fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+          SizedBox(
+            width: double.infinity,
+            child: CozyButton(
+              text: 'Andamento Peso',
+              isSelected: true,
+              onPressed: () {},
+            ),
           ),
           const SizedBox(height: 8),
           CozyWoodCard(
@@ -742,7 +737,7 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
       ),
     );
   }
-
+  
   // TAB 2: MISURE CORPOREE
   Widget _buildBodyMeasurementsTab() {
     final List<BodyMeasurementEntry> history = _storageService.getBodyMeasurementsHistory();
@@ -786,7 +781,7 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
       ],
     );
   }
-  
+
   Widget _buildSingleMeasurementView(
     String title,
     TextEditingController controller,
@@ -827,9 +822,13 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
             ),
           ),
           const SizedBox(height: 20),
-          Text(
-            'Andamento $title',
-            style: const TextStyle(fontFamily: 'Serif', fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+          SizedBox(
+            width: double.infinity,
+            child: CozyButton(
+              text: 'Andamento $title',
+              isSelected: true,
+              onPressed: () {},
+            ),
           ),
           const SizedBox(height: 8),
           CozyWoodCard(
@@ -853,13 +852,12 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Inserisci Nuovi Esami',
-            style: TextStyle(
-              fontFamily: 'Serif',
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
+          SizedBox(
+            width: double.infinity,
+            child: CozyButton(
+              text: 'Inserisci Nuovi Esami',
+              isSelected: true,
+              onPressed: () {},
             ),
           ),
           const SizedBox(height: 10),
@@ -944,13 +942,12 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
           ),
           const SizedBox(height: 16),
 
-          const Text(
-            'Storico Esami Registrati',
-            style: TextStyle(
-              fontFamily: 'Serif',
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
+          SizedBox(
+            width: double.infinity,
+            child: CozyButton(
+              text: 'Storico Esami Registrati',
+              isSelected: true,
+              onPressed: () {},
             ),
           ),
           const SizedBox(height: 8),
@@ -971,6 +968,7 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
             ListView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
+              padding: EdgeInsets.zero,
               itemCount: history.length,
               itemBuilder: (context, index) {
                 final entry = history[index];
@@ -1002,7 +1000,7 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
                       trailing: IconButton(
                         icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
                         onPressed: () async {
-                          await _storageService.deleteBloodTestEntry(entry.date.toIso8601String().split('T')[0]);
+                          await _storageService.deleteBloodTestEntry(entry.id);
                           setState(() {});
                         },
                       ),
@@ -1020,100 +1018,140 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
   Widget _buildPhotoGalleryTab() {
     final List<ProgressPhotoEntry> photos = _storageService.getProgressPhotosHistory();
 
-    if (photos.isEmpty) {
-      return Center(
-        child: CozyWoodCard(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: const [
-              Icon(Icons.photo_library_outlined, size: 54, color: AppColors.textSecondary),
-              SizedBox(height: 12),
-              Text(
-                'Nessuna foto salvata',
-                style: TextStyle(fontFamily: 'Serif', fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+    return CustomScrollView(
+      slivers: [
+        SliverPadding(
+          padding: const EdgeInsets.all(16.0),
+          sliver: SliverList(
+            delegate: SliverChildListDelegate([
+              SizedBox(
+                width: double.infinity,
+                child: CozyButton(
+                  text: 'Aggiungi Foto Progressi',
+                  icon: Icons.camera_alt,
+                  onPressed: _showImageSourceDialog,
+                ),
               ),
-              SizedBox(height: 6),
-              Text(
-                'Scatta o carica uno scatto per tracciare i tuoi progressi visivi!',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: CozyButton(
+                  text: 'Storico Foto',
+                  isSelected: true,
+                  onPressed: () {},
+                ),
               ),
-            ],
+              const SizedBox(height: 12),
+            ]),
           ),
         ),
-      );
-    }
-
-    return GridView.builder(
-      padding: const EdgeInsets.all(16.0),
-      itemCount: photos.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 0.75,
-      ),
-      itemBuilder: (context, index) {
-        final photo = photos[index];
-        final day = photo.date.day.toString().padLeft(2, '0');
-        final month = photo.date.month.toString().padLeft(2, '0');
-        final year = photo.date.year;
-        final hour = photo.date.hour.toString().padLeft(2, '0');
-        final minute = photo.date.minute.toString().padLeft(2, '0');
-        final formattedDate = "$day/$month/$year - $hour:$minute";
-        
-        return GestureDetector(
-          onTap: () => _showPhotoDetailDialog(photo),
-          child: Container(
-            clipBehavior: Clip.antiAlias,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFF8B5A2B), width: 1.5),
-              boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))],
-            ),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                _buildSafeImage(photo.imagePath, fit: BoxFit.cover),
-                Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
-                    color: Colors.black.withOpacity(0.7),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
+        if (photos.isEmpty)
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: CozyWoodCard(
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: const [
+                        Icon(Icons.photo_library_outlined, size: 54, color: AppColors.textSecondary),
+                        SizedBox(height: 12),
                         Text(
-                          formattedDate,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          'Nessuna foto salvata',
+                          style: TextStyle(fontFamily: 'Serif', fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
                         ),
-                        InkWell(
-                          onTap: () async {
-                            await _storageService.deleteProgressPhoto(photo.id);
-                            setState(() {});
-                          },
-                          child: const Icon(
-                            Icons.delete_outline,
-                            color: Colors.white,
-                            size: 18,
-                          ),
+                        SizedBox(height: 6),
+                        Text(
+                          'Scatta o carica uno scatto per tracciare i tuoi progressi visivi!',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
                         ),
                       ],
                     ),
                   ),
                 ),
-              ],
+              ),
+            ),
+          )
+        else
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            sliver: SliverGrid(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: 0.75,
+              ),
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                  final photo = photos[index];
+                  final day = photo.date.day.toString().padLeft(2, '0');
+                  final month = photo.date.month.toString().padLeft(2, '0');
+                  final year = photo.date.year;
+                  final hour = photo.date.hour.toString().padLeft(2, '0');
+                  final minute = photo.date.minute.toString().padLeft(2, '0');
+                  final formattedDate = "$day/$month/$year - $hour:$minute";
+                  
+                  return GestureDetector(
+                    onTap: () => _showPhotoDetailDialog(photo),
+                    child: Container(
+                      clipBehavior: Clip.antiAlias,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFF8B5A2B), width: 1.5),
+                        boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))],
+                      ),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          _buildSafeImage(photo.imagePath, fit: BoxFit.cover),
+                          Positioned(
+                            bottom: 0,
+                            left: 0,
+                            right: 0,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+                              color: Colors.black.withOpacity(0.7),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    formattedDate,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  InkWell(
+                                    onTap: () async {
+                                      await _storageService.deleteProgressPhoto(photo.id);
+                                      setState(() {});
+                                    },
+                                    child: const Icon(
+                                      Icons.delete_outline,
+                                      color: Colors.white,
+                                      size: 18,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+                childCount: photos.length,
+              ),
             ),
           ),
-        );
-      },
+      ],
     );
   }
   
