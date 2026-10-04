@@ -47,7 +47,7 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
   final TextEditingController _armsController = TextEditingController();
   final TextEditingController _legsController = TextEditingController();
 
-  // Controllers Referti
+  // Controllers Referti (Aggiornati con tutte le nuove grandezze)
   final TextEditingController _glycemiaController = TextEditingController();
   final TextEditingController _hba1cController = TextEditingController();
   final TextEditingController _insulinController = TextEditingController();
@@ -67,6 +67,23 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
   final TextEditingController _redBloodCellsController = TextEditingController();
   final TextEditingController _whiteBloodCellsController = TextEditingController();
   final TextEditingController _plateletsController = TextEditingController();
+  final TextEditingController _hematocritController = TextEditingController();
+  final TextEditingController _mcvController = TextEditingController();
+  final TextEditingController _neutrophilsController = TextEditingController();
+  final TextEditingController _lymphocytesController = TextEditingController();
+
+  final TextEditingController _totalCholesterolController = TextEditingController();
+  final TextEditingController _hdlCholesterolController = TextEditingController();
+  final TextEditingController _ldlCholesterolController = TextEditingController();
+  final TextEditingController _triglyceridesController = TextEditingController();
+
+  final TextEditingController _creatinineController = TextEditingController();
+  final TextEditingController _gfrController = TextEditingController();
+
+  final TextEditingController _ptController = TextEditingController();
+  final TextEditingController _apttController = TextEditingController();
+  final TextEditingController _fibrinogenController = TextEditingController();
+  final TextEditingController _vesController = TextEditingController();
 
   // File temporaneo associato all'analisi corrente
   String? _tempBloodFilePath;
@@ -125,6 +142,20 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
     _redBloodCellsController.dispose();
     _whiteBloodCellsController.dispose();
     _plateletsController.dispose();
+    _hematocritController.dispose();
+    _mcvController.dispose();
+    _neutrophilsController.dispose();
+    _lymphocytesController.dispose();
+    _totalCholesterolController.dispose();
+    _hdlCholesterolController.dispose();
+    _ldlCholesterolController.dispose();
+    _triglyceridesController.dispose();
+    _creatinineController.dispose();
+    _gfrController.dispose();
+    _ptController.dispose();
+    _apttController.dispose();
+    _fibrinogenController.dispose();
+    _vesController.dispose();
 
     super.dispose();
   }
@@ -341,7 +372,7 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
     );
   }
 
-  // --- GESTIONE REFERTI E IA (FOTOCAMERA, GALLERIA, DOCUMENTI/PDF) ---
+  // --- GESTIONE REFERTI E IA ---
   void _showBloodFileSourceDialog() {
     showModalBottomSheet(
       context: context,
@@ -455,7 +486,6 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
         await SaverGallery.saveImage(bytes, fileName: fileName, skipIfExists: false);
       }
 
-      // Usiamo il pacchetto ufficiale con gemini-3.6-flash
       final model = GenerativeModel(
         model: 'gemini-3.6-flash',
         apiKey: apiKey,
@@ -465,25 +495,38 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
       const prompt = '''
       Analizza questo documento (referto di analisi del sangue). Estrai i valori numerici corrispondenti a questi campi se presenti e restituisci unicamente un oggetto JSON valido con questa struttura esatta (usa null se il valore non è presente):
       {
-      "glycemia": 0.0,
-      "hba1c": 0.0,
-      "insulin": 0.0,
-      "iron": 0.0,
-      "ferritin": 0.0,
-      "potassium": 0.0,
-      "vitaminD": 0.0,
-      "vitaminB12": 0.0,
-      "ast": 0.0,
-      "alt": 0.0,
-      "ggt": 0.0,
-      "hemoglobin": 0.0,
-      "redBloodCells": 0.0,
-      "whiteBloodCells": 0.0,
-      "platelets": 0.0
-    }
+        "glycemia": 0.0,
+        "hba1c": 0.0,
+        "insulin": 0.0,
+        "iron": 0.0,
+        "ferritin": 0.0,
+        "potassium": 0.0,
+        "vitaminD": 0.0,
+        "vitaminB12": 0.0,
+        "ast": 0.0,
+        "alt": 0.0,
+        "ggt": 0.0,
+        "hemoglobin": 0.0,
+        "redBloodCells": 0.0,
+        "whiteBloodCells": 0.0,
+        "platelets": 0.0,
+        "hematocrit": 0.0,
+        "mcv": 0.0,
+        "neutrophils": 0.0,
+        "lymphocytes": 0.0,
+        "totalCholesterol": 0.0,
+        "hdlCholesterol": 0.0,
+        "ldlCholesterol": 0.0,
+        "triglycerides": 0.0,
+        "creatinine": 0.0,
+        "gfr": 0.0,
+        "pt": 0.0,
+        "aptt": 0.0,
+        "fibrinogen": 0.0,
+        "ves": 0.0
+      }
       ''';
 
-      // Tentativi con ritardo esponenziale tramite SDK
       int maxAttempts = 4;
       int delayMs = 1500;
       GenerateContentResponse? response;
@@ -527,6 +570,20 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
             if (parsedValues['redBloodCells'] != null) _redBloodCellsController.text = parsedValues['redBloodCells'].toString();
             if (parsedValues['whiteBloodCells'] != null) _whiteBloodCellsController.text = parsedValues['whiteBloodCells'].toString();
             if (parsedValues['platelets'] != null) _plateletsController.text = parsedValues['platelets'].toString();
+            if (parsedValues['hematocrit'] != null) _hematocritController.text = parsedValues['hematocrit'].toString();
+            if (parsedValues['mcv'] != null) _mcvController.text = parsedValues['mcv'].toString();
+            if (parsedValues['neutrophils'] != null) _neutrophilsController.text = parsedValues['neutrophils'].toString();
+            if (parsedValues['lymphocytes'] != null) _lymphocytesController.text = parsedValues['lymphocytes'].toString();
+            if (parsedValues['totalCholesterol'] != null) _totalCholesterolController.text = parsedValues['totalCholesterol'].toString();
+            if (parsedValues['hdlCholesterol'] != null) _hdlCholesterolController.text = parsedValues['hdlCholesterol'].toString();
+            if (parsedValues['ldlCholesterol'] != null) _ldlCholesterolController.text = parsedValues['ldlCholesterol'].toString();
+            if (parsedValues['triglycerides'] != null) _triglyceridesController.text = parsedValues['triglycerides'].toString();
+            if (parsedValues['creatinine'] != null) _creatinineController.text = parsedValues['creatinine'].toString();
+            if (parsedValues['gfr'] != null) _gfrController.text = parsedValues['gfr'].toString();
+            if (parsedValues['pt'] != null) _ptController.text = parsedValues['pt'].toString();
+            if (parsedValues['aptt'] != null) _apttController.text = parsedValues['aptt'].toString();
+            if (parsedValues['fibrinogen'] != null) _fibrinogenController.text = parsedValues['fibrinogen'].toString();
+            if (parsedValues['ves'] != null) _vesController.text = parsedValues['ves'].toString();
         });
 
         _tempBloodFilePath = fileName;
@@ -858,13 +915,27 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
       case 'potassium': return entry.potassium;
       case 'vitaminD': return entry.vitaminD;
       case 'vitaminB12': return entry.vitaminB12;
-      case 'ast': return entry.ast?.toDouble();
-      case 'alt': return entry.alt?.toDouble();
-      case 'ggt': return entry.ggt?.toDouble();
+      case 'ast': return entry.ast;
+      case 'alt': return entry.alt;
+      case 'ggt': return entry.ggt;
       case 'hemoglobin': return entry.hemoglobin;
       case 'redBloodCells': return entry.redBloodCells;
       case 'whiteBloodCells': return entry.whiteBloodCells;
-      case 'platelets': return entry.platelets?.toDouble();
+      case 'platelets': return entry.platelets;
+      case 'hematocrit': return entry.hematocrit;
+      case 'mcv': return entry.mcv;
+      case 'neutrophils': return entry.neutrophils;
+      case 'lymphocytes': return entry.lymphocytes;
+      case 'totalCholesterol': return entry.totalCholesterol;
+      case 'hdlCholesterol': return entry.hdlCholesterol;
+      case 'ldlCholesterol': return entry.ldlCholesterol;
+      case 'triglycerides': return entry.triglycerides;
+      case 'creatinine': return entry.creatinine;
+      case 'gfr': return entry.gfr;
+      case 'pt': return entry.pt;
+      case 'aptt': return entry.aptt;
+      case 'fibrinogen': return entry.fibrinogen;
+      case 'ves': return entry.ves;
       default: return null;
     }
   }
@@ -886,6 +957,20 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
       case 'redBloodCells': return 'Globuli Rossi (x10^6/µL)';
       case 'whiteBloodCells': return 'Globuli Bianchi (x10^3/µL)';
       case 'platelets': return 'Piastrine (x10^3/µL)';
+      case 'hematocrit': return 'Ematocrito (%)';
+      case 'mcv': return 'MCV (fL)';
+      case 'neutrophils': return 'Neutrofili (%)';
+      case 'lymphocytes': return 'Linfociti (%)';
+      case 'totalCholesterol': return 'Colesterolo Totale (mg/dL)';
+      case 'hdlCholesterol': return 'Colesterolo HDL (mg/dL)';
+      case 'ldlCholesterol': return 'Colesterolo LDL (mg/dL)';
+      case 'triglycerides': return 'Trigliceridi (mg/dL)';
+      case 'creatinine': return 'Creatinina (mg/dL)';
+      case 'gfr': return 'GFR (mL/min)';
+      case 'pt': return 'PT (sec)';
+      case 'aptt': return 'APTT (sec)';
+      case 'fibrinogen': return 'Fibrinogeno (mg/dL)';
+      case 'ves': return 'VES (mm/h)';
       default: return 'Valore';
     }
   }
@@ -953,6 +1038,20 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
                   DropdownMenuItem(value: 'redBloodCells', child: Text('Globuli Rossi')),
                   DropdownMenuItem(value: 'whiteBloodCells', child: Text('Globuli Bianchi')),
                   DropdownMenuItem(value: 'platelets', child: Text('Piastrine')),
+                  DropdownMenuItem(value: 'hematocrit', child: Text('Ematocrito')),
+                  DropdownMenuItem(value: 'mcv', child: Text('MCV')),
+                  DropdownMenuItem(value: 'neutrophils', child: Text('Neutrofili')),
+                  DropdownMenuItem(value: 'lymphocytes', child: Text('Linfociti')),
+                  DropdownMenuItem(value: 'totalCholesterol', child: Text('Colesterolo Totale')),
+                  DropdownMenuItem(value: 'hdlCholesterol', child: Text('Colesterolo HDL')),
+                  DropdownMenuItem(value: 'ldlCholesterol', child: Text('Colesterolo LDL')),
+                  DropdownMenuItem(value: 'triglycerides', child: Text('Trigliceridi')),
+                  DropdownMenuItem(value: 'creatinine', child: Text('Creatinina')),
+                  DropdownMenuItem(value: 'gfr', child: Text('GFR')),
+                  DropdownMenuItem(value: 'pt', child: Text('PT')),
+                  DropdownMenuItem(value: 'aptt', child: Text('APTT')),
+                  DropdownMenuItem(value: 'fibrinogen', child: Text('Fibrinogeno')),
+                  DropdownMenuItem(value: 'ves', child: Text('VES')),
                 ],
                 onChanged: (val) {
                   if (val != null) setState(() { _selectedBloodChartMetric = val; });
@@ -1065,7 +1164,7 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
           const SizedBox(height: 8),
 
           _buildExpansionWoodSection(
-            title: 'Emocromo',
+            title: 'Emocromo Avanzato',
             children: [
               _buildBloodField(_hemoglobinController, 'Emoglobina', 'g/dL'),
               const SizedBox(height: 10),
@@ -1074,6 +1173,52 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
               _buildBloodField(_whiteBloodCellsController, 'Globuli Bianchi', 'x10^3/µL'),
               const SizedBox(height: 10),
               _buildBloodField(_plateletsController, 'Piastrine', 'x10^3/µL'),
+              const SizedBox(height: 10),
+              _buildBloodField(_hematocritController, 'Ematocrito', '%'),
+              const SizedBox(height: 10),
+              _buildBloodField(_mcvController, 'MCV', 'fL'),
+              const SizedBox(height: 10),
+              _buildBloodField(_neutrophilsController, 'Neutrofili', '%'),
+              const SizedBox(height: 10),
+              _buildBloodField(_lymphocytesController, 'Linfociti', '%'),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          _buildExpansionWoodSection(
+            title: 'Profilo Lipidico',
+            children: [
+              _buildBloodField(_totalCholesterolController, 'Colesterolo Totale', 'mg/dL'),
+              const SizedBox(height: 10),
+              _buildBloodField(_hdlCholesterolController, 'Colesterolo HDL', 'mg/dL'),
+              const SizedBox(height: 10),
+              _buildBloodField(_ldlCholesterolController, 'Colesterolo LDL', 'mg/dL'),
+              const SizedBox(height: 10),
+              _buildBloodField(_triglyceridesController, 'Trigliceridi', 'mg/dL'),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          _buildExpansionWoodSection(
+            title: 'Profilo Renale',
+            children: [
+              _buildBloodField(_creatinineController, 'Creatinina', 'mg/dL'),
+              const SizedBox(height: 10),
+              _buildBloodField(_gfrController, 'GFR (VFG)', 'mL/min'),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          _buildExpansionWoodSection(
+            title: 'Coagulazione & Infiammazione',
+            children: [
+              _buildBloodField(_ptController, 'Tempo di Protrombina (PT)', 'sec'),
+              const SizedBox(height: 10),
+              _buildBloodField(_apttController, 'APTT', 'sec'),
+              const SizedBox(height: 10),
+              _buildBloodField(_fibrinogenController, 'Fibrinogeno', 'mg/dL'),
+              const SizedBox(height: 10),
+              _buildBloodField(_vesController, 'VES', 'mm/h'),
             ],
           ),
           const SizedBox(height: 12),
@@ -1098,7 +1243,6 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
           ),
           const SizedBox(height: 16),
 
-          // --- GRAFICO STORICO ESAMI INSERITO QUI ---
           _buildBloodTestHistoryChart(),
           const SizedBox(height: 16),
 
@@ -1635,6 +1779,20 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
       redBloodCells: double.tryParse(_redBloodCellsController.text.replaceAll(',', '.')),
       whiteBloodCells: double.tryParse(_whiteBloodCellsController.text.replaceAll(',', '.')),
       platelets: double.tryParse(_plateletsController.text.replaceAll(',', '.')),
+      hematocrit: double.tryParse(_hematocritController.text.replaceAll(',', '.')),
+      mcv: double.tryParse(_mcvController.text.replaceAll(',', '.')),
+      neutrophils: double.tryParse(_neutrophilsController.text.replaceAll(',', '.')),
+      lymphocytes: double.tryParse(_lymphocytesController.text.replaceAll(',', '.')),
+      totalCholesterol: double.tryParse(_totalCholesterolController.text.replaceAll(',', '.')),
+      hdlCholesterol: double.tryParse(_hdlCholesterolController.text.replaceAll(',', '.')),
+      ldlCholesterol: double.tryParse(_ldlCholesterolController.text.replaceAll(',', '.')),
+      triglycerides: double.tryParse(_triglyceridesController.text.replaceAll(',', '.')),
+      creatinine: double.tryParse(_creatinineController.text.replaceAll(',', '.')),
+      gfr: double.tryParse(_gfrController.text.replaceAll(',', '.')),
+      pt: double.tryParse(_ptController.text.replaceAll(',', '.')),
+      aptt: double.tryParse(_apttController.text.replaceAll(',', '.')),
+      fibrinogen: double.tryParse(_fibrinogenController.text.replaceAll(',', '.')),
+      ves: double.tryParse(_vesController.text.replaceAll(',', '.')),
       filePath: _tempBloodFilePath,
     );
 
@@ -1656,6 +1814,20 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
     _redBloodCellsController.clear();
     _whiteBloodCellsController.clear();
     _plateletsController.clear();
+    _hematocritController.clear();
+    _mcvController.clear();
+    _neutrophilsController.clear();
+    _lymphocytesController.clear();
+    _totalCholesterolController.clear();
+    _hdlCholesterolController.clear();
+    _ldlCholesterolController.clear();
+    _triglyceridesController.clear();
+    _creatinineController.clear();
+    _gfrController.clear();
+    _ptController.clear();
+    _apttController.clear();
+    _fibrinogenController.clear();
+    _vesController.clear();
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1688,6 +1860,20 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
       if (entry.redBloodCells != null) 'Globuli Rossi': '${entry.redBloodCells} x10^6/µL',
       if (entry.whiteBloodCells != null) 'Globuli Bianchi': '${entry.whiteBloodCells} x10^3/µL',
       if (entry.platelets != null) 'Piastrine': '${entry.platelets} x10^3/µL',
+      if (entry.hematocrit != null) 'Ematocrito': '${entry.hematocrit} %',
+      if (entry.mcv != null) 'MCV': '${entry.mcv} fL',
+      if (entry.neutrophils != null) 'Neutrofili': '${entry.neutrophils} %',
+      if (entry.lymphocytes != null) 'Linfociti': '${entry.lymphocytes} %',
+      if (entry.totalCholesterol != null) 'Colesterolo Totale': '${entry.totalCholesterol} mg/dL',
+      if (entry.hdlCholesterol != null) 'Colesterolo HDL': '${entry.hdlCholesterol} mg/dL',
+      if (entry.ldlCholesterol != null) 'Colesterolo LDL': '${entry.ldlCholesterol} mg/dL',
+      if (entry.triglycerides != null) 'Trigliceridi': '${entry.triglycerides} mg/dL',
+      if (entry.creatinine != null) 'Creatinina': '${entry.creatinine} mg/dL',
+      if (entry.gfr != null) 'GFR': '${entry.gfr} mL/min',
+      if (entry.pt != null) 'PT': '${entry.pt} sec',
+      if (entry.aptt != null) 'APTT': '${entry.aptt} sec',
+      if (entry.fibrinogen != null) 'Fibrinogeno': '${entry.fibrinogen} mg/dL',
+      if (entry.ves != null) 'VES': '${entry.ves} mm/h',
     };
 
     showDialog(
