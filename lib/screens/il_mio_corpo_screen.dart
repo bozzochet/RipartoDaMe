@@ -47,7 +47,7 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
   final TextEditingController _armsController = TextEditingController();
   final TextEditingController _legsController = TextEditingController();
 
-  // Controllers Referti (Aggiornati con tutte le nuove grandezze)
+  // Controllers Referti (Aggiornati con tutte le grandezze ematiche)
   final TextEditingController _glycemiaController = TextEditingController();
   final TextEditingController _hba1cController = TextEditingController();
   final TextEditingController _insulinController = TextEditingController();
@@ -85,7 +85,7 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
   final TextEditingController _fibrinogenController = TextEditingController();
   final TextEditingController _vesController = TextEditingController();
 
-  // Controllers Esame Urine
+  // Controllers Esame Urine (Completi di tutti i parametri)
   final TextEditingController _urineSpecificGravityController = TextEditingController();
   final TextEditingController _urinePhController = TextEditingController();
   final TextEditingController _urineProteinsController = TextEditingController();
@@ -96,6 +96,10 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
   final TextEditingController _urineUrobilinogenController = TextEditingController();
   final TextEditingController _urineNitritesController = TextEditingController();
   final TextEditingController _urineLeukocytesController = TextEditingController();
+  final TextEditingController _urineRedBloodCellsController = TextEditingController();
+  final TextEditingController _urineWhiteBloodCellsController = TextEditingController();
+  final TextEditingController _urineCastsController = TextEditingController();
+  final TextEditingController _urineEpithelialCellsController = TextEditingController();
   final TextEditingController _urineSedimentController = TextEditingController();
 
   // File temporaneo associato all'analisi corrente
@@ -169,6 +173,7 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
     _apttController.dispose();
     _fibrinogenController.dispose();
     _vesController.dispose();
+    
     _urineSpecificGravityController.dispose();
     _urinePhController.dispose();
     _urineProteinsController.dispose();
@@ -179,6 +184,10 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
     _urineUrobilinogenController.dispose();
     _urineNitritesController.dispose();
     _urineLeukocytesController.dispose();
+    _urineRedBloodCellsController.dispose();
+    _urineWhiteBloodCellsController.dispose();
+    _urineCastsController.dispose();
+    _urineEpithelialCellsController.dispose();
     _urineSedimentController.dispose();
 
     super.dispose();
@@ -559,7 +568,11 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
       "urineBilirubin": null,
       "urineUrobilinogen": null,
       "urineNitrites": null,
-      "urineLeukocytes": null,
+      "leukocyteEsterase": null,
+      "urineRedBloodCells": 0.0,
+      "urineWhiteBloodCells": 0.0,
+      "casts": 0.0,
+      "epithelialCells": 0.0,
       "urineSediment": ""
     }
       ''';      
@@ -630,7 +643,11 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
             if (parsedValues['urineBilirubin'] != null) _urineBilirubinController.text = parsedValues['urineBilirubin'].toString();
             if (parsedValues['urineUrobilinogen'] != null) _urineUrobilinogenController.text = parsedValues['urineUrobilinogen'].toString();
             if (parsedValues['urineNitrites'] != null) _urineNitritesController.text = parsedValues['urineNitrites'].toString();
-            if (parsedValues['urineLeukocytes'] != null) _urineLeukocytesController.text = parsedValues['urineLeukocytes'].toString();
+            if (parsedValues['leukocyteEsterase'] != null) _urineLeukocytesController.text = parsedValues['leukocyteEsterase'].toString();
+            if (parsedValues['urineRedBloodCells'] != null) _urineRedBloodCellsController.text = parsedValues['urineRedBloodCells'].toString();
+            if (parsedValues['urineWhiteBloodCells'] != null) _urineWhiteBloodCellsController.text = parsedValues['urineWhiteBloodCells'].toString();
+            if (parsedValues['casts'] != null) _urineCastsController.text = parsedValues['casts'].toString();
+            if (parsedValues['epithelialCells'] != null) _urineEpithelialCellsController.text = parsedValues['epithelialCells'].toString();
             if (parsedValues['urineSediment'] != null) _urineSedimentController.text = parsedValues['urineSediment'].toString();
         });
 
@@ -986,19 +1003,18 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
       case 'ves': return entry.ves;
       case 'urineSpecificGravity': return entry.specificGravity;
       case 'urinePh': return entry.ph;
-      case 'urineProteins': 
-      return double.tryParse(entry.proteins?.toString() ?? '');
-      case 'urineGlucose': 
-      return double.tryParse(entry.urineGlucose?.toString() ?? '');
-      case 'urineKetones': 
-      return double.tryParse(entry.ketones?.toString() ?? '');
-      case 'urineNitrites': 
-      return double.tryParse(entry.nitrites?.toString() ?? '');
-      case 'urineLeukocytes': 
-      return double.tryParse(entry.leukocyteEsterase?.toString() ?? '');
+      case 'urineProteins': return double.tryParse(entry.proteins?.toString() ?? '');
+      case 'urineGlucose': return double.tryParse(entry.urineGlucose?.toString() ?? '');
+      case 'urineKetones': return double.tryParse(entry.ketones?.toString() ?? '');
+      case 'urineNitrites': return double.tryParse(entry.nitrites?.toString() ?? '');
+      case 'urineLeukocytes': return double.tryParse(entry.leukocyteEsterase?.toString() ?? '');
       case 'urineHemoglobin': return entry.urineHemoglobin;
       case 'urineBilirubin': return entry.bilirubin;
       case 'urineUrobilinogen': return entry.urobilinogen;
+      case 'urineRedBloodCells': return entry.urineRedBloodCells;
+      case 'urineWhiteBloodCells': return entry.urineWhiteBloodCells;
+      case 'casts': return entry.casts;
+      case 'epithelialCells': return entry.epithelialCells;
       default: return null;
     }
   }
@@ -1036,14 +1052,18 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
       case 'ves': return 'VES (mm/h)';
       case 'urineSpecificGravity': return 'Peso Specifico Urine';
       case 'urinePh': return 'pH Urine';
-      case 'urineProteins': return 'Proteine Urine';
-      case 'urineGlucose': return 'Glucosio Urine';
-      case 'urineKetones': return 'Corpi Chetonici';
-      case 'urineHemoglobin': return 'Emoglobina Urine';
-      case 'urineBilirubin': return 'Bilirubina Urine';
-      case 'urineUrobilinogen': return 'Urobilinogeno';
+      case 'urineProteins': return 'Proteine Urine (mg/dL)';
+      case 'urineGlucose': return 'Glucosio Urine (mg/dL)';
+      case 'urineKetones': return 'Corpi Chetonici (mg/dL)';
+      case 'urineHemoglobin': return 'Emoglobina Urine (mg/dL)';
+      case 'urineBilirubin': return 'Bilirubina Urine (mg/dL)';
+      case 'urineUrobilinogen': return 'Urobilinogeno (mg/dL)';
       case 'urineNitrites': return 'Nitriti';
-      case 'urineLeukocytes': return 'Leucociti Urine';
+      case 'urineLeukocytes': return 'Esterasi Leucocitaria Urine (n/uL)';
+      case 'urineRedBloodCells': return 'Urine - Globuli Rossi (n/uL)';
+      case 'urineWhiteBloodCells': return 'Urine - Globuli Bianchi (n/uL)';
+      case 'casts': return 'Urine - Cilindri (n/uL)';
+      case 'epithelialCells': return 'Urine - Cellule Epiteliali (n/uL)';
       default: return 'Valore';
     }
   }
@@ -1139,7 +1159,11 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
                   DropdownMenuItem(value: 'urineBilirubin', child: Text('Urine - Bilirubina')),
                   DropdownMenuItem(value: 'urineUrobilinogen', child: Text('Urine - Urobilinogeno')),
                   DropdownMenuItem(value: 'urineNitrites', child: Text('Urine - Nitriti')),
-                  DropdownMenuItem(value: 'urineLeukocytes', child: Text('Urine - Leucociti')),
+                  DropdownMenuItem(value: 'urineLeukocytes', child: Text('Urine - Esterasi Leucocitaria')),
+                  DropdownMenuItem(value: 'urineRedBloodCells', child: Text('Urine - Globuli Rossi')),
+                  DropdownMenuItem(value: 'urineWhiteBloodCells', child: Text('Urine - Globuli Bianchi')),
+                  DropdownMenuItem(value: 'casts', child: Text('Urine - Cilindri')),
+                  DropdownMenuItem(value: 'epithelialCells', child: Text('Urine - Cellule Epiteliali')),
                 ],
                 onChanged: (val) {
                   if (val != null) setState(() { _selectedBloodChartMetric = val; });
@@ -1324,7 +1348,7 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
               const SizedBox(height: 10),
               _buildBloodField(_urineKetonesController, 'Corpi Chetonici', 'mg/dL'),
               const SizedBox(height: 10),
-              _buildBloodField(_urineHemoglobinController, 'Emoglobina', 'mg/dL'),
+              _buildBloodField(_urineHemoglobinController, 'Emoglobina (Urine)', 'mg/dL'),
               const SizedBox(height: 10),
               _buildBloodField(_urineBilirubinController, 'Bilirubina', 'mg/dL'),
               const SizedBox(height: 10),
@@ -1333,6 +1357,14 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
               _buildBloodField(_urineNitritesController, 'Nitriti', 'pos/neg'),
               const SizedBox(height: 10),
               _buildBloodField(_urineLeukocytesController, 'Leucociti / Esterasi', 'cell/µL'),
+              const SizedBox(height: 10),
+              _buildBloodField(_urineRedBloodCellsController, 'Globuli Rossi (Urine)', 'cell/µL'),
+              const SizedBox(height: 10),
+              _buildBloodField(_urineWhiteBloodCellsController, 'Globuli Bianchi (Urine)', 'cell/µL'),
+              const SizedBox(height: 10),
+              _buildBloodField(_urineCastsController, 'Cilindri', 'n/LPF'),
+              const SizedBox(height: 10),
+              _buildBloodField(_urineEpithelialCellsController, 'Cellule Epiteliali', 'n/LPF'),
               const SizedBox(height: 10),
               TextField(
                 controller: _urineSedimentController,
@@ -1884,7 +1916,6 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
     final cleaned = text.trim().toLowerCase().replaceAll(',', '.');
     if (cleaned.isEmpty) return null;
     
-    // Se l'utente scrive "assente", "negativo" o simili, lo mappiamo a 0.0
     if (cleaned == 'assente' || cleaned == 'negativo' || cleaned == 'neg' || cleaned == '-' || cleaned == 'ass') {
       return 0.0;
     }
@@ -1925,16 +1956,21 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
       aptt: double.tryParse(_apttController.text.replaceAll(',', '.')),
       fibrinogen: double.tryParse(_fibrinogenController.text.replaceAll(',', '.')),
       ves: double.tryParse(_vesController.text.replaceAll(',', '.')),
-      // Parametri urine gestiti con la nuova funzione protetta per "Assente" / "Negativo"
+      // Parametri urine
       specificGravity: parseUrineValue(_urineSpecificGravityController.text),
       ph: parseUrineValue(_urinePhController.text),
       proteins: parseUrineValue(_urineProteinsController.text),
       urineGlucose: parseUrineValue(_urineGlucoseController.text),
+      urineHemoglobin: parseUrineValue(_urineHemoglobinController.text),
       ketones: parseUrineValue(_urineKetonesController.text),
       bilirubin: parseUrineValue(_urineBilirubinController.text),
       urobilinogen: parseUrineValue(_urineUrobilinogenController.text),
       nitrites: parseUrineValue(_urineNitritesController.text),
       leukocyteEsterase: parseUrineValue(_urineLeukocytesController.text),
+      urineRedBloodCells: parseUrineValue(_urineRedBloodCellsController.text),
+      urineWhiteBloodCells: parseUrineValue(_urineWhiteBloodCellsController.text),
+      casts: parseUrineValue(_urineCastsController.text),
+      epithelialCells: parseUrineValue(_urineEpithelialCellsController.text),
       urineSediment: _urineSedimentController.text.trim().isNotEmpty ? _urineSedimentController.text.trim() : null,
       filePath: _tempBloodFilePath,
     );
@@ -1942,6 +1978,7 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
     await _storageService.addBloodUrineTestEntry(entry);
     _tempBloodFilePath = null;
 
+    // Pulizia di tutti i controller
     _glycemiaController.clear();
     _hba1cController.clear();
     _insulinController.clear();
@@ -1981,6 +2018,10 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
     _urineUrobilinogenController.clear();
     _urineNitritesController.clear();
     _urineLeukocytesController.clear();
+    _urineRedBloodCellsController.clear();
+    _urineWhiteBloodCellsController.clear();
+    _urineCastsController.clear();
+    _urineEpithelialCellsController.clear();
     _urineSedimentController.clear();
 
     if (mounted) {
@@ -2032,12 +2073,17 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
       if (entry.ph != null) 'Urine - pH': '${entry.ph}',
       if (entry.proteins != null) 'Urine - Proteine': '${entry.proteins} mg/dL',
       if (entry.urineGlucose != null) 'Urine - Glucosio': '${entry.urineGlucose} mg/dL',
-      if (entry.urineSediment != null && entry.urineSediment!.isNotEmpty) 'Urine - Sedimento': '${entry.urineSediment}',
+      if (entry.urineHemoglobin != null) 'Urine - Emoglobina': '${entry.urineHemoglobin} mg/dL',
       if (entry.ketones != null) 'Urine - Corpi Chetonici': '${entry.ketones} mg/dL',
       if (entry.bilirubin != null) 'Urine - Bilirubina': '${entry.bilirubin} mg/dL',
       if (entry.urobilinogen != null) 'Urine - Urobilinogeno': '${entry.urobilinogen} mg/dL',
       if (entry.nitrites != null) 'Urine - Nitriti': '${entry.nitrites}',
       if (entry.leukocyteEsterase != null) 'Urine - Leucociti': '${entry.leukocyteEsterase} n/uL',
+      if (entry.urineRedBloodCells != null) 'Urine - Globuli Rossi': '${entry.urineRedBloodCells}',
+      if (entry.urineWhiteBloodCells != null) 'Urine - Globuli Bianchi': '${entry.urineWhiteBloodCells}',
+      if (entry.casts != null) 'Urine - Cilindri': '${entry.casts}',
+      if (entry.epithelialCells != null) 'Urine - Cellule Epiteliali': '${entry.epithelialCells}',
+      if (entry.urineSediment != null && entry.urineSediment!.isNotEmpty) 'Urine - Sedimento': '${entry.urineSediment}',
     };
   
     showDialog(
