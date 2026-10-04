@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart' as path_provider;
 import 'package:path/path.dart' as path;
@@ -256,7 +256,6 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annulla', style: TextStyle(color: Colors.grey))),
-            // Sostituito con CozyButton
             CozyButton(
               text: 'Salva Modifiche',
               onPressed: () {
@@ -319,27 +318,6 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
     );
   }
 
-  Future<http.Response> _postWithExponentialBackoff(Uri url, Map<String, String> headers, String body) async {
-    int maxAttempts = 4;
-    int delayMs = 1500;
-    for (int attempt = 1; attempt <= maxAttempts; attempt++) {
-      try {
-        final response = await http.post(url, headers: headers, body: body);
-        if ((response.statusCode == 503 || response.statusCode == 429) && attempt < maxAttempts) {
-          await Future.delayed(Duration(milliseconds: delayMs));
-          delayMs *= 2;
-          continue;
-        }
-        return response;
-      } catch (e) {
-        if (attempt == maxAttempts) rethrow;
-        await Future.delayed(Duration(milliseconds: delayMs));
-        delayMs *= 2;
-      }
-    }
-    throw Exception("Impossibile contattare i server.");
-  }
-
   Future<void> _pickAndProcessMeal(MealEntryModel meal, ImageSource source) async {
     final XFile? image = await _picker.pickImage(source: source, imageQuality: 85);
     if (image != null) {
@@ -397,9 +375,14 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
       final appDir = await path_provider.getApplicationDocumentsDirectory();
       final File targetFile = File('${appDir.path}/$fileName');
       final bytes = await targetFile.readAsBytes();
-      final base64Image = base64Encode(bytes);
 
-      final url = Uri.parse('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=$_apiKey');
+      // Utilizzo del pacchetto ufficiale google_generative_ai con gemini-3.6-flash
+      final model = GenerativeModel(
+        model: 'gemini-3.6-flash',
+        apiKey: _apiKey,
+        generationConfig: GenerationConfig(responseMimeType: 'application/json'),
+      );
+
       final prompt = '''
       Analizza questa foto di cibo. Restituisci unicamente un oggetto JSON valido con questa struttura esatta:
       {
@@ -417,12 +400,14 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
     }
       ''';
 
-      final body = jsonEncode({
-          "contents": [{"parts": [{"text": prompt}, {"inline_data": {"mime_type": "image/jpeg", "data": base64Image}}]}] ,
-          "generationConfig": {"responseMimeType": "application/json"}
-      });
+      final content = [
+        Content.multi([
+          TextPart(prompt),
+          DataPart('image/jpeg', bytes),
+        ])
+      ];
 
-      final response = await _postWithExponentialBackoff(url, {'Content-Type': 'application/json'}, body);
+      final response = await model.generateContent(content);
       
       if (!mounted) return;
       
@@ -430,23 +415,15 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
         Navigator.of(context).pop();
       }
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final jsonString = data['candidates'][0]['content']['parts'][0]['text'];
+      final jsonString = response.text;
+      if (jsonString != null && jsonString.isNotEmpty) {
         final Map<String, dynamic> risultatoIA = jsonDecode(jsonString);
         _showAiResultModal(meal, fileName, risultatoIA);
-      } else if (response.statusCode == 429) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            backgroundColor: Colors.orange,
-            content: Text('⚠️ L\'Elfo Magico è oberato di lavoro! Attendi qualche secondo prima di scattare un\'altra foto (Errore 429).'),
-          ),
-        );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             backgroundColor: Colors.red[700],
-            content: Text('Errore del server (${response.statusCode}). Riprova più tardi.'),
+            content: const Text('Risposta vuota ricevuta dall\'IA. Riprova.'),
           ),
         );
       }
@@ -461,7 +438,7 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           backgroundColor: Colors.red[700],
-          content: Text('Errore di connessione: $e'),
+          content: Text('Errore di connessione o analisi: $e'),
         ),
       );
     }
@@ -548,7 +525,6 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
               ),
               actions: [
                 TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annulla', style: TextStyle(color: Colors.grey))),
-                // Sostituito con CozyButton
                 CozyButton(
                   text: 'Conferma e Salva',
                   onPressed: () {
@@ -850,7 +826,6 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
                                         ],
                                       ),
                                       const SizedBox(height: 6),
-                                      // Sostituito con CozyButton
                                       SizedBox(
                                         width: double.infinity,
                                         child: CozyButton(
@@ -916,7 +891,7 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
     String metricTitle = 'Calorie';
     if (_selectedChartMetric == 'proteins') metricTitle = 'Proteine (g)';
     if (_selectedChartMetric == 'carbs') metricTitle = 'Carboidrati (g)';
-    if (_selectedChartMetric == 'fats') metricTitle = 'Grassi (g)'; // Aggiunta la '(' mancante
+    if (_selectedChartMetric == 'fats') metricTitle = 'Grassi (g)';
     
     return CozyWoodCard(
       padding: const EdgeInsets.all(16),

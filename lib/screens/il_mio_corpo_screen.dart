@@ -1,10 +1,16 @@
 import 'dart:io';
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart' as path_provider;
 import 'package:path/path.dart' as path;
-import 'package:gal/gal.dart';
+import 'package:saver_gallery/saver_gallery.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:http/http.dart' as http;
+import 'package:google_generative_ai/google_generative_ai.dart';
 import '../theme/app_theme.dart';
 import '../widgets/cozy_widgets.dart';
 import '../widgets/cozy_background.dart';
@@ -60,6 +66,9 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
   final TextEditingController _redBloodCellsController = TextEditingController();
   final TextEditingController _whiteBloodCellsController = TextEditingController();
   final TextEditingController _plateletsController = TextEditingController();
+
+  // File temporaneo associato all'analisi corrente
+  String? _tempBloodFilePath;
 
   @override
   void initState() {
@@ -280,7 +289,9 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
         imagePath: fileName,
       );
 
-      await Gal.putImage(savedImage.path);
+      final bytes = await savedImage.readAsBytes();
+      await SaverGallery.saveImage(bytes, fileName: fileName, skipIfExists: false);
+      
       await _storageService.addProgressPhoto(newPhoto);
       setState(() {});
     }
@@ -326,14 +337,220 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
     );
   }
 
-@override
+  // --- GESTIONE REFERTI E IA (FOTOCAMERA, GALLERIA, DOCUMENTI/PDF) ---
+  void _showBloodFileSourceDialog() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFFFDF6E3),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        side: BorderSide(color: Color(0xFF8B5A2B), width: 1.5),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(20),
+        child: Wrap(
+          children: [
+            const ListTile(
+              title: Text('Carica Referto & Analizza IA', style: TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.textPrimary)),
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt, color: AppColors.woodAccent),
+              title: const Text('Scatta una foto al referto', style: TextStyle(color: AppColors.textPrimary)),
+              onTap: () {
+                Navigator.pop(context);
+                _pickAndProcessBloodFile(ImageSource.camera);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library, color: AppColors.woodAccent),
+              title: const Text('Scegli dalla galleria foto', style: TextStyle(color: AppColors.textPrimary)),
+              onTap: () {
+                Navigator.pop(context);
+                _pickAndProcessBloodFile(ImageSource.gallery);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.insert_drive_file, color: AppColors.woodAccent),
+              title: const Text('Scegli dai Documenti (PDF / File)', style: TextStyle(color: AppColors.textPrimary)),
+              onTap: () {
+                Navigator.pop(context);
+                _pickAndProcessBloodDocument();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickAndProcessBloodFile(ImageSource source) async {
+    final XFile? image = await _picker.pickImage(source: source, imageQuality: 85);
+    if (image != null) {
+      if (!mounted) return;
+      _processBloodFileBytes(await File(image.path).readAsBytes(), 'image/jpeg', 'jpg');
+    }
+  }
+
+  Future<void> _pickAndProcessBloodDocument() async {
+    try {
+      final result = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+      );
+
+      if (result != null && result.isNotEmpty && result.single.path != null) {
+        final filePath = result.single.path!;
+        final fileBytes = await File(filePath).readAsBytes();
+        final extension = path.extension(filePath).toLowerCase().replaceAll('.', '');
+        final mimeType = extension == 'pdf' ? 'application/pdf' : 'image/jpeg';
+
+        if (!mounted) return;
+        _processBloodFileBytes(fileBytes, mimeType, extension.isEmpty ? 'jpg' : extension);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(backgroundColor: Colors.red, content: Text('Errore nella selezione del file: $e')),
+      );
+    }
+  }
+
+  Future<void> _processBloodFileBytes(Uint8List bytes, String mimeType, String extension) async {
+    final String apiKey = dotenv.env['GEMINI_API_KEY'] ?? '';
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const PopScope(
+        canPop: false,
+        child: Center(
+          child: CozyCard(
+            child: Padding(
+              padding: EdgeInsets.all(20.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(color: AppColors.woodAccent),
+                  SizedBox(height: 16),
+                  Text('🪄 L\'IA sta leggendo le analisi del sangue...', textAlign: TextAlign.center, style: TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold)),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    try {
+      final appDir = await path_provider.getApplicationDocumentsDirectory();
+      final fileName = 'blood_test_${DateTime.now().millisecondsSinceEpoch}.$extension';
+      final File savedFile = File('${appDir.path}/$fileName');
+      await savedFile.writeAsBytes(bytes);
+      
+      if (mimeType.startsWith('image/')) {
+        await SaverGallery.saveImage(bytes, fileName: fileName, skipIfExists: false);
+      }
+
+      // Usiamo il pacchetto ufficiale con gemini-3.6-flash
+      final model = GenerativeModel(
+        model: 'gemini-3.6-flash',
+        apiKey: apiKey,
+        generationConfig: GenerationConfig(responseMimeType: 'application/json'),
+      );
+
+      const prompt = '''
+      Analizza questo documento (referto di analisi del sangue). Estrai i valori numerici corrispondenti a questi campi se presenti e restituisci unicamente un oggetto JSON valido con questa struttura esatta (usa null se il valore non è presente):
+      {
+      "glycemia": 0.0,
+      "hba1c": 0.0,
+      "insulin": 0.0,
+      "iron": 0.0,
+      "ferritin": 0.0,
+      "potassium": 0.0,
+      "vitaminD": 0.0,
+      "vitaminB12": 0.0,
+      "ast": 0.0,
+      "alt": 0.0,
+      "ggt": 0.0,
+      "hemoglobin": 0.0,
+      "redBloodCells": 0.0,
+      "whiteBloodCells": 0.0,
+      "platelets": 0.0
+    }
+      ''';
+
+      // Tentativi con ritardo esponenziale tramite SDK
+      int maxAttempts = 4;
+      int delayMs = 1500;
+      GenerateContentResponse? response;
+
+      for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          response = await model.generateContent([
+              Content.multi([
+                  TextPart(prompt),
+                  DataPart(mimeType, bytes),
+              ])
+          ]);
+          break;
+        } catch (e) {
+          if (attempt == maxAttempts) rethrow;
+          await Future.delayed(Duration(milliseconds: delayMs));
+          delayMs *= 2;
+        }
+      }
+
+      if (!mounted) return;
+      if (Navigator.canPop(context)) Navigator.of(context).pop();
+
+      if (response != null && response.text != null) {
+        final jsonString = response.text!;
+        final Map<String, dynamic> parsedValues = jsonDecode(jsonString);
+
+        setState(() {
+            if (parsedValues['glycemia'] != null) _glycemiaController.text = parsedValues['glycemia'].toString();
+            if (parsedValues['hba1c'] != null) _hba1cController.text = parsedValues['hba1c'].toString();
+            if (parsedValues['insulin'] != null) _insulinController.text = parsedValues['insulin'].toString();
+            if (parsedValues['iron'] != null) _ironController.text = parsedValues['iron'].toString();
+            if (parsedValues['ferritin'] != null) _ferritinController.text = parsedValues['ferritin'].toString();
+            if (parsedValues['potassium'] != null) _potassiumController.text = parsedValues['potassium'].toString();
+            if (parsedValues['vitaminD'] != null) _vitaminDController.text = parsedValues['vitaminD'].toString();
+            if (parsedValues['vitaminB12'] != null) _vitaminB12Controller.text = parsedValues['vitaminB12'].toString();
+            if (parsedValues['ast'] != null) _astController.text = parsedValues['ast'].toString();
+            if (parsedValues['alt'] != null) _altController.text = parsedValues['alt'].toString();
+            if (parsedValues['ggt'] != null) _ggtController.text = parsedValues['ggt'].toString();
+            if (parsedValues['hemoglobin'] != null) _hemoglobinController.text = parsedValues['hemoglobin'].toString();
+            if (parsedValues['redBloodCells'] != null) _redBloodCellsController.text = parsedValues['redBloodCells'].toString();
+            if (parsedValues['whiteBloodCells'] != null) _whiteBloodCellsController.text = parsedValues['whiteBloodCells'].toString();
+            if (parsedValues['platelets'] != null) _plateletsController.text = parsedValues['platelets'].toString();
+        });
+
+        _tempBloodFilePath = fileName;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            backgroundColor: AppColors.success,
+            content: Text('✨ Valori letti con successo! Controllali e premi Salva Analisi.'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      if (Navigator.canPop(context)) Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(backgroundColor: Colors.red, content: Text('Errore di connessione: $e')),
+      );
+    }
+  }
+  
+  @override
   Widget build(BuildContext context) {
     return CozyBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        extendBodyBehindAppBar: true, // Estende il body dietro l'AppBar come nella mappa
+        extendBodyBehindAppBar: true,
         appBar: AppBar(
-          backgroundColor: Colors.transparent, // AppBar trasparente
+          backgroundColor: Colors.transparent,
           elevation: 0,
           title: const Text('Il Mio Corpo', style: TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold)),
           bottom: TabBar(
@@ -353,7 +570,6 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
         ),
         body: Stack(
           children: [
-            // Contenuto delle tab traslato in basso per non coprire l'AppBar con TabBar
             Padding(
               padding: EdgeInsets.only(
                 top: MediaQuery.of(context).padding.top + kToolbarHeight + 84.0,
@@ -369,7 +585,6 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
               ),
             ),
 
-            // Contatore rupie in alto a destra (stessa posizione e stile della mappa)
             Positioned(
               top: MediaQuery.of(context).padding.top - 18,
               left: 42.0,
@@ -387,14 +602,6 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
                       iconColor: AppColors.heartRed,
                       value: '${_user.currentHearts}',
                     ),
-                    /*
-                    const SizedBox(width: 12),
-                    CurrencyBadge(
-                      icon: Icons.diamond,
-                      iconColor: AppColors.rupeeGreen,
-                      value: '${_user.coins}',
-                    ),
-                    */
                   ],
                 ),
               ),
@@ -555,7 +762,7 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
                   padding: const EdgeInsets.symmetric(horizontal: 4.0),
                   child: CozyButton(
                     text: tabs[index],
-                    isSelected: isSelected, // Passiamo semplicemente lo stato!
+                    isSelected: isSelected,
                     onPressed: () {
                       _measurementsTabController.animateTo(index);
                     },
@@ -637,7 +844,7 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
     );
   }
 
-  // TAB 3: VALORI EMATICI
+  // TAB 3: VALORI EMATICI & ANALISI IA
   Widget _buildBloodTab() {
     final history = _storageService.getBloodTestsHistory();
 
@@ -655,7 +862,7 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
               color: AppColors.textPrimary,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
 
           _buildExpansionWoodSection(
             title: 'Glicemia & Insulina',
@@ -667,7 +874,7 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
               _buildBloodField(_insulinController, 'Insulina', 'µIU/mL'),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
 
           _buildExpansionWoodSection(
             title: 'Assetto Marziale (Ferro)',
@@ -677,7 +884,7 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
               _buildBloodField(_ferritinController, 'Ferritina', 'ng/mL'),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
 
           _buildExpansionWoodSection(
             title: 'Vitamine ed Elettroliti',
@@ -689,7 +896,7 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
               _buildBloodField(_vitaminB12Controller, 'Vitamina B12', 'pg/mL'),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
 
           _buildExpansionWoodSection(
             title: 'Funzionalità Epatica',
@@ -701,7 +908,7 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
               _buildBloodField(_ggtController, 'GGT', 'U/L'),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
 
           _buildExpansionWoodSection(
             title: 'Emocromo',
@@ -715,7 +922,7 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
               _buildBloodField(_plateletsController, 'Piastrine', 'x10^3/µL'),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
 
           SizedBox(
             width: double.infinity,
@@ -725,7 +932,17 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
               onPressed: _saveBloodTest,
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 8),
+
+          SizedBox(
+            width: double.infinity,
+            child: CozyButton(
+              text: 'Carica Referto & Analizza IA 🪄',
+              icon: Icons.auto_awesome,
+              onPressed: _showBloodFileSourceDialog,
+            ),
+          ),
+          const SizedBox(height: 16),
 
           const Text(
             'Storico Esami Registrati',
@@ -736,7 +953,7 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
               color: AppColors.textPrimary,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
 
           if (history.isEmpty)
             const CozyWoodCard(
@@ -766,9 +983,17 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     child: ListTile(
                       onTap: () => _showBloodTestDetailsDialog(entry),
-                      title: Text(
-                        'Analisi del $dateStr',
-                        style: const TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                      title: Row(
+                        children: [
+                          Text(
+                            'Analisi del $dateStr',
+                            style: const TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                          ),
+                          if (entry.filePath != null && entry.filePath!.isNotEmpty) ...[
+                            const SizedBox(width: 8),
+                            const Icon(Icons.attach_file, size: 16, color: AppColors.woodAccent),
+                          ],
+                        ],
                       ),
                       subtitle: Text(
                         'Glicemia: ${entry.glycemia ?? "-"} | Vit. D: ${entry.vitaminD ?? "-"} | Ferro: ${entry.iron ?? "-"}',
@@ -821,7 +1046,7 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
     }
 
     return GridView.builder(
-      padding: const EdgeInsets.all(16.0), // Margine esterno uniforme per tutta la griglia
+      padding: const EdgeInsets.all(16.0),
       itemCount: photos.length,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
@@ -1212,9 +1437,11 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
       redBloodCells: double.tryParse(_redBloodCellsController.text.replaceAll(',', '.')),
       whiteBloodCells: double.tryParse(_whiteBloodCellsController.text.replaceAll(',', '.')),
       platelets: double.tryParse(_plateletsController.text.replaceAll(',', '.')),
+      filePath: _tempBloodFilePath,
     );
 
     await _storageService.addBloodTestEntry(entry);
+    _tempBloodFilePath = null;
 
     _glycemiaController.clear();
     _hba1cController.clear();
@@ -1280,11 +1507,58 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
           ),
           content: SizedBox(
             width: double.maxFinite,
-            child: valuesMap.isEmpty
-                ? const Text('Nessun valore registrato per questo referto.')
-                : ListView(
-                    shrinkWrap: true,
-                    children: valuesMap.entries.map((item) {
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (entry.filePath != null && entry.filePath!.isNotEmpty) ...[
+                    const Text('Referto allegato:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.woodAccent)),
+                    const SizedBox(height: 8),
+                    if (entry.filePath!.endsWith('.pdf'))
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.woodAccent.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: AppColors.woodAccent),
+                        ),
+                        child: Row(
+                          children: const [
+                            Icon(Icons.picture_as_pdf, color: AppColors.woodAccent, size: 28),
+                            SizedBox(width: 10),
+                            Expanded(child: Text('Documento PDF allegato', style: TextStyle(fontWeight: FontWeight.bold))),
+                          ],
+                        ),
+                      )
+                    else
+                      GestureDetector(
+                        onTap: () {
+                          showDialog(
+                            context: context,
+                            builder: (context) => Dialog(
+                              backgroundColor: Colors.black,
+                              child: InteractiveViewer(
+                                child: _buildSafeImage(entry.filePath!, fit: BoxFit.contain),
+                              ),
+                            ),
+                          );
+                        },
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: SizedBox(
+                            height: 150,
+                            width: double.infinity,
+                            child: _buildSafeImage(entry.filePath!, fit: BoxFit.cover),
+                          ),
+                        ),
+                      ),
+                    const Divider(height: 20),
+                  ],
+                  if (valuesMap.isEmpty)
+                    const Text('Nessun valore registrato per questo referto.')
+                  else
+                    ...valuesMap.entries.map((item) {
                       return Padding(
                         padding: const EdgeInsets.symmetric(vertical: 4.0),
                         child: Row(
@@ -1295,8 +1569,10 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
                           ],
                         ),
                       );
-                    }).toList(),
-                  ),
+                    }),
+                ],
+              ),
+            ),
           ),
           actions: [
             TextButton(
@@ -1387,7 +1663,7 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
               children: [
                 Icon(Icons.broken_image_outlined, color: Colors.grey, size: 36),
                 SizedBox(height: 4),
-                Text('Foto non trovata', style: TextStyle(fontSize: 10, color: Colors.grey)),
+                Text('File non trovato', style: TextStyle(fontSize: 10, color: Colors.grey)),
               ],
             ),
           );

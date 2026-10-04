@@ -27,6 +27,9 @@ class BloodTestEntry {
   final double? whiteBloodCells;
   final double? platelets;
 
+  // Percorso del file o dell'immagine allegata
+  final String? filePath;
+
   BloodTestEntry({
     required this.id,
     required this.date,
@@ -45,6 +48,7 @@ class BloodTestEntry {
     this.redBloodCells,
     this.whiteBloodCells,
     this.platelets,
+    this.filePath,
   });
 
   Map<String, dynamic> toMap() => {
@@ -65,6 +69,7 @@ class BloodTestEntry {
     'redBloodCells': redBloodCells,
     'whiteBloodCells': whiteBloodCells,
     'platelets': platelets,
+    'filePath': filePath,
   };
 
   factory BloodTestEntry.fromMap(Map<String, dynamic> map) => BloodTestEntry(
@@ -85,5 +90,6 @@ class BloodTestEntry {
     redBloodCells: (map['redBloodCells'] as num?)?.toDouble(),
     whiteBloodCells: (map['whiteBloodCells'] as num?)?.toDouble(),
     platelets: (map['platelets'] as num?)?.toDouble(),
+    filePath: map['filePath'] as String?,
   );
 }
