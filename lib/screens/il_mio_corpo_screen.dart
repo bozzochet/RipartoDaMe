@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart' as path_provider;
 import 'package:path/path.dart' as path;
 import 'package:saver_gallery/saver_gallery.dart';
@@ -69,6 +70,9 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
 
   // File temporaneo associato all'analisi corrente
   String? _tempBloodFilePath;
+
+  // Tipo di metrica selezionata per il grafico degli esami del sangue
+  String _selectedBloodChartMetric = 'glycemia';
 
   @override
   void initState() {
@@ -843,6 +847,158 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
     );
   }
 
+  // --- METODI DI SUPPORTO PER IL GRAFICO DEGLI ESAMI DEL SANGUE ---
+  double? _getBloodMetricValue(BloodTestEntry entry, String metric) {
+    switch (metric) {
+      case 'glycemia': return entry.glycemia;
+      case 'hba1c': return entry.hba1c;
+      case 'insulin': return entry.insulin;
+      case 'iron': return entry.iron;
+      case 'ferritin': return entry.ferritin;
+      case 'potassium': return entry.potassium;
+      case 'vitaminD': return entry.vitaminD;
+      case 'vitaminB12': return entry.vitaminB12;
+      case 'ast': return entry.ast?.toDouble();
+      case 'alt': return entry.alt?.toDouble();
+      case 'ggt': return entry.ggt?.toDouble();
+      case 'hemoglobin': return entry.hemoglobin;
+      case 'redBloodCells': return entry.redBloodCells;
+      case 'whiteBloodCells': return entry.whiteBloodCells;
+      case 'platelets': return entry.platelets?.toDouble();
+      default: return null;
+    }
+  }
+
+  String _getBloodMetricLabel(String metric) {
+    switch (metric) {
+      case 'glycemia': return 'Glicemia (mg/dL)';
+      case 'hba1c': return 'Emoglobina Glicata (%)';
+      case 'insulin': return 'Insulina (µIU/mL)';
+      case 'iron': return 'Sideremia (µg/dL)';
+      case 'ferritin': return 'Ferritina (ng/mL)';
+      case 'potassium': return 'Potassio (mEq/L)';
+      case 'vitaminD': return 'Vitamina D (ng/mL)';
+      case 'vitaminB12': return 'Vitamina B12 (pg/mL)';
+      case 'ast': return 'AST / GOT (U/L)';
+      case 'alt': return 'ALT / GPT (U/L)';
+      case 'ggt': return 'GGT (U/L)';
+      case 'hemoglobin': return 'Emoglobina (g/dL)';
+      case 'redBloodCells': return 'Globuli Rossi (x10^6/µL)';
+      case 'whiteBloodCells': return 'Globuli Bianchi (x10^3/µL)';
+      case 'platelets': return 'Piastrine (x10^3/µL)';
+      default: return 'Valore';
+    }
+  }
+
+  Widget _buildBloodTestHistoryChart() {
+    final allEntries = _storageService.getBloodTestsHistory();
+    if (allEntries.isEmpty) return const SizedBox.shrink();
+
+    final sortedEntries = List<BloodTestEntry>.from(allEntries)
+      ..sort((a, b) => a.date.compareTo(b.date));
+
+    final chartEntries = sortedEntries.length > 7 ? sortedEntries.sublist(sortedEntries.length - 7) : sortedEntries;
+
+    double maxVal = 100.0;
+    for (var entry in chartEntries) {
+      final val = _getBloodMetricValue(entry, _selectedBloodChartMetric);
+      if (val != null && val > maxVal) {
+        maxVal = val * 1.2;
+      }
+    }
+
+    final metricTitle = _getBloodMetricLabel(_selectedBloodChartMetric);
+
+    return CozyWoodCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Row(
+                  children: [
+                    const Icon(Icons.show_chart, size: 18, color: AppColors.woodAccent),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Andamento $metricTitle',
+                        style: const TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.textPrimary),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              DropdownButton<String>(
+                value: _selectedBloodChartMetric,
+                dropdownColor: const Color(0xFFFDF6E3),
+                style: const TextStyle(fontSize: 11, color: AppColors.textPrimary, fontFamily: 'Serif'),
+                underline: const SizedBox(),
+                items: const [
+                  DropdownMenuItem(value: 'glycemia', child: Text('Glicemia')),
+                  DropdownMenuItem(value: 'hba1c', child: Text('Emoglobina Glicata')),
+                  DropdownMenuItem(value: 'insulin', child: Text('Insulina')),
+                  DropdownMenuItem(value: 'iron', child: Text('Sideremia')),
+                  DropdownMenuItem(value: 'ferritin', child: Text('Ferritina')),
+                  DropdownMenuItem(value: 'potassium', child: Text('Potassio')),
+                  DropdownMenuItem(value: 'vitaminD', child: Text('Vitamina D')),
+                  DropdownMenuItem(value: 'vitaminB12', child: Text('Vitamina B12')),
+                  DropdownMenuItem(value: 'ast', child: Text('AST')),
+                  DropdownMenuItem(value: 'alt', child: Text('ALT')),
+                  DropdownMenuItem(value: 'ggt', child: Text('GGT')),
+                  DropdownMenuItem(value: 'hemoglobin', child: Text('Emoglobina')),
+                  DropdownMenuItem(value: 'redBloodCells', child: Text('Globuli Rossi')),
+                  DropdownMenuItem(value: 'whiteBloodCells', child: Text('Globuli Bianchi')),
+                  DropdownMenuItem(value: 'platelets', child: Text('Piastrine')),
+                ],
+                onChanged: (val) {
+                  if (val != null) setState(() { _selectedBloodChartMetric = val; });
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 120,
+            child: chartEntries.isEmpty
+                ? const Center(child: Text('Nessun dato disponibile', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)))
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: chartEntries.map((entry) {
+                      final val = _getBloodMetricValue(entry, _selectedBloodChartMetric);
+                      final double barHeight = (val != null && maxVal > 0) ? (val / maxVal) * 80 : 0.0;
+                      final dateLabel = '${entry.date.day}/${entry.date.month}';
+                      final valString = val != null ? (val % 1 == 0 ? val.toInt().toString() : val.toStringAsFixed(1)) : '-';
+
+                      return Column(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Text(valString, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: AppColors.woodAccent)),
+                          const SizedBox(height: 4),
+                          Container(
+                            width: 16,
+                            height: barHeight < 4 ? 4 : barHeight,
+                            decoration: BoxDecoration(
+                              color: val != null ? AppColors.woodAccent : AppColors.border,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(dateLabel, style: const TextStyle(fontSize: 9, color: AppColors.textSecondary, fontWeight: FontWeight.normal)),
+                        ],
+                      );
+                    }).toList(),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
   // TAB 3: VALORI EMATICI & ANALISI IA
   Widget _buildBloodTab() {
     final history = _storageService.getBloodTestsHistory();
@@ -940,6 +1096,10 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
               onPressed: _showBloodFileSourceDialog,
             ),
           ),
+          const SizedBox(height: 16),
+
+          // --- GRAFICO STORICO ESAMI INSERITO QUI ---
+          _buildBloodTestHistoryChart(),
           const SizedBox(height: 16),
 
           SizedBox(
@@ -1507,7 +1667,7 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
       setState(() {});
     }
   }
-
+  
   void _showBloodTestDetailsDialog(BloodTestEntry entry) {
     final dateStr =
         "${entry.date.day.toString().padLeft(2, '0')}/${entry.date.month.toString().padLeft(2, '0')}/${entry.date.year}";
@@ -1554,19 +1714,53 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
                     const Text('Referto allegato:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.woodAccent)),
                     const SizedBox(height: 8),
                     if (entry.filePath!.endsWith('.pdf'))
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: AppColors.woodAccent.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: AppColors.woodAccent),
-                        ),
-                        child: Row(
-                          children: const [
-                            Icon(Icons.picture_as_pdf, color: AppColors.woodAccent, size: 28),
-                            SizedBox(width: 10),
-                            Expanded(child: Text('Documento PDF allegato', style: TextStyle(fontWeight: FontWeight.bold))),
-                          ],
+                      InkWell(
+                        onTap: () async {
+                          final filePath = entry.filePath; 
+                          if (filePath != null && filePath.isNotEmpty) {
+                            final appDir = await path_provider.getApplicationDocumentsDirectory();
+                            final fullPath = '${appDir.path}/${path.basename(filePath)}';
+                            final file = File(fullPath);
+                            
+                            if (await file.exists()) {
+                              await OpenFilex.open(fullPath);
+                            } else {
+                              final directFile = File(filePath);
+                              if (await directFile.exists()) {
+                                await OpenFilex.open(filePath);
+                              } else {
+                                if (!context.mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    backgroundColor: Colors.red,
+                                    content: Text('File PDF non trovato sul dispositivo.'),
+                                  ),
+                                );
+                              }
+                            }
+                          }
+                        },
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppColors.woodAccent.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: AppColors.woodAccent),
+                          ),
+                          child: Row(
+                            children: const [
+                              Icon(Icons.picture_as_pdf, color: AppColors.woodAccent, size: 28),
+                              SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  'Documento PDF allegato',
+                                  style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                                ),
+                              ),
+                              Icon(Icons.open_in_new, size: 18, color: AppColors.textSecondary),
+                            ],
+                          ),
                         ),
                       )
                     else
@@ -1622,7 +1816,7 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen> with TickerProvider
       },
     );
   }
-
+      
   void _showPhotoDetailDialog(ProgressPhotoEntry photo) {
     final day = photo.date.day.toString().padLeft(2, '0');
     final month = photo.date.month.toString().padLeft(2, '0');

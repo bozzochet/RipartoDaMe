@@ -218,26 +218,80 @@ class LocalStorageService {
     final history = getBodyMeasurementsHistory();
     return history.isNotEmpty ? history.first : null;
   }
-  
+
   // --- GESTIONE ANALISI DEL SANGUE ---
   
   Future<void> addBloodTestEntry(BloodTestEntry entry) async {
-    final String dateKey = entry.id;
+    // Se l'id è vuoto o nullo, generiamone uno sicuro basato sulla data o su un timestamp
+    final String dateKey = (entry.id.isNotEmpty) ? entry.id : entry.date.toIso8601String();
     await _bloodTestsBox.put(dateKey, entry.toMap());
   }
-  
+
   List<BloodTestEntry> getBloodTestsHistory() {
-    final entries = _bloodTestsBox.values
-        .map((e) => BloodTestEntry.fromMap(Map<String, dynamic>.from(e)))
-        .toList();
-    entries.sort((a, b) => b.date.compareTo(b.date));
+    final entries = <BloodTestEntry>[];
+    
+    for (var key in _bloodTestsBox.keys) {
+      try {
+        final data = _bloodTestsBox.get(key);
+        if (data != null) {
+          final map = Map<String, dynamic>.from(data);
+          
+          // Se per caso c'è un'entry con dati vuoti o corrotti che blocca la UI, la scartiamo o la fixiamo
+          map['id'] = map['id'] ?? key.toString();
+          
+          // Controllo di sicurezza: se la data non è valida, evitiamo che faccia crashare la lista
+          if (map['date'] != null) {
+            entries.add(BloodTestEntry.fromMap(map));
+          }
+        }
+      } catch (e) {
+        print("⚠️ Trovata entry corrotta nel box bloodTestsBox con chiave $key, la rimuovo: $e");
+        // Rimuove automaticamente dal database Hive la chiave corrotta che non si riusciva a cancellare!
+        _bloodTestsBox.delete(key);
+      }
+    }
+    
+    entries.sort((a, b) => b.date.compareTo(a.date));
     return entries;
   }
-  
-  Future<void> deleteBloodTestEntry(String id) async {
-    await _bloodTestsBox.delete(id);
-  }
 
+  Future<void> deleteBloodTestEntry(String id) async {
+    // 1. Tentativo standard con la chiave diretta
+    if (_bloodTestsBox.containsKey(id)) {
+      await _bloodTestsBox.delete(id);
+      return;
+    }
+
+    // 2. Tentativo di ricerca avanzata: se la chiave diretta non corrisponde, 
+    // controlliamo tutti gli elementi per trovare quello che ha quell'id o quella data/percorso simile
+    dynamic keyToDelete;
+    for (var key in _bloodTestsBox.keys) {
+      final data = _bloodTestsBox.get(key);
+      if (data != null) {
+        final map = Map<String, dynamic>.from(data);
+        final storedId = map['id']?.toString();
+        
+        // Se troviamo corrispondenza con l'ID o la chiave contiene l'ID cercato
+        if (storedId == id || key.toString() == id || key.toString().contains(id)) {
+          keyToDelete = key;
+          break;
+        }
+      }
+    }
+
+    if (keyToDelete != null) {
+      await _bloodTestsBox.delete(keyToDelete);
+      print("✅ Entry eliminata con successo tramite chiave secondaria: $keyToDelete");
+    } else {
+      print("⚠️ Impossibile trovare la chiave esatta per l'id: $id. Provo una pulizia forzata per ID parziale.");
+      // Ultimo tentativo estremo: cancella qualsiasi chiave che contenga la stringa dell'id
+      final matchingKeys = _bloodTestsBox.keys.where((k) => k.toString().contains(id)).toList();
+      for (var k in matchingKeys) {
+        await _bloodTestsBox.delete(k);
+      }
+    }
+  }
+  
   // --- GESTIONE DIARIO ALIMENTARE (PASTI) ---
 
   Future<void> saveMealsForDate(DateTime date, List<MealEntryModel> meals) async {
