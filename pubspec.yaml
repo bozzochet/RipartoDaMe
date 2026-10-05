@@ -24,6 +24,7 @@ dependencies:
   google_generative_ai: ^0.4.6
   http: ^1.2.0
   flutter_dotenv: ^6.0.1
+  share_plus: ^13.3.1
 
 dev_dependencies:
   flutter_test:
@@ -51,6 +52,5 @@ flutter_launcher_icons:
 flutter_native_splash:
   color: "#FFFFFF" # Sostituisci con il codice HEX del tuo sfondo
   image: "assets/icon/app_icon.png"
-
   android: true
   ios: true
