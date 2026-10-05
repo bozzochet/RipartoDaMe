@@ -10,6 +10,7 @@ import 'shop_screen.dart';
 import 'cura_di_me_screen.dart';
 import 'la_mia_mappa_screen.dart';
 import 'il_mio_diario_screen.dart';
+import 'impostazioni_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -197,6 +198,18 @@ class _HomeScreenState extends State<HomeScreen> {
                               await Navigator.push(
                                 context,
                                 MaterialPageRoute(builder: (context) => const CharacterEditorScreen()),
+                              );
+                              _refreshData();
+                            },
+                          ),
+                          _buildMenuCard(
+                            title: 'Impostazioni',
+                            subtitle: '', // Vuoto come richiesto
+                            icon: '⚙️',
+                            onTap: () async {
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (context) => const ImpostazioniScreen()),
                               );
                               _refreshData();
                             },

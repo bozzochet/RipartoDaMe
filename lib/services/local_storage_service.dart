@@ -318,6 +318,62 @@ class LocalStorageService {
       MealEntryModel(title: 'Cena', icon: '🌙'),
     ];
   }
+
+  // --- ESPORTAZIONE E IMPORTAZIONE DATI (BACKUP) ---
+
+  /// Raccoglie tutti i dati da tutti i box di Hive e li restituisce come mappa JSON serializzabile
+  Map<String, dynamic> exportAllData() {
+    return {
+      'version': 1,
+      'exported_at': DateTime.now().toIso8601String(),
+      'userBox': Map.from(_userBox.toMap()),
+      'habitsBox': Map.from(_habitsBox.toMap()),
+      'weightLogsBox': Map.from(_weightBox.toMap()),
+      'measurementsBox': Map.from(_measurementsBox.toMap()),
+      'photosBox': Map.from(_photosBox.toMap()),
+      'bloodTestsBox': Map.from(_bloodTestsBox.toMap()),
+      'mealsBox': Map.from(_mealsBox.toMap()),
+    };
+  }
+
+  /// Converte tutti i dati in una stringa JSON formattata
+  String exportToJsonString() {
+    final data = exportAllData();
+    return const JsonEncoder.withIndent('  ').convert(data);
+  }
+
+  /// Sovrascrive o aggiorna i box di Hive con i dati provenienti da una mappa JSON di backup
+  Future<void> importFromJsonMap(Map<String, dynamic> jsonData) async {
+    if (jsonData.containsKey('userBox') && jsonData['userBox'] != null) {
+      await _userBox.clear();
+      await _userBox.putAll(Map<dynamic, dynamic>.from(jsonData['userBox']));
+    }
+    if (jsonData.containsKey('habitsBox') && jsonData['habitsBox'] != null) {
+      await _habitsBox.clear();
+      await _habitsBox.putAll(Map<dynamic, dynamic>.from(jsonData['habitsBox']));
+    }
+    if (jsonData.containsKey('weightLogsBox') && jsonData['weightLogsBox'] != null) {
+      await _weightBox.clear();
+      await _weightBox.putAll(Map<dynamic, dynamic>.from(jsonData['weightLogsBox']));
+    }
+    if (jsonData.containsKey('measurementsBox') && jsonData['measurementsBox'] != null) {
+      await _measurementsBox.clear();
+      await _measurementsBox.putAll(Map<dynamic, dynamic>.from(jsonData['measurementsBox']));
+    }
+    if (jsonData.containsKey('photosBox') && jsonData['photosBox'] != null) {
+      await _photosBox.clear();
+      await _photosBox.putAll(Map<dynamic, dynamic>.from(jsonData['photosBox']));
+    }
+    if (jsonData.containsKey('bloodTestsBox') && jsonData['bloodTestsBox'] != null) {
+      await _bloodTestsBox.clear();
+      await _bloodTestsBox.putAll(Map<dynamic, dynamic>.from(jsonData['bloodTestsBox']));
+    }
+    if (jsonData.containsKey('mealsBox') && jsonData['mealsBox'] != null) {
+      await _mealsBox.clear();
+      await _mealsBox.putAll(Map<dynamic, dynamic>.from(jsonData['mealsBox']));
+    }
+  }
+  
 }
 
 // Funzione di supporto interna per evitare ambiguità
