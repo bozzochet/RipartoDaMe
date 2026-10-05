@@ -24,20 +24,14 @@ class _ImpostazioniScreenState extends State<ImpostazioniScreen> {
     try {
       setState(() => _isLoading = true);
       
-      // 1. Ottiene la stringa JSON con tutti i dati
-      final jsonString = _storageService.exportToJsonString();
-
-      // 2. Salva temporaneamente il file sul dispositivo
-      final directory = await getTemporaryDirectory();
-      final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-');
-      final file = File('${directory.path}/riparto_da_me_backup_$timestamp.json');
-      await file.writeAsString(jsonString);
+      // 1. Genera l'archivio ZIP contenente database e file multimediali
+      final zipPath = await _storageService.exportToZipFile();
 
       setState(() => _isLoading = false);
 
-      // 3. Condivide il file (su iOS apre il pannello di condivisione nativo: Salva su File, AirDrop, Mail, ecc.)
+      // 2. Condivide il file ZIP tramite il pannello nativo
       await Share.shareXFiles(
-        [XFile(file.path)],
+        [XFile(zipPath)],
         text: 'Backup dei dati di Riparto da Me',
       );
     } catch (e) {
@@ -54,10 +48,10 @@ class _ImpostazioniScreenState extends State<ImpostazioniScreen> {
 
   Future<void> _importaDati() async {
     try {
-      // 1. Apre il selettore di file per scegliere il file JSON di backup (senza platform)
+      // 1. Apre il selettore di file per scegliere l'archivio ZIP di backup
       final result = await FilePicker.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['json'],
+        allowedExtensions: ['zip'],
       );
       
       if (result != null && result.isNotEmpty && result.single.path != null) {
@@ -68,7 +62,7 @@ class _ImpostazioniScreenState extends State<ImpostazioniScreen> {
             backgroundColor: AppColors.background,
             title: const Text('Attenzione', style: TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold)),
             content: const Text(
-              'Importando un file di backup verranno sovrascritti tutti i dati attuali presenti nell\'applicazione. Vuoi procedere?',
+              'Importando un file di backup ZIP verranno sovrascritti i dati e ripristinati i file multimediali associati. Vuoi procedere?',
               style: TextStyle(fontSize: 13),
             ),
             actions: [
@@ -88,11 +82,9 @@ class _ImpostazioniScreenState extends State<ImpostazioniScreen> {
           setState(() => _isLoading = true);
 
           final file = File(result.single.path!);
-          final jsonString = await file.readAsString();
-          final Map<String, dynamic> jsonData = jsonDecode(jsonString);
 
-          // Esegue l'importazione nei box Hive
-          await _storageService.importFromJsonMap(jsonData);
+          // Esegue l'importazione e il ripristino dell'archivio ZIP
+          await _storageService.importFromZipFile(file);
 
           setState(() => _isLoading = false);
 
@@ -117,6 +109,31 @@ class _ImpostazioniScreenState extends State<ImpostazioniScreen> {
     }
   }
 
+  Future<void> _consolidaFile() async {
+    try {
+      setState(() => _isLoading = true);
+      int count = await _storageService.consolidateExternalFiles();
+      setState(() => _isLoading = false);
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: const Color(0xFF2E7D32),
+          content: Text('✅ Consolidamento completato! $count file messi al sicuro nella sandbox.'),
+        ),
+      );
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: const Color(0xFFC62828),
+          content: Text('Errore durante il consolidamento: $e'),
+        ),
+      );
+    }
+  }
+  
   @override
   Widget build(BuildContext context) {
     return CozyBackground(
@@ -193,7 +210,7 @@ class _ImpostazioniScreenState extends State<ImpostazioniScreen> {
                           ),
                           const SizedBox(height: 8),
                           const Text(
-                            'Crea un file di salvataggio JSON contenente tutte le misurazioni, il diario, le foto e il profilo.',
+                            'Crea un archivio ZIP contenente tutte le misurazioni, il profilo, il diario, le foto e i documenti protetti.',
                             style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
                           ),
                           const SizedBox(height: 12),
@@ -236,7 +253,7 @@ class _ImpostazioniScreenState extends State<ImpostazioniScreen> {
                           ),
                           const SizedBox(height: 8),
                           const Text(
-                            'Ripristina i dati caricando un file di backup JSON precedentemente salvato.',
+                            'Ripristina i dati e i file multimediali caricando un archivio ZIP precedentemente salvato.',
                             style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
                           ),
                           const SizedBox(height: 12),
@@ -246,6 +263,49 @@ class _ImpostazioniScreenState extends State<ImpostazioniScreen> {
                               text: 'Importa Dati',
                               icon: Icons.download,
                               onPressed: _isLoading ? null : _importaDati,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Card Consolidamento File
+                  CozyWoodCard(
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Row(
+                            children: [
+                              Text('🔒', style: TextStyle(fontSize: 24)),
+                              SizedBox(width: 12),
+                              Text(
+                                'Consolida File Esterni',
+                                style: TextStyle(
+                                  fontFamily: 'Serif',
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Copia tutte le foto e i documenti esterni all\'interno della memoria protetta dell\'app.',
+                            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                          ),
+                          const SizedBox(height: 12),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: CozyButton(
+                              text: 'Consolida File',
+                              icon: Icons.security,
+                              onPressed: _isLoading ? null : _consolidaFile,
                             ),
                           ),
                         ],

@@ -1,5 +1,8 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:archive/archive_io.dart';
 import '../models/user_model.dart';
 import '../models/habit_model.dart';
 import '../models/body_measurement_entry.dart';
@@ -319,6 +322,69 @@ class LocalStorageService {
     ];
   }
 
+  /// Consolida i file esterni (es. rullino o documenti) copiandoli nella sandbox locale
+  /// e aggiornando i relativi riferimenti nei box Hive.
+  Future<int> consolidateExternalFiles() async {
+    final appDir = await getApplicationDocumentsDirectory();
+    int consolidatedCount = 0;
+
+    // 1. Consolidamento Foto Progressi (_photosBox)
+    for (var key in _photosBox.keys) {
+      final data = _photosBox.get(key);
+      if (data != null) {
+        final map = Map<String, dynamic>.from(data);
+        final String? imagePath = map['imagePath'] ?? map['path'];
+        
+        if (imagePath != null && imagePath.isNotEmpty) {
+          final file = File(imagePath);
+          if (await file.exists() && !imagePath.contains(appDir.path)) {
+            try {
+              final fileName = '${DateTime.now().millisecondsSinceEpoch}_${imagePath.split('/').last}';
+              final newPath = '${appDir.path}/$fileName';
+              
+              await file.copy(newPath);
+              
+              map['imagePath'] = newPath;
+              await _photosBox.put(key, map);
+              consolidatedCount++;
+            } catch (e) {
+              print("⚠️ Errore durante il consolidamento della foto $key: $e");
+            }
+          }
+        }
+      }
+    }
+
+    // 2. Consolidamento Analisi del Sangue/Urine (_bloodTestsBox)
+    for (var key in _bloodTestsBox.keys) {
+      final data = _bloodTestsBox.get(key);
+      if (data != null) {
+        final map = Map<String, dynamic>.from(data);
+        final String? filePath = map['filePath'] ?? map['pdfPath'];
+        
+        if (filePath != null && filePath.isNotEmpty) {
+          final file = File(filePath);
+          if (await file.exists() && !filePath.contains(appDir.path)) {
+            try {
+              final fileName = '${DateTime.now().millisecondsSinceEpoch}_${filePath.split('/').last}';
+              final newPath = '${appDir.path}/$fileName';
+              
+              await file.copy(newPath);
+              
+              map['filePath'] = newPath;
+              await _bloodTestsBox.put(key, map);
+              consolidatedCount++;
+            } catch (e) {
+              print("⚠️ Errore durante il consolidamento del referto $key: $e");
+            }
+          }
+        }
+      }
+    }
+
+    return consolidatedCount;
+  }
+  
   // --- ESPORTAZIONE E IMPORTAZIONE DATI (BACKUP) ---
 
   /// Raccoglie tutti i dati da tutti i box di Hive e li restituisce come mappa JSON serializzabile
@@ -371,6 +437,78 @@ class LocalStorageService {
     if (jsonData.containsKey('mealsBox') && jsonData['mealsBox'] != null) {
       await _mealsBox.clear();
       await _mealsBox.putAll(Map<dynamic, dynamic>.from(jsonData['mealsBox']));
+    }
+  }
+
+  /// Esporta tutti i dati (JSON + file multimediali nella sandbox) in un unico archivio ZIP
+  Future<String> exportToZipFile() async {
+    final appDir = await getApplicationDocumentsDirectory();
+    final tempDir = await getTemporaryDirectory();
+    final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-');
+    final zipPath = '${tempDir.path}/riparto_da_me_backup_$timestamp.zip';
+
+    // 1. Crea il JSON dei dati
+    final jsonString = exportToJsonString();
+    
+    // 2. Inizializza l'encoder ZIP
+    final encoder = ZipFileEncoder();
+    encoder.create(zipPath);
+
+    // 3. Aggiunge temporaneamente il file JSON alla cartella temporanea e lo include nello zip
+    final jsonFile = File('${tempDir.path}/backup.json');
+    await jsonFile.writeAsString(jsonString);
+    encoder.addFile(jsonFile);
+
+    // 4. Aggiunge tutti i file presenti nella sandbox dell'app
+    if (await appDir.exists()) {
+      final List<FileSystemEntity> entities = appDir.listSync(recursive: false);
+      for (var entity in entities) {
+        if (entity is File) {
+          encoder.addFile(entity);
+        }
+      }
+    }
+
+    encoder.close();
+    if (await jsonFile.exists()) {
+      await jsonFile.delete();
+    }
+
+    return zipPath;
+  }
+
+  /// Importa un archivio ZIP ripristinando il database JSON e tutti i file multimediali nella sandbox
+  Future<void> importFromZipFile(File zipFile) async {
+    final appDir = await getApplicationDocumentsDirectory();
+
+    // 1. Legge e decodifica l'archivio ZIP
+    final bytes = await zipFile.readAsBytes();
+    final archive = ZipDecoder().decodeBytes(bytes);
+
+    String? jsonContent;
+
+    // 2. Estrae i file dall'archivio
+    for (final file in archive) {
+      final filename = file.name;
+      if (file.isFile) {
+        final data = file.content as List<int>;
+        
+        if (filename.endsWith('backup.json')) {
+          jsonContent = utf8.decode(data);
+        } else {
+          final cleanName = filename.split('/').last;
+          final targetFile = File('${appDir.path}/$cleanName');
+          await targetFile.writeAsBytes(data);
+        }
+      }
+    }
+
+    // 3. Importa i dati nei box Hive se il file di backup è presente
+    if (jsonContent != null) {
+      final Map<String, dynamic> jsonData = jsonDecode(jsonContent);
+      await importFromJsonMap(jsonData);
+    } else {
+      throw Exception('File backup.json non trovato nell\'archivio ZIP.');
     }
   }
   
