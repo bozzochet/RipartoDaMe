@@ -1,7 +1,7 @@
 name: riparto_da_me
 description: RIPARTO DA ME - app personale di percorso, cura di sé e avventura.
 publish_to: "none"
-version: 1.0.0+1
+version: 1.1.0+2
 
 environment:
   sdk: ">=3.5.0 <4.0.0"
