@@ -23,7 +23,7 @@ class _ImpostazioniScreenState extends State<ImpostazioniScreen> {
   Future<void> _esportaDati() async {
     try {
       setState(() => _isLoading = true);
-      
+
       // 1. Genera l'archivio ZIP contenente database e file multimediali
       final zipPath = await _storageService.exportToZipFile();
 
@@ -53,14 +53,16 @@ class _ImpostazioniScreenState extends State<ImpostazioniScreen> {
         type: FileType.custom,
         allowedExtensions: ['zip'],
       );
-      
+
       if (result != null && result.isNotEmpty && result.single.path != null) {
         // Conferma di sicurezza prima di sovrascrivere i dati
         bool? conferma = await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
             backgroundColor: AppColors.background,
-            title: const Text('Attenzione', style: TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold)),
+            title: const Text('Attenzione',
+                style: TextStyle(
+                    fontFamily: 'Serif', fontWeight: FontWeight.bold)),
             content: const Text(
               'Importando un file di backup ZIP verranno sovrascritti i dati e ripristinati i file multimediali associati. Vuoi procedere?',
               style: TextStyle(fontSize: 13),
@@ -68,11 +70,14 @@ class _ImpostazioniScreenState extends State<ImpostazioniScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
-                child: const Text('Annulla', style: TextStyle(color: AppColors.textSecondary)),
+                child: const Text('Annulla',
+                    style: TextStyle(color: AppColors.textSecondary)),
               ),
               TextButton(
                 onPressed: () => Navigator.pop(context, true),
-                child: const Text('Sovrascrivi', style: TextStyle(color: Color(0xFFC62828), fontWeight: FontWeight.bold)),
+                child: const Text('Sovrascrivi',
+                    style: TextStyle(
+                        color: Color(0xFFC62828), fontWeight: FontWeight.bold)),
               ),
             ],
           ),
@@ -92,7 +97,8 @@ class _ImpostazioniScreenState extends State<ImpostazioniScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               backgroundColor: Color(0xFF2E7D32),
-              content: Text('✅ Dati importati con successo! Riavvia l\'app se necessario.'),
+              content: Text(
+                  '✅ Dati importati con successo! Riavvia l\'app se necessario.'),
             ),
           );
         }
@@ -112,28 +118,151 @@ class _ImpostazioniScreenState extends State<ImpostazioniScreen> {
   Future<void> _consolidaFile() async {
     try {
       setState(() => _isLoading = true);
-      int count = await _storageService.consolidateExternalFiles();
+
+      final report = await _storageService.consolidateExternalFiles();
+
       setState(() => _isLoading = false);
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: const Color(0xFF2E7D32),
-          content: Text('✅ Consolidamento completato! $count file messi al sicuro nella sandbox.'),
+
+      await showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          backgroundColor: AppColors.background,
+          title: const Row(
+            children: [
+              Icon(Icons.health_and_safety, color: AppColors.woodAccent),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Manutenzione completata',
+                  style: TextStyle(
+                    fontFamily: 'Serif',
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildMaintenanceRow(
+                  'File referenziati controllati',
+                  report.checkedFiles,
+                  Icons.search,
+                ),
+                _buildMaintenanceRow(
+                  'Già al sicuro',
+                  report.alreadySafe,
+                  Icons.verified,
+                ),
+                _buildMaintenanceRow(
+                  'File consolidati',
+                  report.consolidatedFiles,
+                  Icons.security,
+                ),
+                _buildMaintenanceRow(
+                  'File gestiti presenti',
+                  report.managedFilesOnDisk,
+                  Icons.folder,
+                ),
+                const Divider(height: 24),
+                _buildMaintenanceRow(
+                  'Possibili duplicati',
+                  report.duplicateFiles,
+                  Icons.content_copy,
+                  warning: report.duplicateFiles > 0,
+                ),
+                _buildMaintenanceRow(
+                  'File orfani',
+                  report.orphanFiles,
+                  Icons.delete_sweep_outlined,
+                  warning: report.orphanFiles > 0,
+                ),
+                _buildMaintenanceRow(
+                  'File mancanti',
+                  report.missingFiles,
+                  Icons.broken_image_outlined,
+                  warning: report.missingFiles > 0,
+                ),
+                _buildMaintenanceRow(
+                  'Errori',
+                  report.errors,
+                  Icons.error_outline,
+                  warning: report.errors > 0,
+                ),
+                if (report.duplicateFiles > 0 || report.orphanFiles > 0) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withOpacity(0.10),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: Colors.orange.withOpacity(0.4),
+                      ),
+                    ),
+                    child: const Text(
+                      'Sono stati individuati file potenzialmente '
+                      'inutilizzati o duplicati. Per sicurezza, in questa '
+                      'fase non è stato cancellato automaticamente nulla.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                ],
+                if (!report.hasWarnings) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF2E7D32).withOpacity(0.10),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Text(
+                      '✅ Archivio in ordine. Non sono state rilevate '
+                      'anomalie nei file gestiti dall’app.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF2E7D32),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text(
+                'Chiudi',
+                style: TextStyle(color: AppColors.woodAccent),
+              ),
+            ),
+          ],
         ),
       );
     } catch (e) {
       setState(() => _isLoading = false);
+
       if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           backgroundColor: const Color(0xFFC62828),
-          content: Text('Errore durante il consolidamento: $e'),
+          content: Text('Errore durante la manutenzione: $e'),
         ),
       );
     }
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return CozyBackground(
@@ -211,7 +340,8 @@ class _ImpostazioniScreenState extends State<ImpostazioniScreen> {
                           const SizedBox(height: 8),
                           const Text(
                             'Crea un archivio ZIP contenente tutte le misurazioni, il profilo, il diario, le foto e i documenti protetti.',
-                            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                            style: TextStyle(
+                                fontSize: 12, color: AppColors.textSecondary),
                           ),
                           const SizedBox(height: 12),
                           Align(
@@ -254,7 +384,8 @@ class _ImpostazioniScreenState extends State<ImpostazioniScreen> {
                           const SizedBox(height: 8),
                           const Text(
                             'Ripristina i dati e i file multimediali caricando un archivio ZIP precedentemente salvato.',
-                            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                            style: TextStyle(
+                                fontSize: 12, color: AppColors.textSecondary),
                           ),
                           const SizedBox(height: 12),
                           Align(
@@ -284,7 +415,7 @@ class _ImpostazioniScreenState extends State<ImpostazioniScreen> {
                               Text('🔒', style: TextStyle(fontSize: 24)),
                               SizedBox(width: 12),
                               Text(
-                                'Consolida File Esterni',
+                                'Manutenzione File',
                                 style: TextStyle(
                                   fontFamily: 'Serif',
                                   fontWeight: FontWeight.bold,
@@ -296,15 +427,16 @@ class _ImpostazioniScreenState extends State<ImpostazioniScreen> {
                           ),
                           const SizedBox(height: 8),
                           const Text(
-                            'Copia tutte le foto e i documenti esterni all\'interno della memoria protetta dell\'app.',
-                            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                            'Controlla foto e documenti dell’app, consolida eventuali file esterni e individua file mancanti, orfani o duplicati.',
+                            style: TextStyle(
+                                fontSize: 12, color: AppColors.textSecondary),
                           ),
                           const SizedBox(height: 12),
                           Align(
                             alignment: Alignment.centerRight,
                             child: CozyButton(
-                              text: 'Consolida File',
-                              icon: Icons.security,
+                              text: 'Controlla File',
+                              icon: Icons.health_and_safety,
                               onPressed: _isLoading ? null : _consolidaFile,
                             ),
                           ),
@@ -324,6 +456,43 @@ class _ImpostazioniScreenState extends State<ImpostazioniScreen> {
               ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildMaintenanceRow(
+    String label,
+    int value,
+    IconData icon, {
+    bool warning = false,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            size: 18,
+            color: warning ? Colors.orange.shade800 : AppColors.woodAccent,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ),
+          Text(
+            '$value',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: warning ? Colors.orange.shade800 : AppColors.textPrimary,
+            ),
+          ),
+        ],
       ),
     );
   }

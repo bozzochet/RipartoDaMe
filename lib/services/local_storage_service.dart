@@ -4,6 +4,9 @@ import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:archive/archive_io.dart';
+import 'package:crypto/crypto.dart';
+import 'package:path/path.dart' as path;
+import 'package:flutter/foundation.dart';
 import '../models/app_menu_models.dart';
 import '../models/user_model.dart';
 import '../models/habit_model.dart';
@@ -21,14 +24,14 @@ class WeightEntry {
   WeightEntry({required this.date, required this.weight});
 
   Map<String, dynamic> toMap() => {
-    'date': date.toIso8601String(),
-    'weight': weight,
-  };
+        'date': date.toIso8601String(),
+        'weight': weight,
+      };
 
   factory WeightEntry.fromMap(Map<String, dynamic> map) => WeightEntry(
-    date: DateTime.parse(map['date']),
-    weight: (map['weight'] as num).toDouble(),
-  );
+        date: DateTime.parse(map['date']),
+        weight: (map['weight'] as num).toDouble(),
+      );
 }
 
 class LocalStorageService {
@@ -55,7 +58,9 @@ class LocalStorageService {
     final data = _menuBox.get('current_menu');
     if (data != null) {
       final Map<dynamic, dynamic> map = data;
-      return map.values.map((e) => DailyMenuModel.fromMap(Map<String, dynamic>.from(e))).toList();
+      return map.values
+          .map((e) => DailyMenuModel.fromMap(Map<String, dynamic>.from(e)))
+          .toList();
     }
     return [];
   }
@@ -71,11 +76,13 @@ class LocalStorageService {
     final data = _shoppingBox.get('current_shopping');
     if (data != null) {
       final Map<dynamic, dynamic> map = data;
-      return map.values.map((e) => ShoppingItemModel.fromMap(Map<String, dynamic>.from(e))).toList();
+      return map.values
+          .map((e) => ShoppingItemModel.fromMap(Map<String, dynamic>.from(e)))
+          .toList();
     }
     return [];
   }
-  
+
   // --- GESTIONE FOTO PROGRESSI ---
 
   Future<void> addProgressPhoto(ProgressPhotoEntry photo) async {
@@ -152,7 +159,8 @@ class LocalStorageService {
     return false;
   }
 
-  Future<void> addReward({int xpGained = 0, int coinsGained = 0, int heartsGained = 0}) async {
+  Future<void> addReward(
+      {int xpGained = 0, int coinsGained = 0, int heartsGained = 0}) async {
     final user = getUser();
     user.xp += xpGained;
     user.coins += coinsGained;
@@ -161,11 +169,12 @@ class LocalStorageService {
       final int oldHearts = user.heartsToday;
       user.heartsToday += heartsGained;
 
-      if (oldHearts < user.maxHeartsDaily && user.heartsToday >= user.maxHeartsDaily) {
+      if (oldHearts < user.maxHeartsDaily &&
+          user.heartsToday >= user.maxHeartsDaily) {
         user.goldenChests += 1;
       }
     }
-    
+
     await saveUser(user);
   }
 
@@ -200,7 +209,7 @@ class LocalStorageService {
   Future<void> toggleHabit(String habitId) async {
     final habits = getHabits();
     final habit = habits.firstWhere((h) => h.id == habitId);
-    
+
     habit.isCompletedToday = !habit.isCompletedToday;
     await _habitsBox.put(habitId, habit.toMap());
 
@@ -261,32 +270,34 @@ class LocalStorageService {
   }
 
   // --- GESTIONE ANALISI DEL SANGUE E URINE ---
-  
+
   Future<void> addBloodUrineTestEntry(BloodUrineTestEntry entry) async {
-    final String dateKey = (entry.id.isNotEmpty) ? entry.id : entry.date.toIso8601String();
+    final String dateKey =
+        (entry.id.isNotEmpty) ? entry.id : entry.date.toIso8601String();
     await _bloodTestsBox.put(dateKey, entry.toMap());
   }
 
   List<BloodUrineTestEntry> getBloodTestsHistory() {
     final entries = <BloodUrineTestEntry>[];
-    
+
     for (var key in _bloodTestsBox.keys) {
       try {
         final data = _bloodTestsBox.get(key);
         if (data != null) {
           final map = Map<String, dynamic>.from(data);
           map['id'] = map['id'] ?? key.toString();
-          
+
           if (map['date'] != null) {
             entries.add(BloodUrineTestEntry.fromMap(map));
           }
         }
       } catch (e) {
-        print("⚠️ Trovata entry corrotta nel box bloodTestsBox con chiave $key, la rimuovo: $e");
+        print(
+            "⚠️ Trovata entry corrotta nel box bloodTestsBox con chiave $key, la rimuovo: $e");
         _bloodTestsBox.delete(key);
       }
     }
-    
+
     entries.sort((a, b) => b.date.compareTo(b.date));
     return entries;
   }
@@ -303,21 +314,26 @@ class LocalStorageService {
       if (data != null) {
         final map = Map<String, dynamic>.from(data);
         final storedId = map['id']?.toString();
-        
-        if (storedId == id || key.toString() == id || key.toString().contains(id)) {
+
+        if (storedId == id ||
+            key.toString() == id ||
+            key.toString().contains(id)) {
           keyToDelete = key;
           break;
         }
       }
     }
 
-    if (keyToDelete != dataNullCheckSafe(keyToDelete)) { // Pulito
+    if (keyToDelete != dataNullCheckSafe(keyToDelete)) {
+      // Pulito
       if (keyToDelete != null) {
         await _bloodTestsBox.delete(keyToDelete);
-        print("✅ Entry eliminata con successo tramite chiave secondaria: $keyToDelete");
+        print(
+            "✅ Entry eliminata con successo tramite chiave secondaria: $keyToDelete");
       }
     } else {
-      final matchingKeys = _bloodTestsBox.keys.where((k) => k.toString().contains(id)).toList();
+      final matchingKeys =
+          _bloodTestsBox.keys.where((k) => k.toString().contains(id)).toList();
       for (var k in matchingKeys) {
         await _bloodTestsBox.delete(k);
       }
@@ -325,13 +341,16 @@ class LocalStorageService {
   }
 
   // Metodo di comodo richiesto dalle schermate
-  List<BloodUrineTestEntry> getBloodUrineTestEntries() => getBloodTestsHistory();
-  
+  List<BloodUrineTestEntry> getBloodUrineTestEntries() =>
+      getBloodTestsHistory();
+
   // --- GESTIONE DIARIO ALIMENTARE (PASTI) ---
 
-  Future<void> saveMealsForDate(DateTime date, List<MealEntryModel> meals) async {
+  Future<void> saveMealsForDate(
+      DateTime date, List<MealEntryModel> meals) async {
     final String dateKey = date.toIso8601String().split('T')[0];
-    final List<Map<String, dynamic>> serializedMeals = meals.map((m) => m.toMap()).toList();
+    final List<Map<String, dynamic>> serializedMeals =
+        meals.map((m) => m.toMap()).toList();
     await _mealsBox.put(dateKey, serializedMeals);
   }
 
@@ -362,67 +381,277 @@ class LocalStorageService {
 
   /// Consolida i file esterni (es. rullino o documenti) copiandoli nella sandbox locale
   /// e aggiornando i relativi riferimenti nei box Hive.
-  Future<int> consolidateExternalFiles() async {
+  Future<FileMaintenanceReport> consolidateExternalFiles() async {
     final appDir = await getApplicationDocumentsDirectory();
-    int consolidatedCount = 0;
 
-    // 1. Consolidamento Foto Progressi (_photosBox)
-    for (var key in _photosBox.keys) {
+    final report = FileMaintenanceReport();
+
+    // Percorsi realmente utilizzati dai dati dell'app.
+    final Set<String> referencedPaths = {};
+
+    Future<String> fileHash(File file) async {
+      final bytes = await file.readAsBytes();
+      return sha256.convert(bytes).toString();
+    }
+
+    Future<String?> consolidateFile(
+      String storedPath, {
+      required String prefix,
+    }) async {
+      final cleaned = storedPath.replaceFirst('file://', '');
+
+      // Prima prova il percorso così come è memorizzato.
+      File sourceFile = File(cleaned);
+
+      // Se Hive contiene solamente il nome del file, lo cerchiamo
+      // dentro ApplicationDocumentsDirectory.
+      if (!await sourceFile.exists()) {
+        sourceFile = File(
+          path.join(appDir.path, path.basename(cleaned)),
+        );
+      }
+
+      if (!await sourceFile.exists()) {
+        report.missingFiles++;
+        return null;
+      }
+
+      report.checkedFiles++;
+
+      final sourcePath = path.normalize(sourceFile.path);
+
+      // Il file è già nella sandbox.
+      if (path.isWithin(appDir.path, sourcePath) ||
+          path.equals(appDir.path, path.dirname(sourcePath))) {
+        report.alreadySafe++;
+        return sourcePath;
+      }
+
+      // Il file è esterno: lo copiamo nella sandbox.
+      final originalName = path.basename(sourcePath);
+
+      String destinationName =
+          '${prefix}_${DateTime.now().microsecondsSinceEpoch}_$originalName';
+
+      String destinationPath = path.join(appDir.path, destinationName);
+
+      await sourceFile.copy(destinationPath);
+
+      report.consolidatedFiles++;
+      return path.normalize(destinationPath);
+    }
+
+    // ------------------------------------------------------------
+    // 1. FOTO PROGRESSI
+    // ------------------------------------------------------------
+
+    for (final key in _photosBox.keys.toList()) {
       final data = _photosBox.get(key);
-      if (data != null) {
+      if (data == null) continue;
+
+      try {
         final map = Map<String, dynamic>.from(data);
-        final String? imagePath = map['imagePath'] ?? map['path'];
-        
-        if (imagePath != null && imagePath.isNotEmpty) {
-          final file = File(imagePath);
-          if (await file.exists() && !imagePath.contains(appDir.path)) {
-            try {
-              final fileName = '${DateTime.now().millisecondsSinceEpoch}_${imagePath.split('/').last}';
-              final newPath = '${appDir.path}/$fileName';
-              
-              await file.copy(newPath);
-              
-              map['imagePath'] = newPath;
-              await _photosBox.put(key, map);
-              consolidatedCount++;
-            } catch (e) {
-              print("⚠️ Errore durante il consolidamento della foto $key: $e");
-            }
+        final storedPath = (map['imagePath'] ?? map['path'])?.toString();
+
+        if (storedPath == null || storedPath.isEmpty) continue;
+
+        final finalPath = await consolidateFile(
+          storedPath,
+          prefix: 'body_photo',
+        );
+
+        if (finalPath != null) {
+          referencedPaths.add(path.normalize(finalPath));
+
+          // Conserviamo il solo nome per mantenere la stessa convenzione
+          // già usata dalle schermate dell'app.
+          final newReference = path.basename(finalPath);
+
+          if (map['imagePath'] != newReference) {
+            map['imagePath'] = newReference;
+            await _photosBox.put(key, map);
           }
         }
+      } catch (e) {
+        report.errors++;
+        debugPrint('⚠️ Errore foto progressi $key: $e');
       }
     }
 
-    // 2. Consolidamento Analisi del Sangue/Urine (_bloodTestsBox)
-    for (var key in _bloodTestsBox.keys) {
+    // ------------------------------------------------------------
+    // 2. REFERTI SANGUE / URINE
+    // ------------------------------------------------------------
+
+    for (final key in _bloodTestsBox.keys.toList()) {
       final data = _bloodTestsBox.get(key);
-      if (data != null) {
+      if (data == null) continue;
+
+      try {
         final map = Map<String, dynamic>.from(data);
-        final String? filePath = map['filePath'] ?? map['pdfPath'];
-        
-        if (filePath != null && filePath.isNotEmpty) {
-          final file = File(filePath);
-          if (await file.exists() && !filePath.contains(appDir.path)) {
-            try {
-              final fileName = '${DateTime.now().millisecondsSinceEpoch}_${filePath.split('/').last}';
-              final newPath = '${appDir.path}/$fileName';
-              
-              await file.copy(newPath);
-              
-              map['filePath'] = newPath;
-              await _bloodTestsBox.put(key, map);
-              consolidatedCount++;
-            } catch (e) {
-              print("⚠️ Errore durante il consolidamento del referto $key: $e");
+        final storedPath = (map['filePath'] ?? map['pdfPath'])?.toString();
+
+        if (storedPath == null || storedPath.isEmpty) continue;
+
+        final finalPath = await consolidateFile(
+          storedPath,
+          prefix: 'blood_test',
+        );
+
+        if (finalPath != null) {
+          referencedPaths.add(path.normalize(finalPath));
+
+          final newReference = path.basename(finalPath);
+
+          if (map['filePath'] != newReference) {
+            map['filePath'] = newReference;
+            await _bloodTestsBox.put(key, map);
+          }
+        }
+      } catch (e) {
+        report.errors++;
+        debugPrint('⚠️ Errore referto $key: $e');
+      }
+    }
+
+    // ------------------------------------------------------------
+    // 3. FOTO DEI PASTI
+    // ------------------------------------------------------------
+
+    for (final key in _mealsBox.keys.toList()) {
+      final data = _mealsBox.get(key);
+      if (data == null) continue;
+
+      try {
+        final List<dynamic> mealsData = List<dynamic>.from(data);
+        bool boxChanged = false;
+
+        for (int mealIndex = 0; mealIndex < mealsData.length; mealIndex++) {
+          final mealMap = Map<String, dynamic>.from(mealsData[mealIndex]);
+
+          final rawPhotoPath = mealMap['photoPath']?.toString();
+
+          if (rawPhotoPath == null || rawPhotoPath.isEmpty) {
+            continue;
+          }
+
+          // Il diario usa "|" per memorizzare più fotografie.
+          final oldReferences = rawPhotoPath
+              .split('|')
+              .where((item) => item.trim().isNotEmpty)
+              .toList();
+
+          final List<String> newReferences = [];
+
+          for (final storedPath in oldReferences) {
+            final finalPath = await consolidateFile(
+              storedPath,
+              prefix: 'meal_photo',
+            );
+
+            if (finalPath != null) {
+              referencedPaths.add(path.normalize(finalPath));
+              newReferences.add(path.basename(finalPath));
+            } else {
+              // Non cancelliamo automaticamente dalla struttura Hive
+              // un riferimento mancante.
+              newReferences.add(storedPath);
             }
           }
+
+          final newPhotoPath = newReferences.join('|');
+
+          if (newPhotoPath != rawPhotoPath) {
+            mealMap['photoPath'] = newPhotoPath;
+            mealsData[mealIndex] = mealMap;
+            boxChanged = true;
+          }
+        }
+
+        if (boxChanged) {
+          await _mealsBox.put(key, mealsData);
+        }
+      } catch (e) {
+        report.errors++;
+        debugPrint('⚠️ Errore foto pasti $key: $e');
+      }
+    }
+
+    // ------------------------------------------------------------
+    // 4. SCANSIONE FILE GESTITI DA RIPARTO DA ME
+    // ------------------------------------------------------------
+
+    final List<File> managedFiles = [];
+
+    if (await appDir.exists()) {
+      await for (final entity
+          in appDir.list(recursive: false, followLinks: false)) {
+        if (entity is! File) continue;
+
+        final fileName = path.basename(entity.path);
+
+        // Limitiamo volutamente la manutenzione ai file che
+        // riconosciamo come creati dall'app.
+        final isManaged = fileName.startsWith('body_photo_') ||
+            fileName.startsWith('blood_test_') ||
+            fileName.startsWith('meal_photo_');
+
+        if (isManaged) {
+          managedFiles.add(entity);
         }
       }
     }
 
-    return consolidatedCount;
+    report.managedFilesOnDisk = managedFiles.length;
+
+    // ------------------------------------------------------------
+    // 5. FILE ORFANI
+    // ------------------------------------------------------------
+
+    final List<File> orphanFiles = [];
+
+    for (final file in managedFiles) {
+      final normalizedPath = path.normalize(file.path);
+
+      if (!referencedPaths.contains(normalizedPath)) {
+        orphanFiles.add(file);
+      }
+    }
+
+    report.orphanFiles = orphanFiles.length;
+    report.orphanFileNames.addAll(
+      orphanFiles.map((file) => path.basename(file.path)),
+    );
+
+    // ------------------------------------------------------------
+    // 6. DUPLICATI SHA-256
+    // ------------------------------------------------------------
+
+    final Map<String, List<File>> filesByHash = {};
+
+    for (final file in managedFiles) {
+      try {
+        final hash = await fileHash(file);
+        filesByHash.putIfAbsent(hash, () => []).add(file);
+      } catch (e) {
+        report.errors++;
+        debugPrint('⚠️ Impossibile calcolare hash di ${file.path}: $e');
+      }
+    }
+
+    for (final group in filesByHash.values) {
+      if (group.length <= 1) continue;
+
+      // N file con identico contenuto significano N-1 copie duplicate.
+      report.duplicateFiles += group.length - 1;
+
+      report.duplicateGroups.add(
+        group.map((file) => path.basename(file.path)).toList(),
+      );
+    }
+
+    return report;
   }
-  
+
   // --- ESPORTAZIONE E IMPORTAZIONE DATI (BACKUP) ---
 
   /// Raccoglie tutti i dati da tutti i box di Hive e li restituisce come mappa JSON serializzabile
@@ -454,23 +683,31 @@ class LocalStorageService {
     }
     if (jsonData.containsKey('habitsBox') && jsonData['habitsBox'] != null) {
       await _habitsBox.clear();
-      await _habitsBox.putAll(Map<dynamic, dynamic>.from(jsonData['habitsBox']));
+      await _habitsBox
+          .putAll(Map<dynamic, dynamic>.from(jsonData['habitsBox']));
     }
-    if (jsonData.containsKey('weightLogsBox') && jsonData['weightLogsBox'] != null) {
+    if (jsonData.containsKey('weightLogsBox') &&
+        jsonData['weightLogsBox'] != null) {
       await _weightBox.clear();
-      await _weightBox.putAll(Map<dynamic, dynamic>.from(jsonData['weightLogsBox']));
+      await _weightBox
+          .putAll(Map<dynamic, dynamic>.from(jsonData['weightLogsBox']));
     }
-    if (jsonData.containsKey('measurementsBox') && jsonData['measurementsBox'] != null) {
+    if (jsonData.containsKey('measurementsBox') &&
+        jsonData['measurementsBox'] != null) {
       await _measurementsBox.clear();
-      await _measurementsBox.putAll(Map<dynamic, dynamic>.from(jsonData['measurementsBox']));
+      await _measurementsBox
+          .putAll(Map<dynamic, dynamic>.from(jsonData['measurementsBox']));
     }
     if (jsonData.containsKey('photosBox') && jsonData['photosBox'] != null) {
       await _photosBox.clear();
-      await _photosBox.putAll(Map<dynamic, dynamic>.from(jsonData['photosBox']));
+      await _photosBox
+          .putAll(Map<dynamic, dynamic>.from(jsonData['photosBox']));
     }
-    if (jsonData.containsKey('bloodTestsBox') && jsonData['bloodTestsBox'] != null) {
+    if (jsonData.containsKey('bloodTestsBox') &&
+        jsonData['bloodTestsBox'] != null) {
       await _bloodTestsBox.clear();
-      await _bloodTestsBox.putAll(Map<dynamic, dynamic>.from(jsonData['bloodTestsBox']));
+      await _bloodTestsBox
+          .putAll(Map<dynamic, dynamic>.from(jsonData['bloodTestsBox']));
     }
     if (jsonData.containsKey('mealsBox') && jsonData['mealsBox'] != null) {
       await _mealsBox.clear();
@@ -487,7 +724,7 @@ class LocalStorageService {
 
     // 1. Crea il JSON dei dati
     final jsonString = exportToJsonString();
-    
+
     // 2. Inizializza l'encoder ZIP
     final encoder = ZipFileEncoder();
     encoder.create(zipPath);
@@ -530,7 +767,7 @@ class LocalStorageService {
       final filename = file.name;
       if (file.isFile) {
         final data = file.content as List<int>;
-        
+
         if (filename.endsWith('backup.json')) {
           jsonContent = utf8.decode(data);
         } else {
@@ -549,7 +786,23 @@ class LocalStorageService {
       throw Exception('File backup.json non trovato nell\'archivio ZIP.');
     }
   }
-  
+}
+
+class FileMaintenanceReport {
+  int checkedFiles = 0;
+  int consolidatedFiles = 0;
+  int alreadySafe = 0;
+  int missingFiles = 0;
+  int managedFilesOnDisk = 0;
+  int orphanFiles = 0;
+  int duplicateFiles = 0;
+  int errors = 0;
+
+  final List<String> orphanFileNames = [];
+  final List<List<String>> duplicateGroups = [];
+
+  bool get hasWarnings =>
+      missingFiles > 0 || orphanFiles > 0 || duplicateFiles > 0 || errors > 0;
 }
 
 // Funzione di supporto interna per evitare ambiguità
