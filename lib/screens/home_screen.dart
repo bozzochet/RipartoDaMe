@@ -10,6 +10,7 @@ import 'shop_screen.dart';
 import 'cura_di_me_screen.dart';
 import 'la_mia_mappa_screen.dart';
 import 'il_mio_diario_screen.dart';
+import 'il_mio_menu_screen.dart';
 import 'impostazioni_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -186,6 +187,18 @@ class _HomeScreenState extends State<HomeScreen> {
                               await Navigator.push(
                                 context,
                                 MaterialPageRoute(builder: (context) => const IlMioDiarioScreen()),
+                              );
+                              _refreshData();
+                            },
+                          ),
+                          _buildMenuCard(
+                            title: 'Il mio Menù',
+                            subtitle: 'Dieta IA & Spesa',
+                            icon: '🍽️',
+                            onTap: () async {
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (context) => const IlMioMenuScreen()),
                               );
                               _refreshData();
                             },

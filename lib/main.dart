@@ -17,6 +17,8 @@ void main() async {
   await Hive.openBox('photosBox');
   await Hive.openBox('bloodTestsBox');
   await Hive.openBox('mealsBox');
+  await Hive.openBox('menuBox');
+  await Hive.openBox('shoppingBox');
 
   await dotenv.load(fileName: ".env");
   

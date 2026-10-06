@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:archive/archive_io.dart';
+import '../models/app_menu_models.dart';
 import '../models/user_model.dart';
 import '../models/habit_model.dart';
 import '../models/body_measurement_entry.dart';
@@ -37,7 +39,43 @@ class LocalStorageService {
   final Box _photosBox = Hive.box('photosBox');
   final Box _bloodTestsBox = Hive.box('bloodTestsBox');
   final Box _mealsBox = Hive.box('mealsBox');
+  final Box _menuBox = Hive.box('menuBox');
+  final Box _shoppingBox = Hive.box('shoppingBox');
 
+  // --- GESTIONE MENU SETTIMANALE & SPESA ---
+
+  Future<void> saveWeeklyMenu(List<DailyMenuModel> menu) async {
+    final Map<String, dynamic> mapData = {
+      for (var item in menu) item.dayName: item.toMap()
+    };
+    await _menuBox.put('current_menu', mapData);
+  }
+
+  List<DailyMenuModel> getWeeklyMenu() {
+    final data = _menuBox.get('current_menu');
+    if (data != null) {
+      final Map<dynamic, dynamic> map = data;
+      return map.values.map((e) => DailyMenuModel.fromMap(Map<String, dynamic>.from(e))).toList();
+    }
+    return [];
+  }
+
+  Future<void> saveShoppingList(List<ShoppingItemModel> items) async {
+    final Map<String, dynamic> mapData = {
+      for (var item in items) item.id: item.toMap()
+    };
+    await _shoppingBox.put('current_shopping', mapData);
+  }
+
+  List<ShoppingItemModel> getShoppingList() {
+    final data = _shoppingBox.get('current_shopping');
+    if (data != null) {
+      final Map<dynamic, dynamic> map = data;
+      return map.values.map((e) => ShoppingItemModel.fromMap(Map<String, dynamic>.from(e))).toList();
+    }
+    return [];
+  }
+  
   // --- GESTIONE FOTO PROGRESSI ---
 
   Future<void> addProgressPhoto(ProgressPhotoEntry photo) async {
