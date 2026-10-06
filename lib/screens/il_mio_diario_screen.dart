@@ -29,7 +29,7 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
 
   // Data selezionata per lo storico
   DateTime _selectedDate = DateTime.now();
-  
+
   // Lista locale dei pasti in memoria
   List<MealEntryModel> _currentMealsList = [];
 
@@ -71,15 +71,16 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
 
   void _changeDate(int days) {
     setState(() {
-        _selectedDate = _selectedDate.add(Duration(days: days));
-        _loadMealsForSelectedDate();
+      _selectedDate = _selectedDate.add(Duration(days: days));
+      _loadMealsForSelectedDate();
     });
   }
 
   // --- TOTALI GIORNALIERI SICURI ---
   int get _totalDailyCalories {
     try {
-      return _currentMealsList.fold(0, (sum, meal) => sum + (meal.totalCalories ?? 0));
+      return _currentMealsList.fold(
+          0, (sum, meal) => sum + (meal.totalCalories ?? 0));
     } catch (_) {
       return 0;
     }
@@ -88,13 +89,14 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
   int get _totalDailyProteins {
     try {
       return _currentMealsList.fold(0, (sum, meal) {
-          return sum + meal.items.fold(0, (itemSum, item) {
+        return sum +
+            meal.items.fold(0, (itemSum, item) {
               try {
                 return itemSum + (item.proteins ?? 0).toInt();
               } catch (_) {
                 return itemSum;
               }
-          });
+            });
       });
     } catch (_) {
       return 0;
@@ -104,13 +106,14 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
   int get _totalDailyCarbs {
     try {
       return _currentMealsList.fold(0, (sum, meal) {
-          return sum + meal.items.fold(0, (itemSum, item) {
+        return sum +
+            meal.items.fold(0, (itemSum, item) {
               try {
                 return itemSum + (item.carbs ?? 0).toInt();
               } catch (_) {
                 return itemSum;
               }
-          });
+            });
       });
     } catch (_) {
       return 0;
@@ -120,13 +123,14 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
   int get _totalDailyFats {
     try {
       return _currentMealsList.fold(0, (sum, meal) {
-          return sum + meal.items.fold(0, (itemSum, item) {
+        return sum +
+            meal.items.fold(0, (itemSum, item) {
               try {
                 return itemSum + (item.fats ?? 0).toInt();
               } catch (_) {
                 return itemSum;
               }
-          });
+            });
       });
     } catch (_) {
       return 0;
@@ -137,19 +141,25 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
     try {
       final meals = _storageService.getMealsForDate(date);
       if (meals.isEmpty) return 0;
-      
+
       if (metric == 'calories') {
         return meals.fold(0, (sum, meal) => sum + (meal.totalCalories ?? 0));
       } else {
-        return meals.fold(0, (sum, meal) => sum + meal.items.fold(0, (iSum, item) {
-              try {
-                if (metric == 'proteins') return iSum + (item.proteins ?? 0).toInt();
-                if (metric == 'carbs') return iSum + (item.carbs ?? 0).toInt();
-                return iSum + (item.fats ?? 0).toInt();
-              } catch (_) {
-                return iSum;
-              }
-        }));
+        return meals.fold(
+            0,
+            (sum, meal) =>
+                sum +
+                meal.items.fold(0, (iSum, item) {
+                  try {
+                    if (metric == 'proteins')
+                      return iSum + (item.proteins ?? 0).toInt();
+                    if (metric == 'carbs')
+                      return iSum + (item.carbs ?? 0).toInt();
+                    return iSum + (item.fats ?? 0).toInt();
+                  } catch (_) {
+                    return iSum;
+                  }
+                }));
       }
     } catch (_) {
       return 0;
@@ -166,7 +176,7 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
 
   void _saveMealPhotos(MealEntryModel meal, List<String> photos) {
     setState(() {
-        meal.photoPath = photos.isEmpty ? null : photos.join('|');
+      meal.photoPath = photos.isEmpty ? null : photos.join('|');
     });
     _storageService.saveUser(_user);
     _storageService.saveMealsForDate(_selectedDate, _currentMealsList);
@@ -181,28 +191,30 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
     final double fat = double.tryParse(_fatsController.text) ?? 0.0;
 
     setState(() {
-        final newItem = FoodItemModel(
-          name: _foodController.text.trim(),
-          quantity: _quantityController.text.trim().isEmpty ? '1 porzione' : _quantityController.text.trim(),
-          calories: cals,
-          proteins: prot,
-          carbs: carb,
-          fats: fat,
-        );
+      final newItem = FoodItemModel(
+        name: _foodController.text.trim(),
+        quantity: _quantityController.text.trim().isEmpty
+            ? '1 porzione'
+            : _quantityController.text.trim(),
+        calories: cals,
+        proteins: prot,
+        carbs: carb,
+        fats: fat,
+      );
 
-        meal.items.add(newItem);
+      meal.items.add(newItem);
 
-        _foodController.clear();
-        _quantityController.clear();
-        _caloriesController.clear();
-        _proteinsController.clear();
-        _carbsController.clear();
-        _fatsController.clear();
+      _foodController.clear();
+      _quantityController.clear();
+      _caloriesController.clear();
+      _proteinsController.clear();
+      _carbsController.clear();
+      _fatsController.clear();
 
-        if (!meal.isRewardClaimed) {
-          meal.isRewardClaimed = true;
-          _user.coins += 5;
-        }
+      if (!meal.isRewardClaimed) {
+        meal.isRewardClaimed = true;
+        _user.coins += 5;
+      }
     });
 
     _storageService.saveUser(_user);
@@ -211,7 +223,7 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
 
   void _removeFoodItem(MealEntryModel meal, int index) {
     setState(() {
-        meal.items.removeAt(index);
+      meal.items.removeAt(index);
     });
     _storageService.saveUser(_user);
     _storageService.saveMealsForDate(_selectedDate, _currentMealsList);
@@ -221,57 +233,94 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
     final foodItem = meal.items[index];
     final nameController = TextEditingController(text: foodItem.name);
     final qtyController = TextEditingController(text: foodItem.quantity);
-    final calsController = TextEditingController(text: foodItem.calories.toString());
-    final protController = TextEditingController(text: (foodItem.proteins ?? 0).toString());
-    final carbController = TextEditingController(text: (foodItem.carbs ?? 0).toString());
-    final fatController = TextEditingController(text: (foodItem.fats ?? 0).toString());
+    final calsController =
+        TextEditingController(text: foodItem.calories.toString());
+    final protController =
+        TextEditingController(text: (foodItem.proteins ?? 0).toString());
+    final carbController =
+        TextEditingController(text: (foodItem.carbs ?? 0).toString());
+    final fatController =
+        TextEditingController(text: (foodItem.fats ?? 0).toString());
 
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
           backgroundColor: const Color(0xFFFDF6E3),
-          title: const Text('Modifica Portata', style: TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold, fontSize: 16)),
+          title: const Text('Modifica Portata',
+              style: TextStyle(
+                  fontFamily: 'Serif',
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16)),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Nome Alimento', isDense: true)),
+                TextField(
+                    controller: nameController,
+                    decoration: const InputDecoration(
+                        labelText: 'Nome Alimento', isDense: true)),
                 const SizedBox(height: 8),
-                TextField(controller: qtyController, decoration: const InputDecoration(labelText: 'Quantità', isDense: true)),
+                TextField(
+                    controller: qtyController,
+                    decoration: const InputDecoration(
+                        labelText: 'Quantità', isDense: true)),
                 const SizedBox(height: 8),
-                TextField(controller: calsController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Calorie (kcal)', isDense: true)),
+                TextField(
+                    controller: calsController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                        labelText: 'Calorie (kcal)', isDense: true)),
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    Expanded(child: TextField(controller: protController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Proteine (g)', isDense: true))),
+                    Expanded(
+                        child: TextField(
+                            controller: protController,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                                labelText: 'Proteine (g)', isDense: true))),
                     const SizedBox(width: 8),
-                    Expanded(child: TextField(controller: carbController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Carb. (g)', isDense: true))),
+                    Expanded(
+                        child: TextField(
+                            controller: carbController,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                                labelText: 'Carb. (g)', isDense: true))),
                     const SizedBox(width: 8),
-                    Expanded(child: TextField(controller: fatController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Grassi (g)', isDense: true))),
+                    Expanded(
+                        child: TextField(
+                            controller: fatController,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                                labelText: 'Grassi (g)', isDense: true))),
                   ],
                 ),
               ],
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annulla', style: TextStyle(color: Colors.grey))),
+            TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Annulla',
+                    style: TextStyle(color: Colors.grey))),
             CozyButton(
               text: 'Salva Modifiche',
               onPressed: () {
                 setState(() {
-                    final updatedItem = FoodItemModel(
-                      name: nameController.text.trim(),
-                      quantity: qtyController.text.trim(),
-                      calories: int.tryParse(calsController.text) ?? 0,
-                      proteins: double.tryParse(protController.text) ?? 0.0,
-                      carbs: double.tryParse(carbController.text) ?? 0.0,
-                      fats: double.tryParse(fatController.text) ?? 0.0,
-                    );
-                    meal.items[index] = updatedItem;
+                  final updatedItem = FoodItemModel(
+                    name: nameController.text.trim(),
+                    quantity: qtyController.text.trim(),
+                    calories: int.tryParse(calsController.text) ?? 0,
+                    proteins: double.tryParse(protController.text) ?? 0.0,
+                    carbs: double.tryParse(carbController.text) ?? 0.0,
+                    fats: double.tryParse(fatController.text) ?? 0.0,
+                  );
+                  meal.items[index] = updatedItem;
                 });
                 _storageService.saveUser(_user);
-                _storageService.saveMealsForDate(_selectedDate, _currentMealsList);
+                _storageService.saveMealsForDate(
+                    _selectedDate, _currentMealsList);
                 Navigator.pop(context);
               },
             ),
@@ -294,19 +343,28 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
         child: Wrap(
           children: [
             const ListTile(
-              title: Text('Fotografa il pasto & Analizza IA', style: TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.textPrimary)),
+              title: Text('Fotografa il pasto & Analizza IA',
+                  style: TextStyle(
+                      fontFamily: 'Serif',
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      color: AppColors.textPrimary)),
             ),
             ListTile(
-              leading: const Icon(Icons.camera_alt, color: AppColors.woodAccent),
-              title: const Text('Scatta una foto', style: TextStyle(color: AppColors.textPrimary)),
+              leading:
+                  const Icon(Icons.camera_alt, color: AppColors.woodAccent),
+              title: const Text('Scatta una foto',
+                  style: TextStyle(color: AppColors.textPrimary)),
               onTap: () {
                 Navigator.pop(context);
                 _pickAndProcessMeal(meal, ImageSource.camera);
               },
             ),
             ListTile(
-              leading: const Icon(Icons.photo_library, color: AppColors.woodAccent),
-              title: const Text('Scegli dalla galleria', style: TextStyle(color: AppColors.textPrimary)),
+              leading:
+                  const Icon(Icons.photo_library, color: AppColors.woodAccent),
+              title: const Text('Scegli dalla galleria',
+                  style: TextStyle(color: AppColors.textPrimary)),
               onTap: () {
                 Navigator.pop(context);
                 _pickAndProcessMeal(meal, ImageSource.gallery);
@@ -318,26 +376,31 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
     );
   }
 
-  Future<void> _pickAndProcessMeal(MealEntryModel meal, ImageSource source) async {
-    final XFile? image = await _picker.pickImage(source: source, imageQuality: 85);
+  Future<void> _pickAndProcessMeal(
+      MealEntryModel meal, ImageSource source) async {
+    final XFile? image =
+        await _picker.pickImage(source: source, imageQuality: 85);
     if (image != null) {
       if (!mounted) return;
       _processImageFile(meal, image.path);
     }
   }
 
-  Future<void> _reanalyzeExistingPhoto(MealEntryModel meal, String photoPathOrName) async {
+  Future<void> _reanalyzeExistingPhoto(
+      MealEntryModel meal, String photoPathOrName) async {
     final appDir = await path_provider.getApplicationDocumentsDirectory();
     final fileName = path.basename(photoPathOrName.replaceFirst('file://', ''));
     final fullPath = '${appDir.path}/$fileName';
     if (File(fullPath).existsSync()) {
       _processImageFile(meal, fullPath, existingFileName: fileName);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Impossibile trovare il file immagine.')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Impossibile trovare il file immagine.')));
     }
   }
 
-  Future<void> _processImageFile(MealEntryModel meal, String sourcePath, {String? existingFileName}) async {
+  Future<void> _processImageFile(MealEntryModel meal, String sourcePath,
+      {String? existingFileName}) async {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -352,7 +415,10 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
                 children: [
                   CircularProgressIndicator(color: AppColors.woodAccent),
                   SizedBox(height: 16),
-                  Text('🪄 L\'IA sta analizzando il piatto...', textAlign: TextAlign.center, style: TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold)),
+                  Text('🪄 L\'IA sta analizzando il piatto...',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                          fontFamily: 'Serif', fontWeight: FontWeight.bold)),
                 ],
               ),
             ),
@@ -368,8 +434,11 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
       } else {
         final appDir = await path_provider.getApplicationDocumentsDirectory();
         fileName = 'meal_photo_${DateTime.now().millisecondsSinceEpoch}.jpg';
-        final File savedImage = await File(sourcePath).copy('${appDir.path}/$fileName');
-        try { await Gal.putImage(savedImage.path); } catch (_) {}
+        final File savedImage =
+            await File(sourcePath).copy('${appDir.path}/$fileName');
+        try {
+          await Gal.putImage(savedImage.path);
+        } catch (_) {}
       }
 
       final appDir = await path_provider.getApplicationDocumentsDirectory();
@@ -380,7 +449,8 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
       final model = GenerativeModel(
         model: 'gemini-3.6-flash',
         apiKey: _apiKey,
-        generationConfig: GenerationConfig(responseMimeType: 'application/json'),
+        generationConfig:
+            GenerationConfig(responseMimeType: 'application/json'),
       );
 
       final prompt = '''
@@ -408,9 +478,9 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
       ];
 
       final response = await model.generateContent(content);
-      
+
       if (!mounted) return;
-      
+
       if (Navigator.canPop(context)) {
         Navigator.of(context).pop();
       }
@@ -427,10 +497,9 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
           ),
         );
       }
-
     } catch (e) {
       if (!mounted) return;
-      
+
       if (Navigator.canPop(context)) {
         Navigator.of(context).pop();
       }
@@ -442,9 +511,10 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
         ),
       );
     }
-  }    
+  }
 
-  void _showAiResultModal(MealEntryModel meal, String photoFileName, Map<String, dynamic> risultatoIA) {
+  void _showAiResultModal(MealEntryModel meal, String photoFileName,
+      Map<String, dynamic> risultatoIA) {
     final parentContext = context;
 
     showDialog(
@@ -453,18 +523,22 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
         return StatefulBuilder(
           builder: (context, setStateModal) {
             int calcolaTotale(String key) {
-              final realKey = key == 'calorie' ? 'calorie_totali_stimate' : '${key}_totali';
+              final realKey =
+                  key == 'calorie' ? 'calorie_totali_stimate' : '${key}_totali';
               int totale = 0;
               final val = risultatoIA[realKey];
-              if (val is num) totale = val.toInt();
+              if (val is num)
+                totale = val.toInt();
               else if (val is String) totale = int.tryParse(val) ?? 0;
 
               if (risultatoIA['domande_per_utente'] != null) {
                 for (var d in risultatoIA['domande_per_utente']) {
                   if (d['selezionato'] == true) {
                     final impatto = d['impatto_$key'];
-                    if (impatto is num) totale += impatto.toInt();
-                    else if (impatto is String) totale += int.tryParse(impatto) ?? 0;
+                    if (impatto is num)
+                      totale += impatto.toInt();
+                    else if (impatto is String)
+                      totale += int.tryParse(impatto) ?? 0;
                   }
                 }
               }
@@ -478,7 +552,9 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
 
             return AlertDialog(
               backgroundColor: const Color(0xFFFDF6E3),
-              title: Text(risultatoIA['piatto'] ?? 'Piatto Riconosciuto', style: const TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold)),
+              title: Text(risultatoIA['piatto'] ?? 'Piatto Riconosciuto',
+                  style: const TextStyle(
+                      fontFamily: 'Serif', fontWeight: FontWeight.bold)),
               content: SizedBox(
                 width: double.maxFinite,
                 child: SingleChildScrollView(
@@ -489,78 +565,105 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: [
-                          _buildNutrienteChip('Calorie', '$finalCals kcal', Colors.orange),
-                          _buildNutrienteChip('Proteine', '${finalProt}g', Colors.red),
-                          _buildNutrienteChip('Carb.', '${finalCarbs}g', Colors.blue),
-                          _buildNutrienteChip('Grassi', '${finalFats}g', Colors.green),
+                          _buildNutrienteChip(
+                              'Calorie', '$finalCals kcal', Colors.orange),
+                          _buildNutrienteChip(
+                              'Proteine', '${finalProt}g', Colors.red),
+                          _buildNutrienteChip(
+                              'Carb.', '${finalCarbs}g', Colors.blue),
+                          _buildNutrienteChip(
+                              'Grassi', '${finalFats}g', Colors.green),
                         ],
                       ),
                       const Divider(height: 20),
-                      if (risultatoIA['domande_per_utente'] != null && (risultatoIA['domande_per_utente'] as List).isNotEmpty) ...[
-                        const Text('Personalizzazione condimenti:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                        ...((risultatoIA['domande_per_utente'] as List).map((d) {
-                              return CheckboxListTile(
-                                dense: true,
-                                title: Text(d['domanda'], style: const TextStyle(fontSize: 12)),
-                                subtitle: Text('+${d['impatto_calorie']} kcal', style: const TextStyle(fontSize: 10)),
-                                value: d['selezionato'] ?? false,
-                                onChanged: (val) {
-                                  setStateModal(() { d['selezionato'] = val ?? false; });
-                                },
-                              );
+                      if (risultatoIA['domande_per_utente'] != null &&
+                          (risultatoIA['domande_per_utente'] as List)
+                              .isNotEmpty) ...[
+                        const Text('Personalizzazione condimenti:',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 13)),
+                        ...((risultatoIA['domande_per_utente'] as List)
+                            .map((d) {
+                          return CheckboxListTile(
+                            dense: true,
+                            title: Text(d['domanda'],
+                                style: const TextStyle(fontSize: 12)),
+                            subtitle: Text('+${d['impatto_calorie']} kcal',
+                                style: const TextStyle(fontSize: 10)),
+                            value: d['selezionato'] ?? false,
+                            onChanged: (val) {
+                              setStateModal(() {
+                                d['selezionato'] = val ?? false;
+                              });
+                            },
+                          );
                         })),
                         const Divider(height: 20),
                       ],
-                      const Text('Ingredienti rilevati:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      const Text('Ingredienti rilevati:',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 13)),
                       if (risultatoIA['ingredienti'] != null)
-                      ...((risultatoIA['ingredienti'] as List).map((ing) {
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 2.0),
-                              child: Text('• ${ing['nome']} (${ing['peso_grammi']}g) - ${ing['calorie']} kcal', style: const TextStyle(fontSize: 12)),
-                            );
-                      })),
+                        ...((risultatoIA['ingredienti'] as List).map((ing) {
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 2.0),
+                            child: Text(
+                                '• ${ing['nome']} (${ing['peso_grammi']}g) - ${ing['calorie']} kcal',
+                                style: const TextStyle(fontSize: 12)),
+                          );
+                        })),
                     ],
                   ),
                 ),
               ),
               actions: [
-                TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annulla', style: TextStyle(color: Colors.grey))),
+                TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Annulla',
+                        style: TextStyle(color: Colors.grey))),
                 CozyButton(
                   text: 'Conferma e Salva',
                   onPressed: () {
                     try {
                       setState(() {
-                          final photos = _getMealPhotos(meal);
-                          if (!photos.contains(photoFileName)) photos.add(photoFileName);
-                          _saveMealPhotos(meal, photos);
+                        final photos = _getMealPhotos(meal);
+                        if (!photos.contains(photoFileName))
+                          photos.add(photoFileName);
+                        _saveMealPhotos(meal, photos);
 
-                          final newItem = FoodItemModel(
-                            name: risultatoIA['piatto'] ?? 'Piatto IA',
-                            quantity: '1 porzione',
-                            calories: finalCals,
-                            proteins: finalProt.toDouble(),
-                            carbs: finalCarbs.toDouble(),
-                            fats: finalFats.toDouble(),
-                          );
+                        final newItem = FoodItemModel(
+                          name: risultatoIA['piatto'] ?? 'Piatto IA',
+                          quantity: '1 porzione',
+                          calories: finalCals,
+                          proteins: finalProt.toDouble(),
+                          carbs: finalCarbs.toDouble(),
+                          fats: finalFats.toDouble(),
+                        );
 
-                          meal.items.add(newItem);
-                          if (!meal.isRewardClaimed) {
-                            meal.isRewardClaimed = true;
-                            _user.coins += 5;
-                          }
+                        meal.items.add(newItem);
+                        if (!meal.isRewardClaimed) {
+                          meal.isRewardClaimed = true;
+                          _user.coins += 5;
+                        }
                       });
 
                       _storageService.saveUser(_user);
-                      _storageService.saveMealsForDate(_selectedDate, _currentMealsList);
-                      
+                      _storageService.saveMealsForDate(
+                          _selectedDate, _currentMealsList);
+
                       Navigator.of(context).pop();
-                      
+
                       ScaffoldMessenger.of(parentContext).showSnackBar(
-                        const SnackBar(backgroundColor: Color(0xFF2E7D32), content: Text('✨ Piatto analizzato aggiunto con successo! +5 Rupie! 💎')),
+                        const SnackBar(
+                            backgroundColor: Color(0xFF2E7D32),
+                            content: Text(
+                                '✨ Piatto analizzato aggiunto con successo! +5 Rupie! 💎')),
                       );
                     } catch (e, stackTrace) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(backgroundColor: Colors.red[700], content: Text('Errore nel salvataggio: $e')),
+                        SnackBar(
+                            backgroundColor: Colors.red[700],
+                            content: Text('Errore nel salvataggio: $e')),
                       );
                     }
                   },
@@ -571,14 +674,16 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
         );
       },
     );
-  }  
+  }
 
   Widget _buildNutrienteChip(String label, String valore, Color colore) {
     return Column(
       children: [
         Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey)),
         const SizedBox(height: 2),
-        Text(valore, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: colore)),
+        Text(valore,
+            style: TextStyle(
+                fontSize: 13, fontWeight: FontWeight.bold, color: colore)),
       ],
     );
   }
@@ -593,8 +698,15 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
           child: Stack(
             alignment: Alignment.topRight,
             children: [
-              Center(child: InteractiveViewer(panEnabled: true, minScale: 0.5, maxScale: 4, child: _buildSafeImage(imagePath, fit: BoxFit.contain))),
-              IconButton(icon: const Icon(Icons.close, color: Colors.white, size: 28), onPressed: () => Navigator.pop(context)),
+              Center(
+                  child: InteractiveViewer(
+                      panEnabled: true,
+                      minScale: 0.5,
+                      maxScale: 4,
+                      child: _buildSafeImage(imagePath, fit: BoxFit.contain))),
+              IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white, size: 28),
+                  onPressed: () => Navigator.pop(context)),
             ],
           ),
         );
@@ -602,30 +714,55 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
     );
   }
 
-  Widget _buildSafeImage(String imagePathOrName, {BoxFit fit = BoxFit.cover, double? height, double? width}) {
+  Widget _buildSafeImage(String imagePathOrName,
+      {BoxFit fit = BoxFit.cover, double? height, double? width}) {
     return FutureBuilder<Directory>(
       future: path_provider.getApplicationDocumentsDirectory(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
-          return Container(height: height, width: width, color: Colors.grey[200], child: const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))));
+          return Container(
+              height: height,
+              width: width,
+              color: Colors.grey[200],
+              child: const Center(
+                  child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2))));
         }
         final appDir = snapshot.data!;
-        final fileName = path.basename(imagePathOrName.replaceFirst('file://', ''));
+        final fileName =
+            path.basename(imagePathOrName.replaceFirst('file://', ''));
         final fullPath = '${appDir.path}/$fileName';
         final file = File(fullPath);
 
         if (!file.existsSync()) {
-          return Container(height: height, width: width, color: Colors.grey[300], child: const Icon(Icons.broken_image_outlined, color: Colors.grey, size: 36));
+          return Container(
+              height: height,
+              width: width,
+              color: Colors.grey[300],
+              child: const Icon(Icons.broken_image_outlined,
+                  color: Colors.grey, size: 36));
         }
 
-        return Image.file(file, fit: fit, height: height, width: width, errorBuilder: (context, error, stackTrace) => Container(height: height, width: width, color: Colors.grey[300], child: const Icon(Icons.broken_image, color: Colors.grey, size: 36)));
+        return Image.file(file,
+            fit: fit,
+            height: height,
+            width: width,
+            errorBuilder: (context, error, stackTrace) => Container(
+                height: height,
+                width: width,
+                color: Colors.grey[300],
+                child: const Icon(Icons.broken_image,
+                    color: Colors.grey, size: 36)));
       },
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final formattedDate = '${_selectedDate.day.toString().padLeft(2, '0')}/${_selectedDate.month.toString().padLeft(2, '0')}/${_selectedDate.year}';
+    final formattedDate =
+        '${_selectedDate.day.toString().padLeft(2, '0')}/${_selectedDate.month.toString().padLeft(2, '0')}/${_selectedDate.year}';
     final mealsList = _currentMealsList;
 
     return CozyBackground(
@@ -636,7 +773,12 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
           backgroundColor: Colors.transparent,
           elevation: 0,
           centerTitle: true,
-          title: const Text('Il mio Diario & Storico', style: TextStyle(color: AppColors.textPrimary, fontFamily: 'Serif', fontWeight: FontWeight.bold, fontSize: 20)),
+          title: const Text('Il mio Diario & Storico',
+              style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontFamily: 'Serif',
+                  fontWeight: FontWeight.bold,
+                  fontSize: 20)),
         ),
         body: Stack(
           children: [
@@ -648,19 +790,32 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
                   children: [
                     // Selettore Data
                     CozyWoodCard(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          IconButton(icon: const Icon(Icons.arrow_back_ios, size: 16, color: AppColors.textPrimary), onPressed: () => _changeDate(-1)),
+                          IconButton(
+                              icon: const Icon(Icons.arrow_back_ios,
+                                  size: 16, color: AppColors.textPrimary),
+                              onPressed: () => _changeDate(-1)),
                           Row(
                             children: [
-                              const Icon(Icons.calendar_today, size: 16, color: AppColors.woodAccent),
+                              const Icon(Icons.calendar_today,
+                                  size: 16, color: AppColors.woodAccent),
                               const SizedBox(width: 8),
-                              Text(formattedDate, style: const TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.textPrimary)),
+                              Text(formattedDate,
+                                  style: const TextStyle(
+                                      fontFamily: 'Serif',
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 15,
+                                      color: AppColors.textPrimary)),
                             ],
                           ),
-                          IconButton(icon: const Icon(Icons.arrow_forward_ios, size: 16, color: AppColors.textPrimary), onPressed: () => _changeDate(1)),
+                          IconButton(
+                              icon: const Icon(Icons.arrow_forward_ios,
+                                  size: 16, color: AppColors.textPrimary),
+                              onPressed: () => _changeDate(1)),
                         ],
                       ),
                     ),
@@ -675,18 +830,37 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Icon(Icons.local_fire_department, color: Colors.deepOrange, size: 22),
+                                const Icon(Icons.local_fire_department,
+                                    color: Colors.deepOrange, size: 22),
                                 const SizedBox(width: 6),
-                                Text('Totale Giornaliero: $_totalDailyCalories kcal', style: const TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.textPrimary)),
+                                Text(
+                                    'Totale Giornaliero: $_totalDailyCalories kcal',
+                                    style: const TextStyle(
+                                        fontFamily: 'Serif',
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 15,
+                                        color: AppColors.textPrimary)),
                               ],
                             ),
                             const SizedBox(height: 8),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceAround,
                               children: [
-                                Text('Proteine: ${_totalDailyProteins}g', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.redAccent)),
-                                Text('Carb.: ${_totalDailyCarbs}g', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blueAccent)),
-                                Text('Grassi: ${_totalDailyFats}g', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green)),
+                                Text('Proteine: ${_totalDailyProteins}g',
+                                    style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.redAccent)),
+                                Text('Carb.: ${_totalDailyCarbs}g',
+                                    style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.blueAccent)),
+                                Text('Grassi: ${_totalDailyFats}g',
+                                    style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.green)),
                               ],
                             ),
                           ],
@@ -713,19 +887,34 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
                               children: [
                                 Row(
                                   children: [
-                                    Text(meal.icon, style: const TextStyle(fontSize: 22)),
+                                    Text(meal.icon,
+                                        style: const TextStyle(fontSize: 22)),
                                     const SizedBox(width: 8),
-                                    Text(meal.title, style: const TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.textPrimary)),
+                                    Text(meal.title,
+                                        style: const TextStyle(
+                                            fontFamily: 'Serif',
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                            color: AppColors.textPrimary)),
                                     const Spacer(),
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                      decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(8), border: Border.all(color: AppColors.border)),
-                                      child: Text('${meal.totalCalories} kcal', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 2),
+                                      decoration: BoxDecoration(
+                                          color: AppColors.surface,
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                          border: Border.all(
+                                              color: AppColors.border)),
+                                      child: Text('${meal.totalCalories} kcal',
+                                          style: const TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                              color: AppColors.textPrimary)),
                                     ),
                                   ],
                                 ),
                                 const SizedBox(height: 10),
-
                                 if (mealPhotos.isNotEmpty) ...[
                                   SizedBox(
                                     height: 130,
@@ -733,34 +922,89 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
                                       scrollDirection: Axis.horizontal,
                                       itemCount: mealPhotos.length,
                                       itemBuilder: (context, photoIndex) {
-                                        final photoPath = mealPhotos[photoIndex];
+                                        final photoPath =
+                                            mealPhotos[photoIndex];
                                         return Padding(
-                                          padding: const EdgeInsets.only(right: 8.0),
+                                          padding:
+                                              const EdgeInsets.only(right: 8.0),
                                           child: ClipRRect(
-                                            borderRadius: BorderRadius.circular(10),
+                                            borderRadius:
+                                                BorderRadius.circular(10),
                                             child: SizedBox(
                                               width: 130,
                                               child: Stack(
                                                 fit: StackFit.expand,
                                                 children: [
-                                                  GestureDetector(onTap: () => _showMealPhotoDetail(photoPath), child: _buildSafeImage(photoPath, fit: BoxFit.cover)),
+                                                  GestureDetector(
+                                                      onTap: () =>
+                                                          _showMealPhotoDetail(
+                                                              photoPath),
+                                                      child: _buildSafeImage(
+                                                          photoPath,
+                                                          fit: BoxFit.cover)),
                                                   Positioned(
-                                                    bottom: 4, right: 4,
+                                                    bottom: 4,
+                                                    right: 4,
                                                     child: GestureDetector(
-                                                      onTap: () {
+                                                      onTap: () async {
+                                                        final photoToDelete =
+                                                            photoPath;
+
+                                                        await _storageService
+                                                            .deleteMealPhotoReference(
+                                                          date: _selectedDate,
+                                                          mealIndex: mealIndex,
+                                                          photoPath:
+                                                              photoToDelete,
+                                                        );
+
+                                                        if (!mounted) return;
+
                                                         setState(() {
-                                                            mealPhotos.removeAt(photoIndex);
-                                                            _saveMealPhotos(meal, mealPhotos);
+                                                          _loadMealsForSelectedDate();
                                                         });
                                                       },
-                                                      child: Container(padding: const EdgeInsets.all(4), decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle), child: const Icon(Icons.close, color: Colors.white, size: 14)),
+                                                      child: Container(
+                                                          padding:
+                                                              const EdgeInsets
+                                                                  .all(4),
+                                                          decoration:
+                                                              const BoxDecoration(
+                                                                  color: Colors
+                                                                      .red,
+                                                                  shape: BoxShape
+                                                                      .circle),
+                                                          child: const Icon(
+                                                              Icons.close,
+                                                              color:
+                                                                  Colors.white,
+                                                              size: 14)),
                                                     ),
                                                   ),
                                                   Positioned(
-                                                    bottom: 4, left: 4,
+                                                    bottom: 4,
+                                                    left: 4,
                                                     child: GestureDetector(
-                                                      onTap: () => _reanalyzeExistingPhoto(meal, photoPath),
-                                                      child: Container(padding: const EdgeInsets.all(4), decoration: BoxDecoration(color: AppColors.woodAccent.withOpacity(0.9), shape: BoxShape.circle), child: const Icon(Icons.auto_awesome, color: Colors.white, size: 14)),
+                                                      onTap: () =>
+                                                          _reanalyzeExistingPhoto(
+                                                              meal, photoPath),
+                                                      child: Container(
+                                                          padding:
+                                                              const EdgeInsets
+                                                                  .all(4),
+                                                          decoration: BoxDecoration(
+                                                              color: AppColors
+                                                                  .woodAccent
+                                                                  .withOpacity(
+                                                                      0.9),
+                                                              shape: BoxShape
+                                                                  .circle),
+                                                          child: const Icon(
+                                                              Icons
+                                                                  .auto_awesome,
+                                                              color:
+                                                                  Colors.white,
+                                                              size: 14)),
                                                     ),
                                                   ),
                                                 ],
@@ -773,56 +1017,168 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
                                   ),
                                   const SizedBox(height: 10),
                                 ],
-
                                 if (meal.items.isNotEmpty) ...[
                                   ...meal.items.asMap().entries.map((entry) {
-                                      final itemIndex = entry.key;
-                                      final foodItem = entry.value;
-                                      final p = foodItem.proteins ?? 0;
-                                      final c = foodItem.carbs ?? 0;
-                                      final f = foodItem.fats ?? 0;
+                                    final itemIndex = entry.key;
+                                    final foodItem = entry.value;
+                                    final p = foodItem.proteins ?? 0;
+                                    final c = foodItem.carbs ?? 0;
+                                    final f = foodItem.fats ?? 0;
 
-                                      return Padding(
-                                        padding: const EdgeInsets.only(bottom: 6.0),
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                                          decoration: BoxDecoration(color: Colors.white.withOpacity(0.5), borderRadius: BorderRadius.circular(8)),
-                                          child: Row(
-                                            children: [
-                                              GestureDetector(onTap: () => _showEditFoodItemDialog(meal, itemIndex), child: const Padding(padding: EdgeInsets.only(right: 8.0), child: Icon(Icons.edit, size: 16, color: AppColors.woodAccent))),
-                                              Expanded(child: Text('${foodItem.name} (${foodItem.quantity}) - ${foodItem.calories} kcal [P:${p.toInt()}g C:${c.toInt()}g G:${f.toInt()}g]', style: const TextStyle(fontSize: 11, color: AppColors.textPrimary))),
-                                              GestureDetector(onTap: () => _removeFoodItem(meal, itemIndex), child: const Icon(Icons.close, size: 16, color: Colors.redAccent)),
-                                            ],
-                                          ),
+                                    return Padding(
+                                      padding:
+                                          const EdgeInsets.only(bottom: 6.0),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 6),
+                                        decoration: BoxDecoration(
+                                            color:
+                                                Colors.white.withOpacity(0.5),
+                                            borderRadius:
+                                                BorderRadius.circular(8)),
+                                        child: Row(
+                                          children: [
+                                            GestureDetector(
+                                                onTap: () =>
+                                                    _showEditFoodItemDialog(
+                                                        meal, itemIndex),
+                                                child: const Padding(
+                                                    padding: EdgeInsets.only(
+                                                        right: 8.0),
+                                                    child: Icon(Icons.edit,
+                                                        size: 16,
+                                                        color: AppColors
+                                                            .woodAccent))),
+                                            Expanded(
+                                                child: Text(
+                                                    '${foodItem.name} (${foodItem.quantity}) - ${foodItem.calories} kcal [P:${p.toInt()}g C:${c.toInt()}g G:${f.toInt()}g]',
+                                                    style: const TextStyle(
+                                                        fontSize: 11,
+                                                        color: AppColors
+                                                            .textPrimary))),
+                                            GestureDetector(
+                                                onTap: () => _removeFoodItem(
+                                                    meal, itemIndex),
+                                                child: const Icon(Icons.close,
+                                                    size: 16,
+                                                    color: Colors.redAccent)),
+                                          ],
                                         ),
-                                      );
+                                      ),
+                                    );
                                   }),
                                   const SizedBox(height: 8),
                                 ],
-
                                 Container(
                                   padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(color: Colors.white.withOpacity(0.3), borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.border.withOpacity(0.5))),
+                                  decoration: BoxDecoration(
+                                      color: Colors.white.withOpacity(0.3),
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(
+                                          color: AppColors.border
+                                              .withOpacity(0.5))),
                                   child: Column(
                                     children: [
                                       TextField(
                                         controller: _foodController,
-                                        decoration: const InputDecoration(hintText: 'Alimento (es. Petto di pollo)', hintStyle: TextStyle(fontSize: 11, color: AppColors.textSecondary), isDense: true, border: InputBorder.none),
+                                        decoration: const InputDecoration(
+                                            hintText:
+                                                'Alimento (es. Petto di pollo)',
+                                            hintStyle: TextStyle(
+                                                fontSize: 11,
+                                                color: AppColors.textSecondary),
+                                            isDense: true,
+                                            border: InputBorder.none),
                                         style: const TextStyle(fontSize: 12),
                                       ),
                                       const Divider(height: 8),
                                       Row(
                                         children: [
-                                          Expanded(child: TextField(controller: _quantityController, decoration: const InputDecoration(hintText: 'Quantità (150g)', hintStyle: TextStyle(fontSize: 10, color: AppColors.textSecondary), isDense: true, border: InputBorder.none), style: const TextStyle(fontSize: 11))),
-                                          Expanded(child: TextField(controller: _caloriesController, keyboardType: TextInputType.number, decoration: const InputDecoration(hintText: 'Kcal', hintStyle: TextStyle(fontSize: 10, color: AppColors.textSecondary), isDense: true, border: InputBorder.none), style: const TextStyle(fontSize: 11))),
+                                          Expanded(
+                                              child: TextField(
+                                                  controller:
+                                                      _quantityController,
+                                                  decoration: const InputDecoration(
+                                                      hintText:
+                                                          'Quantità (150g)',
+                                                      hintStyle: TextStyle(
+                                                          fontSize: 10,
+                                                          color: AppColors
+                                                              .textSecondary),
+                                                      isDense: true,
+                                                      border: InputBorder.none),
+                                                  style: const TextStyle(
+                                                      fontSize: 11))),
+                                          Expanded(
+                                              child: TextField(
+                                                  controller:
+                                                      _caloriesController,
+                                                  keyboardType:
+                                                      TextInputType.number,
+                                                  decoration: const InputDecoration(
+                                                      hintText: 'Kcal',
+                                                      hintStyle: TextStyle(
+                                                          fontSize: 10,
+                                                          color: AppColors
+                                                              .textSecondary),
+                                                      isDense: true,
+                                                      border: InputBorder.none),
+                                                  style: const TextStyle(
+                                                      fontSize: 11))),
                                         ],
                                       ),
                                       const Divider(height: 8),
                                       Row(
                                         children: [
-                                          Expanded(child: TextField(controller: _proteinsController, keyboardType: TextInputType.number, decoration: const InputDecoration(hintText: 'Prot (g)', hintStyle: TextStyle(fontSize: 10, color: AppColors.textSecondary), isDense: true, border: InputBorder.none), style: const TextStyle(fontSize: 11))),
-                                          Expanded(child: TextField(controller: _carbsController, keyboardType: TextInputType.number, decoration: const InputDecoration(hintText: 'Carb (g)', hintStyle: TextStyle(fontSize: 10, color: AppColors.textSecondary), isDense: true, border: InputBorder.none), style: const TextStyle(fontSize: 11))),
-                                          Expanded(child: TextField(controller: _fatsController, keyboardType: TextInputType.number, decoration: const InputDecoration(hintText: 'Grassi (g)', hintStyle: TextStyle(fontSize: 10, color: AppColors.textSecondary), isDense: true, border: InputBorder.none), style: const TextStyle(fontSize: 11))),
+                                          Expanded(
+                                              child: TextField(
+                                                  controller:
+                                                      _proteinsController,
+                                                  keyboardType:
+                                                      TextInputType.number,
+                                                  decoration: const InputDecoration(
+                                                      hintText: 'Prot (g)',
+                                                      hintStyle: TextStyle(
+                                                          fontSize: 10,
+                                                          color: AppColors
+                                                              .textSecondary),
+                                                      isDense: true,
+                                                      border: InputBorder.none),
+                                                  style: const TextStyle(
+                                                      fontSize: 11))),
+                                          Expanded(
+                                              child: TextField(
+                                                  controller: _carbsController,
+                                                  keyboardType:
+                                                      TextInputType.number,
+                                                  decoration: const InputDecoration(
+                                                      hintText: 'Carb (g)',
+                                                      hintStyle: TextStyle(
+                                                          fontSize: 10,
+                                                          color: AppColors
+                                                              .textSecondary),
+                                                      isDense: true,
+                                                      border: InputBorder.none),
+                                                  style: const TextStyle(
+                                                      fontSize: 11))),
+                                          Expanded(
+                                              child: TextField(
+                                                  controller: _fatsController,
+                                                  keyboardType:
+                                                      TextInputType.number,
+                                                  decoration:
+                                                      const InputDecoration(
+                                                          hintText:
+                                                              'Grassi (g)',
+                                                          hintStyle: TextStyle(
+                                                              fontSize: 10,
+                                                              color: AppColors
+                                                                  .textSecondary),
+                                                          isDense: true,
+                                                          border:
+                                                              InputBorder.none),
+                                                  style: const TextStyle(
+                                                      fontSize: 11))),
                                         ],
                                       ),
                                       const SizedBox(height: 6),
@@ -830,7 +1186,8 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
                                         width: double.infinity,
                                         child: CozyButton(
                                           text: 'Salva Portata ➕',
-                                          onPressed: () => _addFoodItemToMeal(meal),
+                                          onPressed: () =>
+                                              _addFoodItemToMeal(meal),
                                         ),
                                       ),
                                     ],
@@ -841,9 +1198,17 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
                                   mainAxisAlignment: MainAxisAlignment.end,
                                   children: [
                                     TextButton.icon(
-                                      onPressed: () => _showImageSourceDialog(meal),
-                                      icon: const Icon(Icons.camera_alt_outlined, size: 16, color: AppColors.woodAccent),
-                                      label: const Text('Aggiungi Foto & IA 🪄', style: TextStyle(fontSize: 11, color: AppColors.woodAccent, fontWeight: FontWeight.bold)),
+                                      onPressed: () =>
+                                          _showImageSourceDialog(meal),
+                                      icon: const Icon(
+                                          Icons.camera_alt_outlined,
+                                          size: 16,
+                                          color: AppColors.woodAccent),
+                                      label: const Text('Aggiungi Foto & IA 🪄',
+                                          style: TextStyle(
+                                              fontSize: 11,
+                                              color: AppColors.woodAccent,
+                                              fontWeight: FontWeight.bold)),
                                     ),
                                   ],
                                 ),
@@ -863,12 +1228,18 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
               top: MediaQuery.of(context).padding.top - 18,
               right: 42.0,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-                decoration: BoxDecoration(color: AppColors.background.withOpacity(0.88), borderRadius: BorderRadius.circular(16)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                decoration: BoxDecoration(
+                    color: AppColors.background.withOpacity(0.88),
+                    borderRadius: BorderRadius.circular(16)),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    CurrencyBadge(icon: Icons.diamond, iconColor: AppColors.rupeeGreen, value: '${_user.coins}'),
+                    CurrencyBadge(
+                        icon: Icons.diamond,
+                        iconColor: AppColors.rupeeGreen,
+                        value: '${_user.coins}'),
                   ],
                 ),
               ),
@@ -880,19 +1251,21 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
   }
 
   Widget _buildWeeklyChart() {
-    final List<DateTime> pastDays = List.generate(7, (index) => _selectedDate.subtract(Duration(days: 6 - index)));
+    final List<DateTime> pastDays = List.generate(
+        7, (index) => _selectedDate.subtract(Duration(days: 6 - index)));
     int maxVal = _selectedChartMetric == 'calories' ? 2000 : 150;
     for (var day in pastDays) {
       final val = _getMetricForDate(day, _selectedChartMetric);
       if (val > maxVal) maxVal = val;
     }
 
-    String getDateKey(DateTime d) => "${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}";
+    String getDateKey(DateTime d) =>
+        "${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}";
     String metricTitle = 'Calorie';
     if (_selectedChartMetric == 'proteins') metricTitle = 'Proteine (g)';
     if (_selectedChartMetric == 'carbs') metricTitle = 'Carboidrati (g)';
     if (_selectedChartMetric == 'fats') metricTitle = 'Grassi (g)';
-    
+
     return CozyWoodCard(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -903,15 +1276,24 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.bar_chart, size: 18, color: AppColors.woodAccent),
+                  const Icon(Icons.bar_chart,
+                      size: 18, color: AppColors.woodAccent),
                   const SizedBox(width: 8),
-                  Text('Andamento $metricTitle', style: const TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.textPrimary)),
+                  Text('Andamento $metricTitle',
+                      style: const TextStyle(
+                          fontFamily: 'Serif',
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          color: AppColors.textPrimary)),
                 ],
               ),
               DropdownButton<String>(
                 value: _selectedChartMetric,
                 dropdownColor: const Color(0xFFFDF6E3),
-                style: const TextStyle(fontSize: 11, color: AppColors.textPrimary, fontFamily: 'Serif'),
+                style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textPrimary,
+                    fontFamily: 'Serif'),
                 underline: const SizedBox(),
                 items: const [
                   DropdownMenuItem(value: 'calories', child: Text('Calorie')),
@@ -920,7 +1302,10 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
                   DropdownMenuItem(value: 'fats', child: Text('Grassi')),
                 ],
                 onChanged: (val) {
-                  if (val != null) setState(() { _selectedChartMetric = val; });
+                  if (val != null)
+                    setState(() {
+                      _selectedChartMetric = val;
+                    });
                 },
               ),
             ],
@@ -932,25 +1317,44 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               crossAxisAlignment: CrossAxisAlignment.end,
               children: pastDays.map((day) {
-                  final val = _getMetricForDate(day, _selectedChartMetric);
-                  final double barHeight = maxVal > 0 ? (val / maxVal) * 80 : 0.0;
-                  final bool isSelectedDay = getDateKey(day) == getDateKey(_selectedDate);
-                  final dayLabel = '${day.day}/${day.month}';
+                final val = _getMetricForDate(day, _selectedChartMetric);
+                final double barHeight = maxVal > 0 ? (val / maxVal) * 80 : 0.0;
+                final bool isSelectedDay =
+                    getDateKey(day) == getDateKey(_selectedDate);
+                final dayLabel = '${day.day}/${day.month}';
 
-                  return Column(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      Text('$val', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: isSelectedDay ? AppColors.woodAccent : AppColors.textSecondary)),
-                      const SizedBox(height: 4),
-                      Container(
-                        width: 16,
-                        height: barHeight < 4 ? 4 : barHeight,
-                        decoration: BoxDecoration(color: isSelectedDay ? AppColors.woodAccent : AppColors.border, borderRadius: BorderRadius.circular(4)),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(dayLabel, style: TextStyle(fontSize: 9, color: isSelectedDay ? AppColors.textPrimary : AppColors.textSecondary, fontWeight: isSelectedDay ? FontWeight.bold : FontWeight.normal)),
-                    ],
-                  );
+                return Column(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Text('$val',
+                        style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                            color: isSelectedDay
+                                ? AppColors.woodAccent
+                                : AppColors.textSecondary)),
+                    const SizedBox(height: 4),
+                    Container(
+                      width: 16,
+                      height: barHeight < 4 ? 4 : barHeight,
+                      decoration: BoxDecoration(
+                          color: isSelectedDay
+                              ? AppColors.woodAccent
+                              : AppColors.border,
+                          borderRadius: BorderRadius.circular(4)),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(dayLabel,
+                        style: TextStyle(
+                            fontSize: 9,
+                            color: isSelectedDay
+                                ? AppColors.textPrimary
+                                : AppColors.textSecondary,
+                            fontWeight: isSelectedDay
+                                ? FontWeight.bold
+                                : FontWeight.normal)),
+                  ],
+                );
               }).toList(),
             ),
           ),

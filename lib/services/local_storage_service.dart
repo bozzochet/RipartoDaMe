@@ -548,6 +548,83 @@ class LocalStorageService {
 
   // --- GESTIONE DIARIO ALIMENTARE (PASTI) ---
 
+  Future<void> deleteMealPhotoReference({
+    required DateTime date,
+    required int mealIndex,
+    required String photoPath,
+  }) async {
+    final String dateKey = date.toIso8601String().split('T')[0];
+
+    final data = _mealsBox.get(dateKey);
+
+    if (data == null) {
+      debugPrint(
+        'Impossibile eliminare foto pasto: '
+        'nessun dato trovato per $dateKey',
+      );
+      return;
+    }
+
+    final mealsData = List<dynamic>.from(data);
+
+    if (mealIndex < 0 || mealIndex >= mealsData.length) {
+      debugPrint(
+        'Impossibile eliminare foto pasto: '
+        'indice $mealIndex non valido.',
+      );
+      return;
+    }
+
+    final mealMap = Map<String, dynamic>.from(mealsData[mealIndex]);
+
+    final rawPhotoPath = mealMap['photoPath']?.toString();
+
+    if (rawPhotoPath == null || rawPhotoPath.isEmpty) {
+      return;
+    }
+
+    final targetPath = await _resolveManagedFilePath(photoPath);
+
+    final oldReferences = rawPhotoPath
+        .split('|')
+        .where((reference) => reference.trim().isNotEmpty)
+        .toList();
+
+    final List<String> remainingReferences = [];
+
+    bool referenceRemoved = false;
+
+    for (final reference in oldReferences) {
+      final resolvedReference = await _resolveManagedFilePath(reference);
+
+      if (!referenceRemoved && resolvedReference == targetPath) {
+        referenceRemoved = true;
+        continue;
+      }
+
+      remainingReferences.add(reference);
+    }
+
+    if (!referenceRemoved) {
+      debugPrint(
+        'Foto pasto non trovata nei riferimenti: $photoPath',
+      );
+      return;
+    }
+
+    mealMap['photoPath'] =
+        remainingReferences.isEmpty ? null : remainingReferences.join('|');
+
+    mealsData[mealIndex] = mealMap;
+
+    // Prima aggiorniamo Hive.
+    await _mealsBox.put(dateKey, mealsData);
+
+    // Solo adesso controlliamo TUTTI i riferimenti dell'app.
+    // Se nessun dato usa più il file, viene eliminato fisicamente.
+    await _deleteFileIfUnreferenced(photoPath);
+  }
+
   Future<void> saveMealsForDate(
       DateTime date, List<MealEntryModel> meals) async {
     final String dateKey = date.toIso8601String().split('T')[0];
