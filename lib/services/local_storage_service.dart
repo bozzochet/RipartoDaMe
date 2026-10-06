@@ -83,6 +83,154 @@ class LocalStorageService {
     return [];
   }
 
+  Future<String> _resolveManagedFilePath(String storedPath) async {
+    final appDir = await getApplicationDocumentsDirectory();
+    final cleaned = storedPath.replaceFirst('file://', '');
+
+    if (path.isAbsolute(cleaned)) {
+      return path.normalize(cleaned);
+    }
+
+    return path.normalize(
+      path.join(appDir.path, path.basename(cleaned)),
+    );
+  }
+
+  Future<bool> _isFileReferencedAnywhere(String storedPath) async {
+    final targetPath = await _resolveManagedFilePath(storedPath);
+
+    // Foto progressi
+    for (final data in _photosBox.values) {
+      if (data == null) continue;
+
+      try {
+        final map = Map<String, dynamic>.from(data);
+        final reference = (map['imagePath'] ?? map['path'])?.toString();
+
+        if (reference == null || reference.isEmpty) continue;
+
+        final resolved = await _resolveManagedFilePath(reference);
+
+        if (resolved == targetPath) {
+          return true;
+        }
+      } catch (_) {}
+    }
+
+    // Referti sangue / urine
+    for (final data in _bloodTestsBox.values) {
+      if (data == null) continue;
+
+      try {
+        final map = Map<String, dynamic>.from(data);
+        final reference = (map['filePath'] ?? map['pdfPath'])?.toString();
+
+        if (reference == null || reference.isEmpty) continue;
+
+        final resolved = await _resolveManagedFilePath(reference);
+
+        if (resolved == targetPath) {
+          return true;
+        }
+      } catch (_) {}
+    }
+
+    // Foto dei pasti
+    for (final data in _mealsBox.values) {
+      if (data == null) continue;
+
+      try {
+        final meals = List<dynamic>.from(data);
+
+        for (final meal in meals) {
+          final mealMap = Map<String, dynamic>.from(meal);
+          final rawPhotoPath = mealMap['photoPath']?.toString();
+
+          if (rawPhotoPath == null || rawPhotoPath.isEmpty) {
+            continue;
+          }
+
+          final references =
+              rawPhotoPath.split('|').where((value) => value.trim().isNotEmpty);
+
+          for (final reference in references) {
+            final resolved = await _resolveManagedFilePath(reference);
+
+            if (resolved == targetPath) {
+              return true;
+            }
+          }
+        }
+      } catch (_) {}
+    }
+
+    return false;
+  }
+
+  Future<void> _deleteFileIfUnreferenced(String? storedPath) async {
+    if (storedPath == null || storedPath.trim().isEmpty) {
+      return;
+    }
+
+    // Prima controlliamo nuovamente Hive.
+    final stillReferenced = await _isFileReferencedAnywhere(storedPath);
+
+    if (stillReferenced) {
+      debugPrint(
+        'File conservato perché ancora referenziato: $storedPath',
+      );
+      return;
+    }
+
+    final resolvedPath = await _resolveManagedFilePath(storedPath);
+
+    final appDir = await getApplicationDocumentsDirectory();
+    final normalizedAppDir = path.normalize(appDir.path);
+    final normalizedFile = path.normalize(resolvedPath);
+
+    // Barriera di sicurezza: questo metodo può eliminare
+    // esclusivamente file dentro ApplicationDocumentsDirectory.
+    final isInsideDocuments = path.isWithin(normalizedAppDir, normalizedFile) ||
+        path.equals(
+          normalizedAppDir,
+          path.dirname(normalizedFile),
+        );
+
+    if (!isInsideDocuments) {
+      debugPrint(
+        'File non eliminato perché esterno alla sandbox: '
+        '$normalizedFile',
+      );
+      return;
+    }
+
+    final fileName = path.basename(normalizedFile);
+
+    // Seconda barriera: eliminiamo solo file che riconosciamo
+    // come creati e gestiti da RipartoDaMe.
+    final isManaged = fileName.startsWith('body_photo_') ||
+        fileName.startsWith('blood_test_') ||
+        fileName.startsWith('meal_photo_');
+
+    if (!isManaged) {
+      debugPrint(
+        'File non eliminato perché non riconosciuto '
+        'come file gestito: $fileName',
+      );
+      return;
+    }
+
+    final file = File(normalizedFile);
+
+    if (await file.exists()) {
+      await file.delete();
+
+      debugPrint(
+        'File fisico eliminato: $fileName',
+      );
+    }
+  }
+
   // --- GESTIONE FOTO PROGRESSI ---
 
   Future<void> addProgressPhoto(ProgressPhotoEntry photo) async {
@@ -99,7 +247,41 @@ class LocalStorageService {
   }
 
   Future<void> deleteProgressPhoto(String photoId) async {
-    await _photosBox.delete(photoId);
+    dynamic hiveKey;
+    String? fileReference;
+
+    for (final key in _photosBox.keys) {
+      final data = _photosBox.get(key);
+      if (data == null) continue;
+
+      try {
+        final map = Map<String, dynamic>.from(data);
+
+        final storedId = map['id']?.toString();
+
+        if (key.toString() == photoId || storedId == photoId) {
+          hiveKey = key;
+
+          fileReference = (map['imagePath'] ?? map['path'])?.toString();
+
+          break;
+        }
+      } catch (_) {}
+    }
+
+    if (hiveKey == null) {
+      debugPrint(
+        'Foto progresso non trovata per id: $photoId',
+      );
+      return;
+    }
+
+    // Prima rimuoviamo il riferimento da Hive.
+    await _photosBox.delete(hiveKey);
+
+    // Poi possiamo stabilire correttamente se qualcun altro
+    // utilizza ancora lo stesso file.
+    await _deleteFileIfUnreferenced(fileReference);
   }
 
   // --- GESTIONE PROFILO UTENTE & GAMIFICATION ---
@@ -303,41 +485,61 @@ class LocalStorageService {
   }
 
   Future<void> deleteBloodUrineTestEntry(String id) async {
+    dynamic hiveKey;
+    String? fileReference;
+
+    // Caso normale e più veloce:
+    // addBloodUrineTestEntry usa normalmente entry.id come chiave Hive.
     if (_bloodTestsBox.containsKey(id)) {
-      await _bloodTestsBox.delete(id);
+      hiveKey = id;
+
+      final data = _bloodTestsBox.get(id);
+
+      if (data != null) {
+        try {
+          final map = Map<String, dynamic>.from(data);
+
+          fileReference = (map['filePath'] ?? map['pdfPath'])?.toString();
+        } catch (_) {}
+      }
+    }
+
+    // Compatibilità con eventuali dati più vecchi:
+    // cerchiamo l'id memorizzato nell'entry, ma ESATTAMENTE.
+    if (hiveKey == null) {
+      for (final key in _bloodTestsBox.keys) {
+        final data = _bloodTestsBox.get(key);
+        if (data == null) continue;
+
+        try {
+          final map = Map<String, dynamic>.from(data);
+          final storedId = map['id']?.toString();
+
+          if (storedId == id || key.toString() == id) {
+            hiveKey = key;
+
+            fileReference = (map['filePath'] ?? map['pdfPath'])?.toString();
+
+            break;
+          }
+        } catch (_) {}
+      }
+    }
+
+    if (hiveKey == null) {
+      debugPrint(
+        'Analisi sangue/urine non trovata per id: $id',
+      );
       return;
     }
 
-    dynamic keyToDelete;
-    for (var key in _bloodTestsBox.keys) {
-      final data = _bloodTestsBox.get(key);
-      if (data != null) {
-        final map = Map<String, dynamic>.from(data);
-        final storedId = map['id']?.toString();
+    // Eliminiamo prima il record.
+    await _bloodTestsBox.delete(hiveKey);
 
-        if (storedId == id ||
-            key.toString() == id ||
-            key.toString().contains(id)) {
-          keyToDelete = key;
-          break;
-        }
-      }
-    }
-
-    if (keyToDelete != dataNullCheckSafe(keyToDelete)) {
-      // Pulito
-      if (keyToDelete != null) {
-        await _bloodTestsBox.delete(keyToDelete);
-        print(
-            "✅ Entry eliminata con successo tramite chiave secondaria: $keyToDelete");
-      }
-    } else {
-      final matchingKeys =
-          _bloodTestsBox.keys.where((k) => k.toString().contains(id)).toList();
-      for (var k in matchingKeys) {
-        await _bloodTestsBox.delete(k);
-      }
-    }
+    // A questo punto controlliamo l'intero database.
+    // Se nessuno utilizza più il documento, eliminiamo
+    // anche il file fisico.
+    await _deleteFileIfUnreferenced(fileReference);
   }
 
   // Metodo di comodo richiesto dalle schermate
@@ -1197,6 +1399,3 @@ class FileMaintenanceReport {
 
   double get recoveredMegabytes => recoveredBytes / (1024 * 1024);
 }
-
-// Funzione di supporto interna per evitare ambiguità
-dataNullCheckSafe(val) => val;
