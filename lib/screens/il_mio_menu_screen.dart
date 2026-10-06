@@ -1,6 +1,9 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:google_generative_ai/google_generative_ai.dart';
 import '../services/local_storage_service.dart';
 import '../models/app_menu_models.dart';
 import '../theme/app_theme.dart';
@@ -27,7 +30,9 @@ class _IlMioMenuScreenState extends State<IlMioMenuScreen>
   final TextEditingController _caloriesController = TextEditingController();
   final TextEditingController _excludedFoodsController =
       TextEditingController();
-  bool _isKeto = false;
+  String _dietStyle = 'Standard';
+  bool _isHalal = false;
+  bool _isKosher = false;
 
   List<DailyMenuModel> _weeklyMenu = [];
   List<ShoppingItemModel> _shoppingList = [];
@@ -76,463 +81,94 @@ class _IlMioMenuScreenState extends State<IlMioMenuScreen>
   }
 
   Future<void> _generateMenuWithAI() async {
+    final apiKey = dotenv.env['GEMINI_API_KEY']?.trim() ?? '';
+
+    if (apiKey.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Gemini non è configurato: manca GEMINI_API_KEY.'),
+        ),
+      );
+      return;
+    }
+
+    final caloriesText = _caloriesController.text.trim();
+    final calories = caloriesText.isEmpty ? null : int.tryParse(caloriesText);
+    if (caloriesText.isNotEmpty && (calories == null || calories <= 0)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Inserisci un target calorico valido.')),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
-      // Dati demo invariati. La chiamata AI reale verra integrata in seguito.
-      await Future.delayed(const Duration(seconds: 3));
-
-      _weeklyMenu = [
-        DailyMenuModel(dayName: 'Lunedì', meals: [
-          MenuMealModel(
-              mealType: 'Colazione',
-              description: 'Yogurt greco con noci e frutti di bosco',
-              ingredients: [
-                MenuIngredientModel(
-                    name: 'Yogurt greco',
-                    quantity: 150,
-                    unit: 'g',
-                    category: 'Frigo'),
-                MenuIngredientModel(
-                    name: 'Noci',
-                    quantity: 20,
-                    unit: 'g',
-                    category: 'Dispensa'),
-                MenuIngredientModel(
-                    name: 'Frutti di bosco',
-                    quantity: 80,
-                    unit: 'g',
-                    category: 'Frutta')
-              ]),
-          MenuMealModel(
-              mealType: 'Pranzo',
-              description: 'Petto di pollo con insalata mista e olio EVO',
-              ingredients: [
-                MenuIngredientModel(
-                    name: 'Petto di pollo',
-                    quantity: 200,
-                    unit: 'g',
-                    category: 'Carne e Pesce'),
-                MenuIngredientModel(
-                    name: 'Insalata mista',
-                    quantity: 150,
-                    unit: 'g',
-                    category: 'Verdura'),
-                MenuIngredientModel(
-                    name: 'Olio EVO',
-                    quantity: 15,
-                    unit: 'ml',
-                    category: 'Dispensa')
-              ]),
-          MenuMealModel(
-              mealType: 'Merenda',
-              description: 'Mandorle',
-              ingredients: [
-                MenuIngredientModel(
-                    name: 'Mandorle',
-                    quantity: 25,
-                    unit: 'g',
-                    category: 'Dispensa')
-              ]),
-          MenuMealModel(
-              mealType: 'Cena',
-              description: 'Salmone al forno con asparagi',
-              ingredients: [
-                MenuIngredientModel(
-                    name: 'Salmone fresco',
-                    quantity: 180,
-                    unit: 'g',
-                    category: 'Carne e Pesce'),
-                MenuIngredientModel(
-                    name: 'Asparagi',
-                    quantity: 200,
-                    unit: 'g',
-                    category: 'Verdura')
-              ]),
-        ]),
-        DailyMenuModel(dayName: 'Martedì', meals: [
-          MenuMealModel(
-              mealType: 'Colazione',
-              description: 'Uova strapazzate e tè verde',
-              ingredients: [
-                MenuIngredientModel(
-                    name: 'Uova', quantity: 2, unit: 'pz', category: 'Frigo'),
-                MenuIngredientModel(
-                    name: 'Tè verde',
-                    quantity: 1,
-                    unit: 'bustina',
-                    category: 'Dispensa')
-              ]),
-          MenuMealModel(
-              mealType: 'Pranzo',
-              description: 'Merluzzo con broccoli al vapore',
-              ingredients: [
-                MenuIngredientModel(
-                    name: 'Merluzzo',
-                    quantity: 200,
-                    unit: 'g',
-                    category: 'Carne e Pesce'),
-                MenuIngredientModel(
-                    name: 'Broccoli',
-                    quantity: 250,
-                    unit: 'g',
-                    category: 'Verdura')
-              ]),
-          MenuMealModel(
-              mealType: 'Merenda',
-              description: 'Yogurt magro',
-              ingredients: [
-                MenuIngredientModel(
-                    name: 'Yogurt magro',
-                    quantity: 125,
-                    unit: 'g',
-                    category: 'Frigo')
-              ]),
-          MenuMealModel(
-              mealType: 'Cena',
-              description: 'Tacchino con zucchine',
-              ingredients: [
-                MenuIngredientModel(
-                    name: 'Tacchino',
-                    quantity: 180,
-                    unit: 'g',
-                    category: 'Carne e Pesce'),
-                MenuIngredientModel(
-                    name: 'Zucchine',
-                    quantity: 250,
-                    unit: 'g',
-                    category: 'Verdura')
-              ]),
-        ]),
-        DailyMenuModel(dayName: 'Mercoledì', meals: [
-          MenuMealModel(
-              mealType: 'Colazione',
-              description: 'Porridge con banana',
-              ingredients: [
-                MenuIngredientModel(
-                    name: 'Fiocchi di avena',
-                    quantity: 50,
-                    unit: 'g',
-                    category: 'Dispensa'),
-                MenuIngredientModel(
-                    name: 'Banana',
-                    quantity: 1,
-                    unit: 'pz',
-                    category: 'Frutta'),
-                MenuIngredientModel(
-                    name: 'Latte', quantity: 150, unit: 'ml', category: 'Frigo')
-              ]),
-          MenuMealModel(
-              mealType: 'Pranzo',
-              description: 'Riso basmati con pollo e verdure',
-              ingredients: [
-                MenuIngredientModel(
-                    name: 'Riso basmati',
-                    quantity: 80,
-                    unit: 'g',
-                    category: 'Dispensa'),
-                MenuIngredientModel(
-                    name: 'Petto di pollo',
-                    quantity: 180,
-                    unit: 'g',
-                    category: 'Carne e Pesce'),
-                MenuIngredientModel(
-                    name: 'Verdure miste',
-                    quantity: 200,
-                    unit: 'g',
-                    category: 'Verdura')
-              ]),
-          MenuMealModel(
-              mealType: 'Merenda',
-              description: 'Mela e noci',
-              ingredients: [
-                MenuIngredientModel(
-                    name: 'Mela', quantity: 1, unit: 'pz', category: 'Frutta'),
-                MenuIngredientModel(
-                    name: 'Noci', quantity: 15, unit: 'g', category: 'Dispensa')
-              ]),
-          MenuMealModel(
-              mealType: 'Cena',
-              description: 'Frittata con spinaci',
-              ingredients: [
-                MenuIngredientModel(
-                    name: 'Uova', quantity: 3, unit: 'pz', category: 'Frigo'),
-                MenuIngredientModel(
-                    name: 'Spinaci',
-                    quantity: 200,
-                    unit: 'g',
-                    category: 'Verdura')
-              ]),
-        ]),
-        DailyMenuModel(dayName: 'Giovedì', meals: [
-          MenuMealModel(
-              mealType: 'Colazione',
-              description: 'Yogurt greco con mandorle',
-              ingredients: [
-                MenuIngredientModel(
-                    name: 'Yogurt greco',
-                    quantity: 150,
-                    unit: 'g',
-                    category: 'Frigo'),
-                MenuIngredientModel(
-                    name: 'Mandorle',
-                    quantity: 20,
-                    unit: 'g',
-                    category: 'Dispensa')
-              ]),
-          MenuMealModel(
-              mealType: 'Pranzo',
-              description: 'Tacchino con quinoa e zucchine',
-              ingredients: [
-                MenuIngredientModel(
-                    name: 'Tacchino',
-                    quantity: 180,
-                    unit: 'g',
-                    category: 'Carne e Pesce'),
-                MenuIngredientModel(
-                    name: 'Quinoa',
-                    quantity: 80,
-                    unit: 'g',
-                    category: 'Dispensa'),
-                MenuIngredientModel(
-                    name: 'Zucchine',
-                    quantity: 200,
-                    unit: 'g',
-                    category: 'Verdura')
-              ]),
-          MenuMealModel(
-              mealType: 'Merenda',
-              description: 'Frutti di bosco',
-              ingredients: [
-                MenuIngredientModel(
-                    name: 'Frutti di bosco',
-                    quantity: 120,
-                    unit: 'g',
-                    category: 'Frutta')
-              ]),
-          MenuMealModel(
-              mealType: 'Cena',
-              description: 'Orata con insalata',
-              ingredients: [
-                MenuIngredientModel(
-                    name: 'Orata',
-                    quantity: 200,
-                    unit: 'g',
-                    category: 'Carne e Pesce'),
-                MenuIngredientModel(
-                    name: 'Insalata mista',
-                    quantity: 180,
-                    unit: 'g',
-                    category: 'Verdura'),
-                MenuIngredientModel(
-                    name: 'Olio EVO',
-                    quantity: 15,
-                    unit: 'ml',
-                    category: 'Dispensa')
-              ]),
-        ]),
-        DailyMenuModel(dayName: 'Venerdì', meals: [
-          MenuMealModel(
-              mealType: 'Colazione',
-              description: 'Pane integrale con ricotta',
-              ingredients: [
-                MenuIngredientModel(
-                    name: 'Pane integrale',
-                    quantity: 70,
-                    unit: 'g',
-                    category: 'Pane'),
-                MenuIngredientModel(
-                    name: 'Ricotta', quantity: 80, unit: 'g', category: 'Frigo')
-              ]),
-          MenuMealModel(
-              mealType: 'Pranzo',
-              description: 'Pasta integrale al pomodoro',
-              ingredients: [
-                MenuIngredientModel(
-                    name: 'Pasta integrale',
-                    quantity: 90,
-                    unit: 'g',
-                    category: 'Dispensa'),
-                MenuIngredientModel(
-                    name: 'Passata di pomodoro',
-                    quantity: 120,
-                    unit: 'g',
-                    category: 'Dispensa')
-              ]),
-          MenuMealModel(
-              mealType: 'Merenda',
-              description: 'Yogurt magro',
-              ingredients: [
-                MenuIngredientModel(
-                    name: 'Yogurt magro',
-                    quantity: 125,
-                    unit: 'g',
-                    category: 'Frigo')
-              ]),
-          MenuMealModel(
-              mealType: 'Cena',
-              description: 'Pollo con verdure al forno',
-              ingredients: [
-                MenuIngredientModel(
-                    name: 'Petto di pollo',
-                    quantity: 200,
-                    unit: 'g',
-                    category: 'Carne e Pesce'),
-                MenuIngredientModel(
-                    name: 'Verdure miste',
-                    quantity: 250,
-                    unit: 'g',
-                    category: 'Verdura')
-              ]),
-        ]),
-        DailyMenuModel(dayName: 'Sabato', meals: [
-          MenuMealModel(
-              mealType: 'Colazione',
-              description: 'Uova e pane integrale',
-              ingredients: [
-                MenuIngredientModel(
-                    name: 'Uova', quantity: 2, unit: 'pz', category: 'Frigo'),
-                MenuIngredientModel(
-                    name: 'Pane integrale',
-                    quantity: 60,
-                    unit: 'g',
-                    category: 'Pane')
-              ]),
-          MenuMealModel(
-              mealType: 'Pranzo',
-              description: 'Salmone con riso e broccoli',
-              ingredients: [
-                MenuIngredientModel(
-                    name: 'Salmone fresco',
-                    quantity: 180,
-                    unit: 'g',
-                    category: 'Carne e Pesce'),
-                MenuIngredientModel(
-                    name: 'Riso basmati',
-                    quantity: 80,
-                    unit: 'g',
-                    category: 'Dispensa'),
-                MenuIngredientModel(
-                    name: 'Broccoli',
-                    quantity: 200,
-                    unit: 'g',
-                    category: 'Verdura')
-              ]),
-          MenuMealModel(
-              mealType: 'Merenda',
-              description: 'Banana e mandorle',
-              ingredients: [
-                MenuIngredientModel(
-                    name: 'Banana',
-                    quantity: 1,
-                    unit: 'pz',
-                    category: 'Frutta'),
-                MenuIngredientModel(
-                    name: 'Mandorle',
-                    quantity: 20,
-                    unit: 'g',
-                    category: 'Dispensa')
-              ]),
-          MenuMealModel(
-              mealType: 'Cena',
-              description: 'Tacchino con insalata',
-              ingredients: [
-                MenuIngredientModel(
-                    name: 'Tacchino',
-                    quantity: 180,
-                    unit: 'g',
-                    category: 'Carne e Pesce'),
-                MenuIngredientModel(
-                    name: 'Insalata mista',
-                    quantity: 180,
-                    unit: 'g',
-                    category: 'Verdura')
-              ]),
-        ]),
-        DailyMenuModel(dayName: 'Domenica', meals: [
-          MenuMealModel(
-              mealType: 'Colazione',
-              description: 'Yogurt greco con frutta',
-              ingredients: [
-                MenuIngredientModel(
-                    name: 'Yogurt greco',
-                    quantity: 150,
-                    unit: 'g',
-                    category: 'Frigo'),
-                MenuIngredientModel(
-                    name: 'Mela', quantity: 1, unit: 'pz', category: 'Frutta')
-              ]),
-          MenuMealModel(
-              mealType: 'Pranzo',
-              description: 'Pollo con patate al forno',
-              ingredients: [
-                MenuIngredientModel(
-                    name: 'Petto di pollo',
-                    quantity: 220,
-                    unit: 'g',
-                    category: 'Carne e Pesce'),
-                MenuIngredientModel(
-                    name: 'Patate',
-                    quantity: 250,
-                    unit: 'g',
-                    category: 'Verdura'),
-                MenuIngredientModel(
-                    name: 'Olio EVO',
-                    quantity: 15,
-                    unit: 'ml',
-                    category: 'Dispensa')
-              ]),
-          MenuMealModel(
-              mealType: 'Merenda',
-              description: 'Noci e frutti di bosco',
-              ingredients: [
-                MenuIngredientModel(
-                    name: 'Noci',
-                    quantity: 20,
-                    unit: 'g',
-                    category: 'Dispensa'),
-                MenuIngredientModel(
-                    name: 'Frutti di bosco',
-                    quantity: 100,
-                    unit: 'g',
-                    category: 'Frutta')
-              ]),
-          MenuMealModel(
-              mealType: 'Cena',
-              description: 'Merluzzo con spinaci',
-              ingredients: [
-                MenuIngredientModel(
-                    name: 'Merluzzo',
-                    quantity: 200,
-                    unit: 'g',
-                    category: 'Carne e Pesce'),
-                MenuIngredientModel(
-                    name: 'Spinaci',
-                    quantity: 200,
-                    unit: 'g',
-                    category: 'Verdura')
-              ]),
-        ]),
+      final requirements = <String>[
+        if (_isHalal) 'Halal',
+        if (_isKosher) 'Kosher',
       ];
-      // 3A/3B: i dati demo passano dallo stesso contratto JSON e dallo
-      // stesso parser rigoroso che useremo con la risposta reale di Gemini.
-      _weeklyMenu = MenuAiContract.parseResponse(
-        MenuAiContract.demoJsonFromMenu(_weeklyMenu),
+      final excludedFoods = _excludedFoodsController.text.trim();
+      final prompt = '''
+Crea un menu alimentare settimanale in italiano per una persona adulta.
+
+VINCOLI OBBLIGATORI:
+- Genera esattamente 7 giorni: Lunedì, Martedì, Mercoledì, Giovedì, Venerdì, Sabato, Domenica.
+- Ogni giorno deve contenere esattamente 4 pasti: Colazione, Pranzo, Merenda, Cena.
+- Stile alimentare: $_dietStyle.
+- Target calorico giornaliero: ${calories == null ? 'non specificato' : '$calories kcal'}.
+- Requisiti aggiuntivi: ${requirements.isEmpty ? 'nessuno' : requirements.join(', ')}.
+- Alimenti da escludere: ${excludedFoods.isEmpty ? 'nessuno' : excludedFoods}.
+- Rispetta rigorosamente stile alimentare, requisiti ed esclusioni.
+- Ogni pasto deve avere una descrizione sintetica e almeno un ingrediente.
+- Per ogni ingrediente fornisci quantity come numero positivo e unit separata.
+- Usa unità semplici e coerenti, preferendo g, ml e pz quando appropriato.
+- category deve essere ESATTAMENTE una fra: Frigo, Carne e Pesce, Frutta, Verdura, Dispensa, Pane, Generale.
+- calories è opzionale; se presente deve essere un numero positivo.
+- Non generare la lista della spesa: verrà calcolata dall'app a partire dagli ingredienti.
+- Non aggiungere testo, markdown o spiegazioni fuori dal JSON.
+
+Restituisci esclusivamente un oggetto JSON conforme a questa struttura:
+${MenuAiContract.jsonShape}
+''';
+
+      final model = GenerativeModel(
+        model: 'gemini-3.6-flash',
+        apiKey: apiKey,
+        generationConfig:
+            GenerationConfig(responseMimeType: 'application/json'),
       );
-      _shoppingList = _storageService.buildShoppingListFromMenu(_weeklyMenu);
-      await _storageService.saveWeeklyMenu(_weeklyMenu);
-      await _storageService.saveShoppingList(_shoppingList);
+      final response = await model.generateContent([Content.text(prompt)]);
+      final responseText = response.text?.trim();
+      if (responseText == null || responseText.isEmpty) {
+        throw const MenuAiValidationException(
+            'Gemini ha restituito una risposta vuota.');
+      }
+
+      final decoded = jsonDecode(responseText);
+      if (decoded is! Map) {
+        throw const MenuAiValidationException(
+            'Gemini non ha restituito un oggetto JSON.');
+      }
+      final parsedMenu =
+          MenuAiContract.parseResponse(Map<String, dynamic>.from(decoded));
+      final parsedShoppingList =
+          _storageService.buildShoppingListFromMenu(parsedMenu);
+
+      await _storageService.saveWeeklyMenu(parsedMenu);
+      await _storageService.saveShoppingList(parsedShoppingList);
 
       if (!mounted) return;
       setState(() {
+        _weeklyMenu = parsedMenu;
+        _shoppingList = parsedShoppingList;
         _isLoading = false;
         _showGenerator = false;
       });
-
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           backgroundColor: AppColors.success,
-          content: Text('Menu settimanale e lista della spesa creati.'),
+          content: Text('Menu AI e lista della spesa creati.'),
         ),
       );
     } on MenuAiValidationException catch (e) {
@@ -541,11 +177,17 @@ class _IlMioMenuScreenState extends State<IlMioMenuScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Risposta AI non valida: ${e.message}')),
       );
+    } on FormatException catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('JSON Gemini non valido: ${e.message}')),
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Errore durante la generazione: $e')),
+        SnackBar(content: Text('Errore durante la generazione AI: $e')),
       );
     }
   }
@@ -800,16 +442,45 @@ class _IlMioMenuScreenState extends State<IlMioMenuScreen>
               ),
             ),
             const SizedBox(height: 10),
-            Container(
-              decoration: BoxDecoration(
-                color: AppColors.background.withValues(alpha: 0.45),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: SwitchListTile.adaptive(
-                title: const Text('Dieta chetogenica'),
-                subtitle: const Text('Solo se previsto dal tuo piano.'),
-                value: _isKeto,
-                onChanged: (value) => setState(() => _isKeto = value),
+            DropdownButtonFormField<String>(
+              value: _dietStyle,
+              decoration: CozyStyles.cozyInputDecoration('Stile alimentare'),
+              items: const [
+                DropdownMenuItem(value: 'Standard', child: Text('Standard')),
+                DropdownMenuItem(
+                    value: 'Vegetariano', child: Text('Vegetariano')),
+                DropdownMenuItem(value: 'Vegano', child: Text('Vegano')),
+                DropdownMenuItem(
+                    value: 'Chetogenico', child: Text('Chetogenico')),
+              ],
+              onChanged: (value) {
+                if (value != null) setState(() => _dietStyle = value);
+              },
+            ),
+            const SizedBox(height: 10),
+            CozyWoodCard(
+              padding: EdgeInsets.zero,
+              overlayOpacity: 0.78,
+              child: Column(
+                children: [
+                  SwitchListTile.adaptive(
+                    dense: true,
+                    title: const Text('Halal'),
+                    subtitle:
+                        const Text('Applica i requisiti alimentari Halal.'),
+                    value: _isHalal,
+                    onChanged: (value) => setState(() => _isHalal = value),
+                  ),
+                  const Divider(height: 1),
+                  SwitchListTile.adaptive(
+                    dense: true,
+                    title: const Text('Kosher'),
+                    subtitle:
+                        const Text('Applica i requisiti alimentari Kosher.'),
+                    value: _isKosher,
+                    onChanged: (value) => setState(() => _isKosher = value),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 12),
