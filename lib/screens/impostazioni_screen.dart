@@ -117,26 +117,80 @@ class _ImpostazioniScreenState extends State<ImpostazioniScreen> {
 
   Future<void> _consolidaFile() async {
     try {
+      final conferma = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          backgroundColor: AppColors.background,
+          title: const Text(
+            'Manutenzione File',
+            style: TextStyle(
+              fontFamily: 'Serif',
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: const Text(
+            'La manutenzione controllerà tutti i file gestiti '
+            'dall’app, eliminerà i file non più utilizzati e '
+            'rimuoverà eventuali copie duplicate dopo aver '
+            'verificato i riferimenti salvati.\n\n'
+            'Vuoi procedere?',
+            style: TextStyle(fontSize: 13),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text(
+                'Annulla',
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text(
+                'Procedi',
+                style: TextStyle(
+                  color: AppColors.woodAccent,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+
+      if (conferma != true) return;
+
       setState(() => _isLoading = true);
 
       final report = await _storageService.consolidateExternalFiles();
 
-      setState(() => _isLoading = false);
-
       if (!mounted) return;
+
+      setState(() => _isLoading = false);
 
       await showDialog(
         context: context,
         builder: (context) => AlertDialog(
           backgroundColor: AppColors.background,
-          title: const Row(
+          title: Row(
             children: [
-              Icon(Icons.health_and_safety, color: AppColors.woodAccent),
-              SizedBox(width: 8),
+              Icon(
+                report.integrityVerified
+                    ? Icons.verified_user
+                    : Icons.warning_amber_rounded,
+                color: report.integrityVerified
+                    ? const Color(0xFF2E7D32)
+                    : Colors.orange.shade800,
+              ),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Manutenzione completata',
-                  style: TextStyle(
+                  report.integrityVerified
+                      ? 'Manutenzione completata'
+                      : 'Manutenzione da verificare',
+                  style: const TextStyle(
                     fontFamily: 'Serif',
                     fontWeight: FontWeight.bold,
                   ),
@@ -150,43 +204,78 @@ class _ImpostazioniScreenState extends State<ImpostazioniScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildMaintenanceRow(
-                  'File referenziati controllati',
-                  report.checkedFiles,
-                  Icons.search,
+                  'File iniziali',
+                  report.managedFilesBefore,
+                  Icons.folder_open,
                 ),
                 _buildMaintenanceRow(
-                  'Già al sicuro',
-                  report.alreadySafe,
-                  Icons.verified,
+                  'File finali',
+                  report.managedFilesAfter,
+                  Icons.folder,
+                ),
+                _buildMaintenanceRow(
+                  'File referenziati univoci',
+                  report.uniqueReferencedFiles,
+                  Icons.link,
                 ),
                 _buildMaintenanceRow(
                   'File consolidati',
                   report.consolidatedFiles,
                   Icons.security,
                 ),
+                const Divider(height: 24),
                 _buildMaintenanceRow(
-                  'File gestiti presenti',
-                  report.managedFilesOnDisk,
-                  Icons.folder,
+                  'Gruppi duplicati rilevati',
+                  report.duplicateGroups,
+                  Icons.content_copy,
+                ),
+                _buildMaintenanceRow(
+                  'Riferimenti aggiornati',
+                  report.updatedReferences,
+                  Icons.sync_alt,
+                ),
+                _buildMaintenanceRow(
+                  'File eliminati',
+                  report.deletedFiles,
+                  Icons.delete_outline,
+                ),
+                _buildMaintenanceRow(
+                  'Orfani eliminati',
+                  report.deletedOrphanFiles,
+                  Icons.delete_sweep_outlined,
+                ),
+                _buildMaintenanceRow(
+                  'Copie duplicate eliminate',
+                  report.deletedDuplicateFiles,
+                  Icons.file_copy_outlined,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Spazio liberato: '
+                  '${report.recoveredMegabytes.toStringAsFixed(2)} MB',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
                 const Divider(height: 24),
                 _buildMaintenanceRow(
-                  'Possibili duplicati',
-                  report.duplicateFiles,
-                  Icons.content_copy,
-                  warning: report.duplicateFiles > 0,
-                ),
-                _buildMaintenanceRow(
-                  'File orfani',
-                  report.orphanFiles,
-                  Icons.delete_sweep_outlined,
-                  warning: report.orphanFiles > 0,
-                ),
-                _buildMaintenanceRow(
-                  'File mancanti',
-                  report.missingFiles,
+                  'Riferimenti non validi',
+                  report.invalidReferences,
                   Icons.broken_image_outlined,
-                  warning: report.missingFiles > 0,
+                  warning: report.invalidReferences > 0,
+                ),
+                _buildMaintenanceRow(
+                  'Orfani residui',
+                  report.remainingOrphans,
+                  Icons.warning_amber,
+                  warning: report.remainingOrphans > 0,
+                ),
+                _buildMaintenanceRow(
+                  'Duplicati residui',
+                  report.remainingDuplicates,
+                  Icons.content_copy,
+                  warning: report.remainingDuplicates > 0,
                 ),
                 _buildMaintenanceRow(
                   'Errori',
@@ -194,47 +283,35 @@ class _ImpostazioniScreenState extends State<ImpostazioniScreen> {
                   Icons.error_outline,
                   warning: report.errors > 0,
                 ),
-                if (report.duplicateFiles > 0 || report.orphanFiles > 0) ...[
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.withOpacity(0.10),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: Colors.orange.withOpacity(0.4),
-                      ),
-                    ),
-                    child: const Text(
-                      'Sono stati individuati file potenzialmente '
-                      'inutilizzati o duplicati. Per sicurezza, in questa '
-                      'fase non è stato cancellato automaticamente nulla.',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textPrimary,
-                      ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: report.integrityVerified
+                        ? const Color(0xFF2E7D32).withValues(alpha: 0.10)
+                        : Colors.orange.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    report.integrityVerified
+                        ? '✓ Integrità verificata. Ogni file '
+                            'gestito rimasto è referenziato e '
+                            'non risultano copie duplicate.'
+                        : report.cleanupAborted
+                            ? 'Pulizia interrotta prima della '
+                                'cancellazione perché è stata '
+                                'rilevata un’incongruenza.'
+                            : 'La verifica finale ha rilevato '
+                                'una o più anomalie.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: report.integrityVerified
+                          ? const Color(0xFF2E7D32)
+                          : Colors.orange.shade900,
                     ),
                   ),
-                ],
-                if (!report.hasWarnings) ...[
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF2E7D32).withOpacity(0.10),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Text(
-                      '✅ Archivio in ordine. Non sono state rilevate '
-                      'anomalie nei file gestiti dall’app.',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF2E7D32),
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ],
             ),
           ),
@@ -243,23 +320,27 @@ class _ImpostazioniScreenState extends State<ImpostazioniScreen> {
               onPressed: () => Navigator.pop(context),
               child: const Text(
                 'Chiudi',
-                style: TextStyle(color: AppColors.woodAccent),
+                style: TextStyle(
+                  color: AppColors.woodAccent,
+                ),
               ),
             ),
           ],
         ),
       );
     } catch (e) {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
 
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: const Color(0xFFC62828),
-          content: Text('Errore durante la manutenzione: $e'),
-        ),
-      );
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: const Color(0xFFC62828),
+            content: Text(
+              'Errore durante la manutenzione: $e',
+            ),
+          ),
+        );
+      }
     }
   }
 

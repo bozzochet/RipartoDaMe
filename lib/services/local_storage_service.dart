@@ -383,32 +383,60 @@ class LocalStorageService {
   /// e aggiornando i relativi riferimenti nei box Hive.
   Future<FileMaintenanceReport> consolidateExternalFiles() async {
     final appDir = await getApplicationDocumentsDirectory();
-
     final report = FileMaintenanceReport();
 
-    // Percorsi realmente utilizzati dai dati dell'app.
-    final Set<String> referencedPaths = {};
+    final String appDirPath = path.normalize(appDir.path);
+
+    bool isManagedFileName(String fileName) {
+      return fileName.startsWith('body_photo_') ||
+          fileName.startsWith('blood_test_') ||
+          fileName.startsWith('meal_photo_');
+    }
+
+    String normalizeStoredPath(String storedPath) {
+      final cleaned = storedPath.replaceFirst('file://', '');
+
+      if (path.isAbsolute(cleaned)) {
+        return path.normalize(cleaned);
+      }
+
+      return path.normalize(
+        path.join(appDir.path, path.basename(cleaned)),
+      );
+    }
+
+    bool isInsideAppDir(String filePath) {
+      final normalized = path.normalize(filePath);
+
+      return path.isWithin(appDirPath, normalized) ||
+          path.equals(appDirPath, path.dirname(normalized));
+    }
 
     Future<String> fileHash(File file) async {
-      final bytes = await file.readAsBytes();
-      return sha256.convert(bytes).toString();
+      final digest = await sha256.bind(file.openRead()).first;
+      return digest.toString();
     }
+
+    // ------------------------------------------------------------
+    // 1. CONSOLIDA UN SINGOLO FILE
+    // ------------------------------------------------------------
 
     Future<String?> consolidateFile(
       String storedPath, {
       required String prefix,
     }) async {
-      final cleaned = storedPath.replaceFirst('file://', '');
+      final normalizedStoredPath = normalizeStoredPath(storedPath);
 
-      // Prima prova il percorso così come è memorizzato.
-      File sourceFile = File(cleaned);
+      File sourceFile = File(normalizedStoredPath);
 
-      // Se Hive contiene solamente il nome del file, lo cerchiamo
-      // dentro ApplicationDocumentsDirectory.
       if (!await sourceFile.exists()) {
-        sourceFile = File(
-          path.join(appDir.path, path.basename(cleaned)),
+        final fallback = File(
+          path.join(appDir.path, path.basename(storedPath)),
         );
+
+        if (await fallback.exists()) {
+          sourceFile = fallback;
+        }
       }
 
       if (!await sourceFile.exists()) {
@@ -420,31 +448,33 @@ class LocalStorageService {
 
       final sourcePath = path.normalize(sourceFile.path);
 
-      // Il file è già nella sandbox.
-      if (path.isWithin(appDir.path, sourcePath) ||
-          path.equals(appDir.path, path.dirname(sourcePath))) {
+      if (isInsideAppDir(sourcePath)) {
         report.alreadySafe++;
         return sourcePath;
       }
 
-      // Il file è esterno: lo copiamo nella sandbox.
-      final originalName = path.basename(sourcePath);
+      final extension = path.extension(sourcePath);
 
-      String destinationName =
-          '${prefix}_${DateTime.now().microsecondsSinceEpoch}_$originalName';
+      final destinationName =
+          '${prefix}_${DateTime.now().microsecondsSinceEpoch}$extension';
 
-      String destinationPath = path.join(appDir.path, destinationName);
+      final destinationPath = path.join(
+        appDir.path,
+        destinationName,
+      );
 
       await sourceFile.copy(destinationPath);
 
       report.consolidatedFiles++;
+
       return path.normalize(destinationPath);
     }
 
     // ------------------------------------------------------------
-    // 1. FOTO PROGRESSI
+    // 2. CONSOLIDAMENTO + NORMALIZZAZIONE RIFERIMENTI HIVE
     // ------------------------------------------------------------
 
+    // FOTO PROGRESSI
     for (final key in _photosBox.keys.toList()) {
       final data = _photosBox.get(key);
       if (data == null) continue;
@@ -461,27 +491,21 @@ class LocalStorageService {
         );
 
         if (finalPath != null) {
-          referencedPaths.add(path.normalize(finalPath));
-
-          // Conserviamo il solo nome per mantenere la stessa convenzione
-          // già usata dalle schermate dell'app.
           final newReference = path.basename(finalPath);
 
           if (map['imagePath'] != newReference) {
             map['imagePath'] = newReference;
             await _photosBox.put(key, map);
+            report.updatedReferences++;
           }
         }
       } catch (e) {
         report.errors++;
-        debugPrint('⚠️ Errore foto progressi $key: $e');
+        debugPrint('Errore foto progressi $key: $e');
       }
     }
 
-    // ------------------------------------------------------------
-    // 2. REFERTI SANGUE / URINE
-    // ------------------------------------------------------------
-
+    // REFERTI
     for (final key in _bloodTestsBox.keys.toList()) {
       final data = _bloodTestsBox.get(key);
       if (data == null) continue;
@@ -498,35 +522,31 @@ class LocalStorageService {
         );
 
         if (finalPath != null) {
-          referencedPaths.add(path.normalize(finalPath));
-
           final newReference = path.basename(finalPath);
 
           if (map['filePath'] != newReference) {
             map['filePath'] = newReference;
             await _bloodTestsBox.put(key, map);
+            report.updatedReferences++;
           }
         }
       } catch (e) {
         report.errors++;
-        debugPrint('⚠️ Errore referto $key: $e');
+        debugPrint('Errore referto $key: $e');
       }
     }
 
-    // ------------------------------------------------------------
-    // 3. FOTO DEI PASTI
-    // ------------------------------------------------------------
-
+    // FOTO PASTI
     for (final key in _mealsBox.keys.toList()) {
       final data = _mealsBox.get(key);
       if (data == null) continue;
 
       try {
-        final List<dynamic> mealsData = List<dynamic>.from(data);
-        bool boxChanged = false;
+        final mealsData = List<dynamic>.from(data);
+        bool changed = false;
 
-        for (int mealIndex = 0; mealIndex < mealsData.length; mealIndex++) {
-          final mealMap = Map<String, dynamic>.from(mealsData[mealIndex]);
+        for (int i = 0; i < mealsData.length; i++) {
+          final mealMap = Map<String, dynamic>.from(mealsData[i]);
 
           final rawPhotoPath = mealMap['photoPath']?.toString();
 
@@ -534,7 +554,6 @@ class LocalStorageService {
             continue;
           }
 
-          // Il diario usa "|" per memorizzare più fotografie.
           final oldReferences = rawPhotoPath
               .split('|')
               .where((item) => item.trim().isNotEmpty)
@@ -549,11 +568,8 @@ class LocalStorageService {
             );
 
             if (finalPath != null) {
-              referencedPaths.add(path.normalize(finalPath));
               newReferences.add(path.basename(finalPath));
             } else {
-              // Non cancelliamo automaticamente dalla struttura Hive
-              // un riferimento mancante.
               newReferences.add(storedPath);
             }
           }
@@ -562,68 +578,111 @@ class LocalStorageService {
 
           if (newPhotoPath != rawPhotoPath) {
             mealMap['photoPath'] = newPhotoPath;
-            mealsData[mealIndex] = mealMap;
-            boxChanged = true;
+            mealsData[i] = mealMap;
+            changed = true;
+            report.updatedReferences++;
           }
         }
 
-        if (boxChanged) {
+        if (changed) {
           await _mealsBox.put(key, mealsData);
         }
       } catch (e) {
         report.errors++;
-        debugPrint('⚠️ Errore foto pasti $key: $e');
+        debugPrint('Errore foto pasti $key: $e');
       }
     }
 
     // ------------------------------------------------------------
-    // 4. SCANSIONE FILE GESTITI DA RIPARTO DA ME
+    // 3. FUNZIONE CHE RICOSTRUISCE I RIFERIMENTI DA HIVE
     // ------------------------------------------------------------
 
-    final List<File> managedFiles = [];
+    Set<String> collectReferencedPaths() {
+      final result = <String>{};
 
-    if (await appDir.exists()) {
-      await for (final entity
-          in appDir.list(recursive: false, followLinks: false)) {
-        if (entity is! File) continue;
+      for (final key in _photosBox.keys) {
+        final data = _photosBox.get(key);
+        if (data == null) continue;
 
-        final fileName = path.basename(entity.path);
+        try {
+          final map = Map<String, dynamic>.from(data);
+          final storedPath = (map['imagePath'] ?? map['path'])?.toString();
 
-        // Limitiamo volutamente la manutenzione ai file che
-        // riconosciamo come creati dall'app.
-        final isManaged = fileName.startsWith('body_photo_') ||
-            fileName.startsWith('blood_test_') ||
-            fileName.startsWith('meal_photo_');
-
-        if (isManaged) {
-          managedFiles.add(entity);
-        }
+          if (storedPath != null && storedPath.isNotEmpty) {
+            result.add(normalizeStoredPath(storedPath));
+          }
+        } catch (_) {}
       }
+
+      for (final key in _bloodTestsBox.keys) {
+        final data = _bloodTestsBox.get(key);
+        if (data == null) continue;
+
+        try {
+          final map = Map<String, dynamic>.from(data);
+          final storedPath = (map['filePath'] ?? map['pdfPath'])?.toString();
+
+          if (storedPath != null && storedPath.isNotEmpty) {
+            result.add(normalizeStoredPath(storedPath));
+          }
+        } catch (_) {}
+      }
+
+      for (final key in _mealsBox.keys) {
+        final data = _mealsBox.get(key);
+        if (data == null) continue;
+
+        try {
+          final mealsData = List<dynamic>.from(data);
+
+          for (final meal in mealsData) {
+            final mealMap = Map<String, dynamic>.from(meal);
+
+            final rawPhotoPath = mealMap['photoPath']?.toString();
+
+            if (rawPhotoPath == null || rawPhotoPath.isEmpty) {
+              continue;
+            }
+
+            for (final storedPath in rawPhotoPath.split('|')) {
+              if (storedPath.trim().isNotEmpty) {
+                result.add(normalizeStoredPath(storedPath));
+              }
+            }
+          }
+        } catch (_) {}
+      }
+
+      return result;
     }
 
-    report.managedFilesOnDisk = managedFiles.length;
-
     // ------------------------------------------------------------
-    // 5. FILE ORFANI
+    // 4. FUNZIONE CHE LEGGE I FILE FISICI GESTITI
     // ------------------------------------------------------------
 
-    final List<File> orphanFiles = [];
+    List<File> getManagedFiles() {
+      if (!appDir.existsSync()) return [];
 
-    for (final file in managedFiles) {
-      final normalizedPath = path.normalize(file.path);
-
-      if (!referencedPaths.contains(normalizedPath)) {
-        orphanFiles.add(file);
-      }
+      return appDir
+          .listSync(recursive: false, followLinks: false)
+          .whereType<File>()
+          .where(
+            (file) => isManagedFileName(
+              path.basename(file.path),
+            ),
+          )
+          .toList();
     }
 
-    report.orphanFiles = orphanFiles.length;
-    report.orphanFileNames.addAll(
-      orphanFiles.map((file) => path.basename(file.path)),
-    );
+    // Prima fotografia dello stato.
+    var referencedPaths = collectReferencedPaths();
+    var managedFiles = getManagedFiles();
+
+    report.managedFilesBefore = managedFiles.length;
+    report.uniqueReferencedFiles = referencedPaths.length;
 
     // ------------------------------------------------------------
-    // 6. DUPLICATI SHA-256
+    // 5. INDICE SHA-256
     // ------------------------------------------------------------
 
     final Map<String, List<File>> filesByHash = {};
@@ -631,23 +690,343 @@ class LocalStorageService {
     for (final file in managedFiles) {
       try {
         final hash = await fileHash(file);
+
         filesByHash.putIfAbsent(hash, () => []).add(file);
       } catch (e) {
         report.errors++;
-        debugPrint('⚠️ Impossibile calcolare hash di ${file.path}: $e');
+        debugPrint(
+          'Impossibile calcolare hash di ${file.path}: $e',
+        );
       }
     }
+
+    // ------------------------------------------------------------
+    // 6. DEDUPLICAZIONE DEI FILE REFERENZIATI
+    // ------------------------------------------------------------
 
     for (final group in filesByHash.values) {
       if (group.length <= 1) continue;
 
-      // N file con identico contenuto significano N-1 copie duplicate.
-      report.duplicateFiles += group.length - 1;
+      report.duplicateGroups++;
 
-      report.duplicateGroups.add(
-        group.map((file) => path.basename(file.path)).toList(),
-      );
+      final referencedFiles = group.where((file) {
+        return referencedPaths.contains(
+          path.normalize(file.path),
+        );
+      }).toList();
+
+      if (referencedFiles.isEmpty) {
+        // Tutto il gruppo è orfano.
+        // Verrà trattato nella pulizia degli orfani.
+        continue;
+      }
+
+      // Scegliamo come canonico il primo file realmente referenziato.
+      final canonicalFile = referencedFiles.first;
+      final canonicalName = path.basename(canonicalFile.path);
+      final canonicalPath = path.normalize(canonicalFile.path);
+
+      final duplicatePaths = group
+          .map((file) => path.normalize(file.path))
+          .where((filePath) => filePath != canonicalPath)
+          .toSet();
+
+      if (duplicatePaths.isEmpty) continue;
+
+      // ----------------------------------------------------------
+      // 6A. AGGIORNA FOTO PROGRESSI
+      // ----------------------------------------------------------
+
+      for (final key in _photosBox.keys.toList()) {
+        final data = _photosBox.get(key);
+        if (data == null) continue;
+
+        try {
+          final map = Map<String, dynamic>.from(data);
+          final storedPath = (map['imagePath'] ?? map['path'])?.toString();
+
+          if (storedPath == null || storedPath.isEmpty) {
+            continue;
+          }
+
+          final normalized = normalizeStoredPath(storedPath);
+
+          if (duplicatePaths.contains(normalized)) {
+            map['imagePath'] = canonicalName;
+            await _photosBox.put(key, map);
+            report.updatedReferences++;
+          }
+        } catch (e) {
+          report.errors++;
+        }
+      }
+
+      // ----------------------------------------------------------
+      // 6B. AGGIORNA REFERTI
+      // ----------------------------------------------------------
+
+      for (final key in _bloodTestsBox.keys.toList()) {
+        final data = _bloodTestsBox.get(key);
+        if (data == null) continue;
+
+        try {
+          final map = Map<String, dynamic>.from(data);
+          final storedPath = (map['filePath'] ?? map['pdfPath'])?.toString();
+
+          if (storedPath == null || storedPath.isEmpty) {
+            continue;
+          }
+
+          final normalized = normalizeStoredPath(storedPath);
+
+          if (duplicatePaths.contains(normalized)) {
+            map['filePath'] = canonicalName;
+            await _bloodTestsBox.put(key, map);
+            report.updatedReferences++;
+          }
+        } catch (e) {
+          report.errors++;
+        }
+      }
+
+      // ----------------------------------------------------------
+      // 6C. AGGIORNA FOTO PASTI
+      // ----------------------------------------------------------
+
+      for (final key in _mealsBox.keys.toList()) {
+        final data = _mealsBox.get(key);
+        if (data == null) continue;
+
+        try {
+          final mealsData = List<dynamic>.from(data);
+          bool changed = false;
+
+          for (int i = 0; i < mealsData.length; i++) {
+            final mealMap = Map<String, dynamic>.from(mealsData[i]);
+
+            final rawPhotoPath = mealMap['photoPath']?.toString();
+
+            if (rawPhotoPath == null || rawPhotoPath.isEmpty) {
+              continue;
+            }
+
+            final refs = rawPhotoPath
+                .split('|')
+                .where((value) => value.trim().isNotEmpty)
+                .toList();
+
+            bool mealChanged = false;
+
+            final newRefs = refs.map((storedPath) {
+              final normalized = normalizeStoredPath(storedPath);
+
+              if (duplicatePaths.contains(normalized)) {
+                mealChanged = true;
+                return canonicalName;
+              }
+
+              return storedPath;
+            }).toList();
+
+            // Se nello stesso pasto due riferimenti sono diventati
+            // la stessa immagine, ne teniamo uno solo.
+            final deduplicatedRefs = <String>[];
+
+            for (final reference in newRefs) {
+              if (!deduplicatedRefs.contains(reference)) {
+                deduplicatedRefs.add(reference);
+              }
+            }
+
+            if (mealChanged || deduplicatedRefs.length != refs.length) {
+              mealMap['photoPath'] = deduplicatedRefs.join('|');
+              mealsData[i] = mealMap;
+              changed = true;
+            }
+          }
+
+          if (changed) {
+            await _mealsBox.put(key, mealsData);
+            report.updatedReferences++;
+          }
+        } catch (e) {
+          report.errors++;
+        }
+      }
     }
+
+    // ------------------------------------------------------------
+    // 7. BARRIERA DI SICUREZZA
+    //
+    // RICOSTRUIAMO I RIFERIMENTI DA HIVE DOPO GLI AGGIORNAMENTI.
+    // ------------------------------------------------------------
+
+    referencedPaths = collectReferencedPaths();
+    managedFiles = getManagedFiles();
+
+    // Se un riferimento Hive dovrebbe indicare un file gestito ma
+    // quel file non esiste, non eseguiamo nessuna cancellazione.
+    final existingManagedPaths =
+        managedFiles.map((file) => path.normalize(file.path)).toSet();
+
+    final managedReferences = referencedPaths.where((reference) {
+      return isManagedFileName(path.basename(reference));
+    }).toSet();
+
+    final invalidReferences = managedReferences
+        .where(
+          (reference) => !existingManagedPaths.contains(reference),
+        )
+        .toList();
+
+    report.invalidReferences = invalidReferences.length;
+
+    if (report.invalidReferences > 0 || report.errors > 0) {
+      report.cleanupAborted = true;
+      report.managedFilesAfter = managedFiles.length;
+      return report;
+    }
+
+    // ------------------------------------------------------------
+    // 8. PIANO DI CANCELLAZIONE
+    //
+    // DOPO LA DEDUPLICAZIONE, QUALSIASI FILE GESTITO CHE NON È
+    // REFERENZIATO DA HIVE È REALMENTE ORFANO.
+    // ------------------------------------------------------------
+
+    final filesToDelete = managedFiles.where((file) {
+      final normalized = path.normalize(file.path);
+      return !referencedPaths.contains(normalized);
+    }).toList();
+
+    int bytesToRecover = 0;
+
+    for (final file in filesToDelete) {
+      try {
+        bytesToRecover += await file.length();
+      } catch (_) {}
+    }
+
+    // ------------------------------------------------------------
+    // 9. ULTIMO CONTROLLO SUBITO PRIMA DELLA DELETE
+    // ------------------------------------------------------------
+
+    final finalReferencesBeforeDelete = collectReferencedPaths();
+
+    for (final file in filesToDelete) {
+      final normalized = path.normalize(file.path);
+
+      if (finalReferencesBeforeDelete.contains(normalized)) {
+        report.cleanupAborted = true;
+        report.errors++;
+        report.managedFilesAfter = managedFiles.length;
+
+        debugPrint(
+          'Pulizia interrotta: ${file.path} '
+          'risulta ancora referenziato.',
+        );
+
+        return report;
+      }
+    }
+
+    // ------------------------------------------------------------
+    // 10. CANCELLAZIONE DEFINITIVA
+    // ------------------------------------------------------------
+
+    for (final file in filesToDelete) {
+      try {
+        final filePath = path.normalize(file.path);
+
+        // Classificazione solo per report.
+        final hash = await fileHash(file);
+        final group = filesByHash[hash] ?? const <File>[];
+
+        final hasAnotherCopy = group.any(
+          (other) =>
+              path.normalize(other.path) != filePath &&
+              !filesToDelete.any(
+                (candidate) =>
+                    path.normalize(candidate.path) ==
+                    path.normalize(other.path),
+              ),
+        );
+
+        await file.delete();
+
+        report.deletedFiles++;
+
+        if (hasAnotherCopy) {
+          report.deletedDuplicateFiles++;
+        } else {
+          report.deletedOrphanFiles++;
+        }
+      } catch (e) {
+        report.errors++;
+
+        debugPrint(
+          'Errore eliminando ${file.path}: $e',
+        );
+      }
+    }
+
+    report.recoveredBytes = bytesToRecover;
+
+    // ------------------------------------------------------------
+    // 11. VERIFICA FINALE
+    // ------------------------------------------------------------
+
+    final finalManagedFiles = getManagedFiles();
+    final finalReferences = collectReferencedPaths();
+
+    report.managedFilesAfter = finalManagedFiles.length;
+
+    final finalManagedPaths =
+        finalManagedFiles.map((file) => path.normalize(file.path)).toSet();
+
+    // Ogni file gestito rimasto deve essere referenziato.
+    final remainingOrphans = finalManagedPaths
+        .where(
+          (filePath) => !finalReferences.contains(filePath),
+        )
+        .toList();
+
+    // Ogni riferimento gestito deve avere il relativo file.
+    final remainingInvalidReferences = finalReferences
+        .where(
+          (reference) =>
+              isManagedFileName(path.basename(reference)) &&
+              !finalManagedPaths.contains(reference),
+        )
+        .toList();
+
+    // Verifichiamo anche che non esistano più copie fisiche
+    // identiche tra i file gestiti rimasti.
+    final Map<String, int> finalHashes = {};
+
+    for (final file in finalManagedFiles) {
+      try {
+        final hash = await fileHash(file);
+        finalHashes[hash] = (finalHashes[hash] ?? 0) + 1;
+      } catch (e) {
+        report.errors++;
+      }
+    }
+
+    final remainingDuplicateCopies =
+        finalHashes.values.where((count) => count > 1).fold<int>(
+              0,
+              (total, count) => total + count - 1,
+            );
+
+    report.remainingOrphans = remainingOrphans.length;
+    report.remainingDuplicates = remainingDuplicateCopies;
+    report.invalidReferences = remainingInvalidReferences.length;
+
+    report.integrityVerified = report.errors == 0 &&
+        report.remainingOrphans == 0 &&
+        report.remainingDuplicates == 0 &&
+        report.invalidReferences == 0;
 
     return report;
   }
@@ -793,16 +1172,30 @@ class FileMaintenanceReport {
   int consolidatedFiles = 0;
   int alreadySafe = 0;
   int missingFiles = 0;
-  int managedFilesOnDisk = 0;
-  int orphanFiles = 0;
-  int duplicateFiles = 0;
+
+  int managedFilesBefore = 0;
+  int managedFilesAfter = 0;
+  int uniqueReferencedFiles = 0;
+
+  int duplicateGroups = 0;
+
+  int updatedReferences = 0;
+
+  int deletedFiles = 0;
+  int deletedOrphanFiles = 0;
+  int deletedDuplicateFiles = 0;
+
+  int invalidReferences = 0;
+  int remainingOrphans = 0;
+  int remainingDuplicates = 0;
+
+  int recoveredBytes = 0;
   int errors = 0;
 
-  final List<String> orphanFileNames = [];
-  final List<List<String>> duplicateGroups = [];
+  bool cleanupAborted = false;
+  bool integrityVerified = false;
 
-  bool get hasWarnings =>
-      missingFiles > 0 || orphanFiles > 0 || duplicateFiles > 0 || errors > 0;
+  double get recoveredMegabytes => recoveredBytes / (1024 * 1024);
 }
 
 // Funzione di supporto interna per evitare ambiguità
