@@ -65,6 +65,40 @@ class LocalStorageService {
     return [];
   }
 
+  List<ShoppingItemModel> buildShoppingListFromMenu(List<DailyMenuModel> menu) {
+    final aggregated = <String, ShoppingItemModel>{};
+    for (final day in menu) {
+      for (final meal in day.meals) {
+        for (final ingredient in meal.ingredients) {
+          final normalizedName = ingredient.name.trim().toLowerCase();
+          final normalizedUnit = ingredient.unit.trim().toLowerCase();
+          if (normalizedName.isEmpty || ingredient.quantity <= 0) continue;
+          final key = '$normalizedName|$normalizedUnit';
+          final existing = aggregated[key];
+          if (existing == null) {
+            aggregated[key] = ShoppingItemModel(
+              id: key,
+              name: ingredient.name.trim(),
+              category: ingredient.category.trim().isEmpty
+                  ? 'Generale'
+                  : ingredient.category.trim(),
+              quantity: ingredient.quantity,
+              unit: ingredient.unit.trim(),
+            );
+          } else {
+            existing.quantity = (existing.quantity ?? 0) + ingredient.quantity;
+          }
+        }
+      }
+    }
+    final result = aggregated.values.toList();
+    result.sort((a, b) {
+      final byCategory = a.category.compareTo(b.category);
+      return byCategory != 0 ? byCategory : a.name.compareTo(b.name);
+    });
+    return result;
+  }
+
   Future<void> saveShoppingList(List<ShoppingItemModel> items) async {
     final Map<String, dynamic> mapData = {
       for (var item in items) item.id: item.toMap()
@@ -1324,6 +1358,8 @@ class LocalStorageService {
       'photosBox': Map.from(_photosBox.toMap()),
       'bloodTestsBox': Map.from(_bloodTestsBox.toMap()),
       'mealsBox': Map.from(_mealsBox.toMap()),
+      'menuBox': Map.from(_menuBox.toMap()),
+      'shoppingBox': Map.from(_shoppingBox.toMap()),
     };
   }
 
@@ -1370,6 +1406,16 @@ class LocalStorageService {
     if (jsonData.containsKey('mealsBox') && jsonData['mealsBox'] != null) {
       await _mealsBox.clear();
       await _mealsBox.putAll(Map<dynamic, dynamic>.from(jsonData['mealsBox']));
+    }
+    if (jsonData.containsKey('menuBox') && jsonData['menuBox'] != null) {
+      await _menuBox.clear();
+      await _menuBox.putAll(Map<dynamic, dynamic>.from(jsonData['menuBox']));
+    }
+    if (jsonData.containsKey('shoppingBox') &&
+        jsonData['shoppingBox'] != null) {
+      await _shoppingBox.clear();
+      await _shoppingBox
+          .putAll(Map<dynamic, dynamic>.from(jsonData['shoppingBox']));
     }
   }
 
