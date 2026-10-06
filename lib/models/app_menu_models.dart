@@ -151,6 +151,7 @@ class MenuAiContract {
 
   static const List<String> expectedMealTypes = [
     'Colazione',
+    'Spuntino',
     'Pranzo',
     'Merenda',
     'Cena',
@@ -366,4 +367,50 @@ class MenuAiContract {
       {
         'days': menu.map((day) => day.toMap()).toList(),
       };
+}
+
+class MenuGenerationInfo {
+  final int? targetCalories;
+  final String dietStyle;
+  final List<String> excludedFoods;
+  final bool halal;
+  final bool kosher;
+  final String? dietDocumentName;
+  final DateTime generatedAt;
+
+  MenuGenerationInfo({
+    this.targetCalories,
+    required this.dietStyle,
+    this.excludedFoods = const [],
+    this.halal = false,
+    this.kosher = false,
+    this.dietDocumentName,
+    required this.generatedAt,
+  });
+
+  Map<String, dynamic> toMap() => {
+        'targetCalories': targetCalories,
+        'dietStyle': dietStyle,
+        'excludedFoods': excludedFoods,
+        'halal': halal,
+        'kosher': kosher,
+        'dietDocumentName': dietDocumentName,
+        'generatedAt': generatedAt.toIso8601String(),
+      };
+
+  factory MenuGenerationInfo.fromMap(Map<String, dynamic> map) {
+    final rawExcluded = map['excludedFoods'];
+    return MenuGenerationInfo(
+      targetCalories: (map['targetCalories'] as num?)?.round(),
+      dietStyle: map['dietStyle']?.toString() ?? 'Standard',
+      excludedFoods: rawExcluded is List
+          ? rawExcluded.map((item) => item.toString()).toList()
+          : [],
+      halal: map['halal'] == true,
+      kosher: map['kosher'] == true,
+      dietDocumentName: map['dietDocumentName']?.toString(),
+      generatedAt: DateTime.tryParse(map['generatedAt']?.toString() ?? '') ??
+          DateTime.now(),
+    );
+  }
 }

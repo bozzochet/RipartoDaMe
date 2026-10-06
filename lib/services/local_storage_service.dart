@@ -54,6 +54,20 @@ class LocalStorageService {
     await _menuBox.put('current_menu', mapData);
   }
 
+  Future<void> saveMenuGenerationInfo(MenuGenerationInfo info) async {
+    await _menuBox.put('generation_info', info.toMap());
+  }
+
+  MenuGenerationInfo? getMenuGenerationInfo() {
+    final data = _menuBox.get('generation_info');
+    if (data == null) return null;
+    try {
+      return MenuGenerationInfo.fromMap(Map<String, dynamic>.from(data));
+    } catch (_) {
+      return null;
+    }
+  }
+
   List<DailyMenuModel> getWeeklyMenu() {
     final data = _menuBox.get('current_menu');
     if (data != null) {
