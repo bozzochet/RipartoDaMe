@@ -514,6 +514,11 @@ class _IlMioMenuScreenState extends State<IlMioMenuScreen>
               ]),
         ]),
       ];
+      // 3A/3B: i dati demo passano dallo stesso contratto JSON e dallo
+      // stesso parser rigoroso che useremo con la risposta reale di Gemini.
+      _weeklyMenu = MenuAiContract.parseResponse(
+        MenuAiContract.demoJsonFromMenu(_weeklyMenu),
+      );
       _shoppingList = _storageService.buildShoppingListFromMenu(_weeklyMenu);
       await _storageService.saveWeeklyMenu(_weeklyMenu);
       await _storageService.saveShoppingList(_shoppingList);
@@ -529,6 +534,12 @@ class _IlMioMenuScreenState extends State<IlMioMenuScreen>
           backgroundColor: AppColors.success,
           content: Text('Menu settimanale e lista della spesa creati.'),
         ),
+      );
+    } on MenuAiValidationException catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Risposta AI non valida: ${e.message}')),
       );
     } catch (e) {
       if (!mounted) return;

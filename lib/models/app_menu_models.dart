@@ -128,3 +128,242 @@ class ShoppingItemModel {
         unit: map['unit']?.toString(),
       );
 }
+
+class MenuAiValidationException implements Exception {
+  final String message;
+
+  const MenuAiValidationException(this.message);
+
+  @override
+  String toString() => message;
+}
+
+class MenuAiContract {
+  static const List<String> expectedDays = [
+    'Lunedì',
+    'Martedì',
+    'Mercoledì',
+    'Giovedì',
+    'Venerdì',
+    'Sabato',
+    'Domenica',
+  ];
+
+  static const List<String> expectedMealTypes = [
+    'Colazione',
+    'Pranzo',
+    'Merenda',
+    'Cena',
+  ];
+
+  static const Set<String> allowedCategories = {
+    'Frigo',
+    'Carne e Pesce',
+    'Frutta',
+    'Verdura',
+    'Dispensa',
+    'Pane',
+    'Generale',
+  };
+
+  static const String jsonShape = r'''
+{
+  "days": [
+    {
+      "dayName": "Lunedì",
+      "meals": [
+        {
+          "mealType": "Colazione",
+          "description": "Descrizione sintetica del pasto",
+          "calories": 350,
+          "ingredients": [
+            {
+              "name": "Yogurt greco",
+              "quantity": 150,
+              "unit": "g",
+              "category": "Frigo"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+''';
+
+  static List<DailyMenuModel> parseResponse(Map<String, dynamic> json) {
+    final rawDays = json['days'];
+    if (rawDays is! List) {
+      throw const MenuAiValidationException(
+        'La risposta AI non contiene una lista "days" valida.',
+      );
+    }
+    if (rawDays.length != expectedDays.length) {
+      throw MenuAiValidationException(
+        'La risposta AI deve contenere esattamente 7 giorni, ma ne contiene ${rawDays.length}.',
+      );
+    }
+
+    final parsedByDay = <String, DailyMenuModel>{};
+
+    for (final rawDay in rawDays) {
+      if (rawDay is! Map) {
+        throw const MenuAiValidationException(
+          'Un giorno del menu non è un oggetto JSON valido.',
+        );
+      }
+
+      final day = Map<String, dynamic>.from(rawDay);
+      final dayName = day['dayName']?.toString().trim() ?? '';
+
+      if (!expectedDays.contains(dayName)) {
+        throw MenuAiValidationException(
+          'Giorno non valido nella risposta AI: "$dayName".',
+        );
+      }
+      if (parsedByDay.containsKey(dayName)) {
+        throw MenuAiValidationException(
+          'Il giorno "$dayName" compare più di una volta.',
+        );
+      }
+
+      final rawMeals = day['meals'];
+      if (rawMeals is! List || rawMeals.length != expectedMealTypes.length) {
+        throw MenuAiValidationException(
+          '$dayName deve contenere esattamente 4 pasti.',
+        );
+      }
+
+      final parsedMeals = <String, MenuMealModel>{};
+
+      for (final rawMeal in rawMeals) {
+        if (rawMeal is! Map) {
+          throw MenuAiValidationException(
+            '$dayName contiene un pasto non valido.',
+          );
+        }
+
+        final meal = Map<String, dynamic>.from(rawMeal);
+        final mealType = meal['mealType']?.toString().trim() ?? '';
+
+        if (!expectedMealTypes.contains(mealType)) {
+          throw MenuAiValidationException(
+            '$dayName contiene un tipo di pasto non valido: "$mealType".',
+          );
+        }
+        if (parsedMeals.containsKey(mealType)) {
+          throw MenuAiValidationException(
+            '$dayName contiene due pasti di tipo "$mealType".',
+          );
+        }
+
+        final description = meal['description']?.toString().trim() ?? '';
+        if (description.isEmpty) {
+          throw MenuAiValidationException(
+            '$dayName - $mealType non contiene una descrizione.',
+          );
+        }
+
+        double? calories;
+        final rawCalories = meal['calories'];
+        if (rawCalories != null) {
+          if (rawCalories is! num || rawCalories <= 0) {
+            throw MenuAiValidationException(
+              '$dayName - $mealType contiene calorie non valide.',
+            );
+          }
+          calories = rawCalories.toDouble();
+        }
+
+        final rawIngredients = meal['ingredients'];
+        if (rawIngredients is! List || rawIngredients.isEmpty) {
+          throw MenuAiValidationException(
+            '$dayName - $mealType deve contenere almeno un ingrediente.',
+          );
+        }
+
+        final ingredients = <MenuIngredientModel>[];
+        for (final rawIngredient in rawIngredients) {
+          if (rawIngredient is! Map) {
+            throw MenuAiValidationException(
+              '$dayName - $mealType contiene un ingrediente non valido.',
+            );
+          }
+
+          final ingredient = Map<String, dynamic>.from(rawIngredient);
+          final name = ingredient['name']?.toString().trim() ?? '';
+          final quantity = ingredient['quantity'];
+          final unit = ingredient['unit']?.toString().trim() ?? '';
+          final category = ingredient['category']?.toString().trim() ?? '';
+
+          if (name.isEmpty) {
+            throw MenuAiValidationException(
+              '$dayName - $mealType contiene un ingrediente senza nome.',
+            );
+          }
+          if (quantity is! num || quantity <= 0) {
+            throw MenuAiValidationException(
+              '$dayName - $mealType: quantità non valida per "$name".',
+            );
+          }
+          if (unit.isEmpty) {
+            throw MenuAiValidationException(
+              '$dayName - $mealType: unità mancante per "$name".',
+            );
+          }
+          if (!allowedCategories.contains(category)) {
+            throw MenuAiValidationException(
+              '$dayName - $mealType: categoria non valida per "$name": "$category".',
+            );
+          }
+
+          ingredients.add(
+            MenuIngredientModel(
+              name: name,
+              quantity: quantity.toDouble(),
+              unit: unit,
+              category: category,
+            ),
+          );
+        }
+
+        parsedMeals[mealType] = MenuMealModel(
+          mealType: mealType,
+          description: description,
+          calories: calories,
+          ingredients: ingredients,
+        );
+      }
+
+      for (final mealType in expectedMealTypes) {
+        if (!parsedMeals.containsKey(mealType)) {
+          throw MenuAiValidationException(
+            '$dayName non contiene il pasto "$mealType".',
+          );
+        }
+      }
+
+      parsedByDay[dayName] = DailyMenuModel(
+        dayName: dayName,
+        meals: expectedMealTypes.map((type) => parsedMeals[type]!).toList(),
+      );
+    }
+
+    for (final dayName in expectedDays) {
+      if (!parsedByDay.containsKey(dayName)) {
+        throw MenuAiValidationException(
+          'La risposta AI non contiene "$dayName".',
+        );
+      }
+    }
+
+    return expectedDays.map((day) => parsedByDay[day]!).toList();
+  }
+
+  static Map<String, dynamic> demoJsonFromMenu(
+    List<DailyMenuModel> menu,
+  ) =>
+      {
+        'days': menu.map((day) => day.toMap()).toList(),
+      };
+}
