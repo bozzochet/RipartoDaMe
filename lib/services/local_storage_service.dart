@@ -55,7 +55,53 @@ class LocalStorageService {
   }
 
   Future<void> saveMenuGenerationInfo(MenuGenerationInfo info) async {
+    final previousData = _menuBox.get('generation_info');
+    String? previousDocumentPath;
+    if (previousData != null) {
+      try {
+        previousDocumentPath = Map<String, dynamic>.from(
+          previousData,
+        )['dietDocumentPath']
+            ?.toString();
+      } catch (_) {}
+    }
+
     await _menuBox.put('generation_info', info.toMap());
+
+    if (previousDocumentPath != null &&
+        previousDocumentPath != info.dietDocumentPath) {
+      await _deleteFileIfUnreferenced(previousDocumentPath);
+    }
+  }
+
+  Future<String> persistMenuDietDocument(File sourceFile) async {
+    if (!await sourceFile.exists()) {
+      throw const FileSystemException(
+        'Il piano alimentare selezionato non è più disponibile.',
+      );
+    }
+
+    final appDir = await getApplicationDocumentsDirectory();
+    final extension = path.extension(sourceFile.path).toLowerCase();
+    const allowedExtensions = {'.pdf', '.jpg', '.jpeg', '.png'};
+    if (!allowedExtensions.contains(extension)) {
+      throw FileSystemException(
+        'Formato del piano alimentare non supportato: $extension',
+      );
+    }
+
+    final fileName =
+        'menu_diet_${DateTime.now().microsecondsSinceEpoch}$extension';
+    final destination = File(path.join(appDir.path, fileName));
+    await sourceFile.copy(destination.path);
+    return fileName;
+  }
+
+  Future<File?> getMenuDietDocument(String? storedPath) async {
+    if (storedPath == null || storedPath.trim().isEmpty) return null;
+    final resolvedPath = await _resolveManagedFilePath(storedPath);
+    final file = File(resolvedPath);
+    return await file.exists() ? file : null;
   }
 
   MenuGenerationInfo? getMenuGenerationInfo() {
@@ -129,6 +175,121 @@ class LocalStorageService {
           .toList();
     }
     return [];
+  }
+
+  Future<List<MenuHistoryEntry>> getMenuHistory() async {
+    final entries = <MenuHistoryEntry>[];
+    final rawHistory = _menuBox.get('menu_history');
+    if (rawHistory is List) {
+      for (final rawEntry in rawHistory) {
+        if (rawEntry is! Map) continue;
+        try {
+          final entry =
+              MenuHistoryEntry.fromMap(Map<String, dynamic>.from(rawEntry));
+          if (entry.id.isNotEmpty && entry.menu.isNotEmpty) entries.add(entry);
+        } catch (e) {
+          debugPrint('Voce storico menu ignorata perché non valida: $e');
+        }
+      }
+    }
+
+    // Migrazione trasparente: il menu già presente prima della 4B entra
+    // nello storico senza richiedere una nuova generazione.
+    final currentMenu = getWeeklyMenu();
+    final currentInfo = getMenuGenerationInfo();
+    if (currentMenu.isNotEmpty && currentInfo != null) {
+      final currentId =
+          currentInfo.generatedAt.microsecondsSinceEpoch.toString();
+      if (!entries.any((entry) => entry.id == currentId)) {
+        entries.add(
+          MenuHistoryEntry(
+            id: currentId,
+            menu: currentMenu,
+            shoppingList: getShoppingList(),
+            generationInfo: currentInfo,
+          ),
+        );
+        await _writeMenuHistory(entries);
+      }
+    }
+
+    entries.sort(
+      (a, b) =>
+          b.generationInfo.generatedAt.compareTo(a.generationInfo.generatedAt),
+    );
+    return entries;
+  }
+
+  Future<void> saveGeneratedMenu({
+    required List<DailyMenuModel> menu,
+    required List<ShoppingItemModel> shoppingList,
+    required MenuGenerationInfo generationInfo,
+  }) async {
+    // Prima leggiamo lo storico: così l'eventuale menu corrente precedente
+    // viene migrato e conservato prima della sostituzione.
+    final history = await getMenuHistory();
+
+    await saveWeeklyMenu(menu);
+    await saveShoppingList(shoppingList);
+    await _menuBox.put('generation_info', generationInfo.toMap());
+
+    final id = generationInfo.generatedAt.microsecondsSinceEpoch.toString();
+    history.removeWhere((entry) => entry.id == id);
+    history.insert(
+      0,
+      MenuHistoryEntry(
+        id: id,
+        menu: menu,
+        shoppingList: shoppingList,
+        generationInfo: generationInfo,
+      ),
+    );
+    await _writeMenuHistory(history);
+  }
+
+  Future<void> activateMenuHistoryEntry(MenuHistoryEntry entry) async {
+    await saveWeeklyMenu(entry.menu);
+    await saveShoppingList(
+      entry.shoppingList
+          .map((item) => ShoppingItemModel.fromMap(item.toMap()))
+          .toList(),
+    );
+    await _menuBox.put('generation_info', entry.generationInfo.toMap());
+  }
+
+  Future<void> deleteMenuHistoryEntry(String id) async {
+    final history = await getMenuHistory();
+    final index = history.indexWhere((entry) => entry.id == id);
+    if (index < 0) return;
+
+    final removed = history.removeAt(index);
+    final currentInfo = getMenuGenerationInfo();
+    final wasCurrent =
+        currentInfo?.generatedAt == removed.generationInfo.generatedAt;
+
+    await _writeMenuHistory(history);
+
+    if (wasCurrent) {
+      if (history.isNotEmpty) {
+        await activateMenuHistoryEntry(history.first);
+      } else {
+        await _menuBox.delete('current_menu');
+        await _shoppingBox.delete('current_shopping');
+        await _menuBox.delete('generation_info');
+      }
+    }
+
+    final documentPath = removed.generationInfo.dietDocumentPath;
+    if (documentPath != null && documentPath.isNotEmpty) {
+      await _deleteFileIfUnreferenced(documentPath);
+    }
+  }
+
+  Future<void> _writeMenuHistory(List<MenuHistoryEntry> entries) async {
+    await _menuBox.put(
+      'menu_history',
+      entries.map((entry) => entry.toMap()).toList(),
+    );
   }
 
   Future<String> _resolveManagedFilePath(String storedPath) async {
@@ -212,6 +373,27 @@ class LocalStorageService {
       } catch (_) {}
     }
 
+    final currentInfo = getMenuGenerationInfo();
+    final currentReference = currentInfo?.dietDocumentPath;
+    if (currentReference != null && currentReference.isNotEmpty) {
+      final resolved = await _resolveManagedFilePath(currentReference);
+      if (resolved == targetPath) return true;
+    }
+
+    final rawHistory = _menuBox.get('menu_history');
+    if (rawHistory is List) {
+      for (final rawEntry in rawHistory) {
+        if (rawEntry is! Map) continue;
+        try {
+          final entry =
+              MenuHistoryEntry.fromMap(Map<String, dynamic>.from(rawEntry));
+          final reference = entry.generationInfo.dietDocumentPath;
+          if (reference == null || reference.isEmpty) continue;
+          final resolved = await _resolveManagedFilePath(reference);
+          if (resolved == targetPath) return true;
+        } catch (_) {}
+      }
+    }
     return false;
   }
 
@@ -258,7 +440,8 @@ class LocalStorageService {
     // come creati e gestiti da RipartoDaMe.
     final isManaged = fileName.startsWith('body_photo_') ||
         fileName.startsWith('blood_test_') ||
-        fileName.startsWith('meal_photo_');
+        fileName.startsWith('meal_photo_') ||
+        fileName.startsWith('menu_diet_');
 
     if (!isManaged) {
       debugPrint(
@@ -717,7 +900,8 @@ class LocalStorageService {
     bool isManagedFileName(String fileName) {
       return fileName.startsWith('body_photo_') ||
           fileName.startsWith('blood_test_') ||
-          fileName.startsWith('meal_photo_');
+          fileName.startsWith('meal_photo_') ||
+          fileName.startsWith('menu_diet_');
     }
 
     String normalizeStoredPath(String storedPath) {
@@ -920,6 +1104,72 @@ class LocalStorageService {
       }
     }
 
+    // PIANO ALIMENTARE DEL MENU CORRENTE
+    final generationData = _menuBox.get('generation_info');
+    if (generationData != null) {
+      try {
+        final map = Map<String, dynamic>.from(generationData);
+        final storedPath = map['dietDocumentPath']?.toString();
+        if (storedPath != null && storedPath.isNotEmpty) {
+          final finalPath = await consolidateFile(
+            storedPath,
+            prefix: 'menu_diet',
+          );
+          if (finalPath != null) {
+            final newReference = path.basename(finalPath);
+            if (map['dietDocumentPath'] != newReference) {
+              map['dietDocumentPath'] = newReference;
+              await _menuBox.put('generation_info', map);
+              report.updatedReferences++;
+            }
+          }
+        }
+      } catch (e) {
+        report.errors++;
+        debugPrint('Errore piano alimentare menu: $e');
+      }
+    }
+
+    // PIANI ALIMENTARI DEI MENU STORICI
+    final rawMenuHistory = _menuBox.get('menu_history');
+    if (rawMenuHistory is List) {
+      final updatedHistory = <dynamic>[];
+      bool historyChanged = false;
+      for (final rawEntry in rawMenuHistory) {
+        if (rawEntry is! Map) {
+          updatedHistory.add(rawEntry);
+          continue;
+        }
+        final entryMap = Map<String, dynamic>.from(rawEntry);
+        try {
+          final infoMap = Map<String, dynamic>.from(entryMap['generationInfo']);
+          final storedPath = infoMap['dietDocumentPath']?.toString();
+          if (storedPath != null && storedPath.isNotEmpty) {
+            final finalPath = await consolidateFile(
+              storedPath,
+              prefix: 'menu_diet',
+            );
+            if (finalPath != null) {
+              final newReference = path.basename(finalPath);
+              if (infoMap['dietDocumentPath'] != newReference) {
+                infoMap['dietDocumentPath'] = newReference;
+                entryMap['generationInfo'] = infoMap;
+                historyChanged = true;
+                report.updatedReferences++;
+              }
+            }
+          }
+        } catch (e) {
+          report.errors++;
+          debugPrint('Errore piano alimentare storico: $e');
+        }
+        updatedHistory.add(entryMap);
+      }
+      if (historyChanged) {
+        await _menuBox.put('menu_history', updatedHistory);
+      }
+    }
+
     // ------------------------------------------------------------
     // 3. FUNZIONE CHE RICOSTRUISCE I RIFERIMENTI DA HIVE
     // ------------------------------------------------------------
@@ -980,6 +1230,31 @@ class LocalStorageService {
         } catch (_) {}
       }
 
+      final currentGenerationData = _menuBox.get('generation_info');
+      if (currentGenerationData != null) {
+        try {
+          final map = Map<String, dynamic>.from(currentGenerationData);
+          final storedPath = map['dietDocumentPath']?.toString();
+          if (storedPath != null && storedPath.isNotEmpty) {
+            result.add(normalizeStoredPath(storedPath));
+          }
+        } catch (_) {}
+      }
+      final menuHistoryData = _menuBox.get('menu_history');
+      if (menuHistoryData is List) {
+        for (final rawEntry in menuHistoryData) {
+          if (rawEntry is! Map) continue;
+          try {
+            final entryMap = Map<String, dynamic>.from(rawEntry);
+            final infoMap =
+                Map<String, dynamic>.from(entryMap['generationInfo']);
+            final storedPath = infoMap['dietDocumentPath']?.toString();
+            if (storedPath != null && storedPath.isNotEmpty) {
+              result.add(normalizeStoredPath(storedPath));
+            }
+          } catch (_) {}
+        }
+      }
       return result;
     }
 
@@ -1179,6 +1454,55 @@ class LocalStorageService {
         } catch (e) {
           report.errors++;
         }
+      }
+      // ----------------------------------------------------------
+      // 6D. AGGIORNA PIANI ALIMENTARI DEI MENU
+      // ----------------------------------------------------------
+      final currentGenerationData = _menuBox.get('generation_info');
+      if (currentGenerationData != null) {
+        try {
+          final map = Map<String, dynamic>.from(currentGenerationData);
+          final storedPath = map['dietDocumentPath']?.toString();
+          if (storedPath != null &&
+              storedPath.isNotEmpty &&
+              duplicatePaths.contains(normalizeStoredPath(storedPath))) {
+            map['dietDocumentPath'] = canonicalName;
+            await _menuBox.put('generation_info', map);
+            report.updatedReferences++;
+          }
+        } catch (e) {
+          report.errors++;
+        }
+      }
+
+      final historyData = _menuBox.get('menu_history');
+      if (historyData is List) {
+        final updatedHistory = <dynamic>[];
+        bool changed = false;
+        for (final rawEntry in historyData) {
+          if (rawEntry is! Map) {
+            updatedHistory.add(rawEntry);
+            continue;
+          }
+          final entryMap = Map<String, dynamic>.from(rawEntry);
+          try {
+            final infoMap =
+                Map<String, dynamic>.from(entryMap['generationInfo']);
+            final storedPath = infoMap['dietDocumentPath']?.toString();
+            if (storedPath != null &&
+                storedPath.isNotEmpty &&
+                duplicatePaths.contains(normalizeStoredPath(storedPath))) {
+              infoMap['dietDocumentPath'] = canonicalName;
+              entryMap['generationInfo'] = infoMap;
+              changed = true;
+              report.updatedReferences++;
+            }
+          } catch (e) {
+            report.errors++;
+          }
+          updatedHistory.add(entryMap);
+        }
+        if (changed) await _menuBox.put('menu_history', updatedHistory);
       }
     }
 

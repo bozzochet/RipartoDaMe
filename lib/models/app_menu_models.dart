@@ -376,6 +376,7 @@ class MenuGenerationInfo {
   final bool halal;
   final bool kosher;
   final String? dietDocumentName;
+  final String? dietDocumentPath;
   final DateTime generatedAt;
 
   MenuGenerationInfo({
@@ -385,6 +386,7 @@ class MenuGenerationInfo {
     this.halal = false,
     this.kosher = false,
     this.dietDocumentName,
+    this.dietDocumentPath,
     required this.generatedAt,
   });
 
@@ -395,6 +397,7 @@ class MenuGenerationInfo {
         'halal': halal,
         'kosher': kosher,
         'dietDocumentName': dietDocumentName,
+        'dietDocumentPath': dietDocumentPath,
         'generatedAt': generatedAt.toIso8601String(),
       };
 
@@ -409,8 +412,58 @@ class MenuGenerationInfo {
       halal: map['halal'] == true,
       kosher: map['kosher'] == true,
       dietDocumentName: map['dietDocumentName']?.toString(),
+      dietDocumentPath: map['dietDocumentPath']?.toString(),
       generatedAt: DateTime.tryParse(map['generatedAt']?.toString() ?? '') ??
           DateTime.now(),
+    );
+  }
+}
+
+class MenuHistoryEntry {
+  final String id;
+  final List<DailyMenuModel> menu;
+  final List<ShoppingItemModel> shoppingList;
+  final MenuGenerationInfo generationInfo;
+
+  MenuHistoryEntry({
+    required this.id,
+    required this.menu,
+    required this.shoppingList,
+    required this.generationInfo,
+  });
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'menu': menu.map((day) => day.toMap()).toList(),
+        'shoppingList': shoppingList.map((item) => item.toMap()).toList(),
+        'generationInfo': generationInfo.toMap(),
+      };
+
+  factory MenuHistoryEntry.fromMap(Map<String, dynamic> map) {
+    final rawMenu = map['menu'];
+    final rawShoppingList = map['shoppingList'];
+    final rawInfo = map['generationInfo'];
+    if (rawInfo is! Map) {
+      throw const FormatException('Informazioni di generazione mancanti.');
+    }
+    return MenuHistoryEntry(
+      id: map['id']?.toString() ?? '',
+      menu: rawMenu is List
+          ? rawMenu
+              .whereType<Map>()
+              .map((item) =>
+                  DailyMenuModel.fromMap(Map<String, dynamic>.from(item)))
+              .toList()
+          : <DailyMenuModel>[],
+      shoppingList: rawShoppingList is List
+          ? rawShoppingList
+              .whereType<Map>()
+              .map((item) =>
+                  ShoppingItemModel.fromMap(Map<String, dynamic>.from(item)))
+              .toList()
+          : <ShoppingItemModel>[],
+      generationInfo:
+          MenuGenerationInfo.fromMap(Map<String, dynamic>.from(rawInfo)),
     );
   }
 }

@@ -3,8 +3,10 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
+import 'package:open_filex/open_filex.dart';
 import '../services/local_storage_service.dart';
 import '../models/app_menu_models.dart';
 import '../theme/app_theme.dart';
@@ -23,6 +25,7 @@ class _IlMioMenuScreenState extends State<IlMioMenuScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final LocalStorageService _storageService = LocalStorageService();
+  final ImagePicker _imagePicker = ImagePicker();
 
   bool _isLoading = false;
   bool _showGenerator = false;
@@ -40,6 +43,7 @@ class _IlMioMenuScreenState extends State<IlMioMenuScreen>
   List<DailyMenuModel> _weeklyMenu = [];
   List<ShoppingItemModel> _shoppingList = [];
   MenuGenerationInfo? _menuGenerationInfo;
+  List<MenuHistoryEntry> _menuHistory = [];
 
   @override
   void initState() {
@@ -56,34 +60,138 @@ class _IlMioMenuScreenState extends State<IlMioMenuScreen>
     super.dispose();
   }
 
-  void _loadSavedData() {
+  Future<void> _loadSavedData() async {
+    final weeklyMenu = _storageService.getWeeklyMenu();
+    final shoppingList = _storageService.getShoppingList();
+    final generationInfo = _storageService.getMenuGenerationInfo();
+    final menuHistory = await _storageService.getMenuHistory();
+    if (!mounted) return;
     setState(() {
-      _weeklyMenu = _storageService.getWeeklyMenu();
-      _shoppingList = _storageService.getShoppingList();
-      _menuGenerationInfo = _storageService.getMenuGenerationInfo();
-      _showGenerator = _weeklyMenu.isEmpty;
+      _weeklyMenu = weeklyMenu;
+      _shoppingList = shoppingList;
+      _menuGenerationInfo = generationInfo;
+      _menuHistory = menuHistory;
+      _showGenerator = weeklyMenu.isEmpty;
     });
   }
 
-  Future<void> _pickDietDocument() async {
-    final result = await FilePicker.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['pdf', 'jpg', 'png', 'jpeg'],
+  void _showDietFileSourceDialog() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFFFDF6E3),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        side: BorderSide(color: Color(0xFF8B5A2B), width: 1.5),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Wrap(
+            children: [
+              const ListTile(
+                title: Text(
+                  'Aggiungi piano alimentare',
+                  style: TextStyle(
+                    fontFamily: 'Serif',
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(
+                  Icons.camera_alt,
+                  color: AppColors.woodAccent,
+                ),
+                title: const Text(
+                  'Scatta una foto',
+                  style: TextStyle(color: AppColors.textPrimary),
+                ),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  _pickDietImage(ImageSource.camera);
+                },
+              ),
+              ListTile(
+                leading: const Icon(
+                  Icons.photo_library,
+                  color: AppColors.woodAccent,
+                ),
+                title: const Text(
+                  'Scegli dal rullino',
+                  style: TextStyle(color: AppColors.textPrimary),
+                ),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  _pickDietImage(ImageSource.gallery);
+                },
+              ),
+              ListTile(
+                leading: const Icon(
+                  Icons.insert_drive_file,
+                  color: AppColors.woodAccent,
+                ),
+                title: const Text(
+                  'Scegli dai Documenti (PDF o immagine)',
+                  style: TextStyle(color: AppColors.textPrimary),
+                ),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  _pickDietDocument();
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
     );
+  }
 
-    if (result != null && result.single.path != null) {
-      setState(() {
-        _selectedDietFile = File(result.single.path!);
-        _dietAnalysisComplete = false;
-      });
-
+  Future<void> _pickDietImage(ImageSource source) async {
+    try {
+      final image = await _imagePicker.pickImage(
+        source: source,
+        imageQuality: 90,
+      );
+      if (image == null) return;
+      _setSelectedDietFile(File(image.path));
+    } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Dieta caricata con successo. Pronta per l\'analisi.'),
-        ),
+        SnackBar(content: Text('Errore nella selezione della foto: $e')),
       );
     }
+  }
+
+  Future<void> _pickDietDocument() async {
+    try {
+      final result = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'jpg', 'png', 'jpeg'],
+      );
+      final selectedPath = result?.single.path;
+      if (selectedPath == null) return;
+      _setSelectedDietFile(File(selectedPath));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Errore nella selezione del documento: $e')),
+      );
+    }
+  }
+
+  void _setSelectedDietFile(File file) {
+    if (!mounted) return;
+    setState(() {
+      _selectedDietFile = file;
+      _dietAnalysisComplete = false;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Piano caricato con successo. Pronto per l\'analisi.'),
+      ),
+    );
   }
 
   Future<void> _analyzeDietDocument() async {
@@ -391,6 +499,11 @@ ${MenuAiContract.jsonShape}
           MenuAiContract.parseResponse(Map<String, dynamic>.from(decoded));
       final parsedShoppingList =
           _storageService.buildShoppingListFromMenu(parsedMenu);
+      String? persistedDietDocumentPath;
+      if (_selectedDietFile != null) {
+        persistedDietDocumentPath =
+            await _storageService.persistMenuDietDocument(_selectedDietFile!);
+      }
       final generationInfo = MenuGenerationInfo(
         targetCalories: calories,
         dietStyle: _dietStyle,
@@ -402,18 +515,23 @@ ${MenuAiContract.jsonShape}
         halal: _isHalal,
         kosher: _isKosher,
         dietDocumentName: dietDocumentName,
+        dietDocumentPath: persistedDietDocumentPath,
         generatedAt: DateTime.now(),
       );
 
-      await _storageService.saveWeeklyMenu(parsedMenu);
-      await _storageService.saveShoppingList(parsedShoppingList);
-      await _storageService.saveMenuGenerationInfo(generationInfo);
+      await _storageService.saveGeneratedMenu(
+        menu: parsedMenu,
+        shoppingList: parsedShoppingList,
+        generationInfo: generationInfo,
+      );
+      final updatedHistory = await _storageService.getMenuHistory();
 
       if (!mounted) return;
       setState(() {
         _weeklyMenu = parsedMenu;
         _shoppingList = parsedShoppingList;
         _menuGenerationInfo = generationInfo;
+        _menuHistory = updatedHistory;
         _isLoading = false;
         _showGenerator = false;
       });
@@ -446,6 +564,395 @@ ${MenuAiContract.jsonShape}
         SnackBar(content: Text('Errore durante la generazione AI: $e')),
       );
     }
+  }
+
+  Future<void> _openDietDocument([MenuGenerationInfo? selectedInfo]) async {
+    final info = selectedInfo ?? _menuGenerationInfo;
+    final storedPath = info?.dietDocumentPath;
+    final file = await _storageService.getMenuDietDocument(storedPath);
+    if (!mounted) return;
+
+    if (file == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Il piano alimentare salvato non è disponibile.'),
+        ),
+      );
+      return;
+    }
+
+    final extension = file.path.split('.').last.toLowerCase();
+    if (extension == 'pdf') {
+      final result = await OpenFilex.open(file.path);
+      if (!mounted) return;
+      if (result.type != ResultType.done) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              result.message.isEmpty
+                  ? 'Impossibile aprire il piano alimentare.'
+                  : result.message,
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
+    if (extension == 'jpg' || extension == 'jpeg' || extension == 'png') {
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => Dialog(
+          backgroundColor: AppColors.background,
+          insetPadding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 10, 6, 6),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        info?.dietDocumentName ?? 'Piano alimentare',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontFamily: 'Serif',
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Chiudi',
+                      onPressed: () => Navigator.of(dialogContext).pop(),
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
+                ),
+              ),
+              Flexible(
+                child: InteractiveViewer(
+                  minScale: 0.5,
+                  maxScale: 5,
+                  child: Image.file(
+                    file,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) {
+                      return const Padding(
+                        padding: EdgeInsets.all(24),
+                        child: Text(
+                          'Impossibile visualizzare questa immagine.',
+                          textAlign: TextAlign.center,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        ),
+      );
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content:
+            Text('Formato del piano alimentare non supportato: .$extension'),
+      ),
+    );
+  }
+
+  String _formatMenuDate(DateTime date) {
+    return '${date.day.toString().padLeft(2, '0')}/'
+        '${date.month.toString().padLeft(2, '0')}/${date.year} alle '
+        '${date.hour.toString().padLeft(2, '0')}:'
+        '${date.minute.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _activateHistoryEntry(
+    MenuHistoryEntry entry, {
+    bool closeOverlay = true,
+  }) async {
+    await _storageService.activateMenuHistoryEntry(entry);
+    if (!mounted) return;
+    if (closeOverlay && Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    }
+    setState(() {
+      _weeklyMenu = entry.menu;
+      _shoppingList = entry.shoppingList
+          .map((item) => ShoppingItemModel.fromMap(item.toMap()))
+          .toList();
+      _menuGenerationInfo = entry.generationInfo;
+      _showGenerator = false;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+          content: Text('Menu storico impostato come menu corrente.')),
+    );
+  }
+
+  Future<void> _showMenuHistoryEntry(MenuHistoryEntry entry) async {
+    final info = entry.generationInfo;
+    final isCurrent = _menuGenerationInfo?.generatedAt == info.generatedAt;
+    final details = <String>[
+      if (info.targetCalories != null) '${info.targetCalories} kcal',
+      info.dietStyle,
+      if (info.halal) 'Halal',
+      if (info.kosher) 'Kosher',
+    ];
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.background,
+        title: Row(
+          children: [
+            const Icon(Icons.history, color: AppColors.woodAccent),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                _formatMenuDate(info.generatedAt),
+                style: const TextStyle(
+                  fontFamily: 'Serif',
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: CozyWoodCard(
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    details.join(' · '),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${entry.menu.length} giorni · '
+                    '${entry.shoppingList.length} elementi nella spesa',
+                    style: const TextStyle(color: AppColors.textSecondary),
+                  ),
+                  if (info.excludedFoods.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      'Esclusi: ${info.excludedFoods.join(', ')}',
+                      style: const TextStyle(color: AppColors.textSecondary),
+                    ),
+                  ],
+                  if (info.dietDocumentName != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      'Piano: ${info.dietDocumentName}',
+                      style: const TextStyle(color: AppColors.textSecondary),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      if (info.dietDocumentPath != null)
+                        TextButton.icon(
+                          onPressed: () => _openDietDocument(info),
+                          icon: const Icon(Icons.description_outlined),
+                          label: const Text('Apri piano'),
+                        ),
+                      if (!isCurrent)
+                        FilledButton.icon(
+                          onPressed: () {
+                            Navigator.of(dialogContext).pop();
+                            _activateHistoryEntry(
+                              entry,
+                              closeOverlay: false,
+                            );
+                          },
+                          icon: const Icon(Icons.check_circle),
+                          label: const Text('Rendi corrente'),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Chiudi'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmDeleteHistoryEntry(MenuHistoryEntry entry) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Eliminare questo menu?'),
+        content: Text(
+          'Il menu del ${_formatMenuDate(entry.generationInfo.generatedAt)} '
+          'verrà eliminato dallo storico. Il piano allegato sarà rimosso '
+          'solo se non è usato da altri menu.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Annulla'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Elimina'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    await _storageService.deleteMenuHistoryEntry(entry.id);
+    final history = await _storageService.getMenuHistory();
+    if (!mounted) return;
+    setState(() {
+      _menuHistory = history;
+      _weeklyMenu = _storageService.getWeeklyMenu();
+      _shoppingList = _storageService.getShoppingList();
+      _menuGenerationInfo = _storageService.getMenuGenerationInfo();
+      _showGenerator = _weeklyMenu.isEmpty;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Menu eliminato dallo storico.')),
+    );
+  }
+
+  Widget _buildMenuHistorySection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: 16),
+        SizedBox(
+          width: double.infinity,
+          child: CozyButton(
+            text: 'Storico Menu Generati',
+            isSelected: true,
+            onPressed: () {},
+          ),
+        ),
+        const SizedBox(height: 8),
+        if (_menuHistory.isEmpty)
+          const CozyWoodCard(
+            child: Center(
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: Text(
+                  'Nessun menu salvato finora.',
+                  style: TextStyle(color: AppColors.textSecondary),
+                ),
+              ),
+            ),
+          )
+        else
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            padding: EdgeInsets.zero,
+            itemCount: _menuHistory.length,
+            itemBuilder: (context, index) {
+              final entry = _menuHistory[index];
+              final info = entry.generationInfo;
+              final date = info.generatedAt;
+              final dateStr = '${date.day.toString().padLeft(2, '0')}/'
+                  '${date.month.toString().padLeft(2, '0')}/${date.year}';
+              final isCurrent = _menuGenerationInfo?.generatedAt == date;
+              final preview = <String>[
+                if (info.targetCalories != null) '${info.targetCalories} kcal',
+                info.dietStyle,
+                '${entry.menu.length} giorni',
+              ].join(' · ');
+
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: CozyWoodCard(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  child: ListTile(
+                    dense: true,
+                    visualDensity: const VisualDensity(vertical: -2),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                    onTap: () => _showMenuHistoryEntry(entry),
+                    title: Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            'Menu del $dateStr',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontFamily: 'Serif',
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        ),
+                        if (info.dietDocumentPath != null &&
+                            info.dietDocumentPath!.isNotEmpty) ...[
+                          const SizedBox(width: 6),
+                          const Icon(
+                            Icons.attach_file,
+                            size: 16,
+                            color: AppColors.woodAccent,
+                          ),
+                        ],
+                        if (isCurrent) ...[
+                          const SizedBox(width: 6),
+                          const Icon(
+                            Icons.check_circle,
+                            size: 15,
+                            color: AppColors.woodAccent,
+                          ),
+                        ],
+                      ],
+                    ),
+                    subtitle: Text(
+                      preview,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    trailing: IconButton(
+                      tooltip: 'Elimina menu',
+                      visualDensity: VisualDensity.compact,
+                      icon: const Icon(
+                        Icons.delete_outline,
+                        color: Colors.redAccent,
+                      ),
+                      onPressed: () => _confirmDeleteHistoryEntry(entry),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+      ],
+    );
   }
 
   @override
@@ -520,6 +1027,7 @@ ${MenuAiContract.jsonShape}
           const SizedBox(height: 14),
           ..._weeklyMenu.map(_buildDayCard),
         ],
+        _buildMenuHistorySection(),
       ],
     );
   }
@@ -611,12 +1119,27 @@ ${MenuAiContract.jsonShape}
                 if (info.dietDocumentName != null &&
                     info.dietDocumentName!.isNotEmpty) ...[
                   const SizedBox(height: 4),
-                  Text(
-                    'Piano: ${info.dietDocumentName}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
-                    ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Piano: ${info.dietDocumentName}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                      if (info.dietDocumentPath != null &&
+                          info.dietDocumentPath!.isNotEmpty)
+                        TextButton.icon(
+                          onPressed: () => _openDietDocument(),
+                          icon: const Icon(Icons.open_in_new, size: 16),
+                          label: const Text('Apri'),
+                        ),
+                    ],
                   ),
                 ],
                 if (constraintParts.isNotEmpty) ...[
@@ -711,7 +1234,7 @@ ${MenuAiContract.jsonShape}
                 icon: Icons.upload_file,
                 woodAsset: 'assets/images/wood_texture_verylight.png',
                 verticalPadding: 12,
-                onPressed: _pickDietDocument,
+                onPressed: _showDietFileSourceDialog,
               )
             else
               Container(
@@ -750,7 +1273,7 @@ ${MenuAiContract.jsonShape}
                       ),
                     ),
                     TextButton(
-                        onPressed: _pickDietDocument,
+                        onPressed: _showDietFileSourceDialog,
                         child: const Text('Sostituisci')),
                   ],
                 ),
