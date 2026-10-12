@@ -166,6 +166,34 @@ class LocalStorageService {
     await _shoppingBox.put('current_shopping', mapData);
   }
 
+  Future<void> saveShoppingListForCurrentMenu(
+    List<ShoppingItemModel> items,
+  ) async {
+    await saveShoppingList(items);
+
+    final currentInfo = getMenuGenerationInfo();
+    if (currentInfo == null) return;
+
+    final history = await getMenuHistory();
+    final index = history.indexWhere(
+      (entry) => entry.generationInfo.generatedAt == currentInfo.generatedAt,
+    );
+    if (index < 0) return;
+
+    final current = history[index];
+    history[index] = MenuHistoryEntry(
+      id: current.id,
+      menu: current.menu,
+      shoppingList:
+          items.map((item) => ShoppingItemModel.fromMap(item.toMap())).toList(),
+      generationInfo: current.generationInfo,
+      customName: current.customName,
+      sourceMenuId: current.sourceMenuId,
+      modifiedAt: current.modifiedAt,
+    );
+    await _writeMenuHistory(history);
+  }
+
   List<ShoppingItemModel> getShoppingList() {
     final data = _shoppingBox.get('current_shopping');
     if (data != null) {

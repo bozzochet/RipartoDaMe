@@ -2046,13 +2046,13 @@ ${MenuAiContract.jsonShape}
   }
 
   Future<void> _saveShoppingChanges() async {
-    await _storageService.saveShoppingList(_shoppingList);
+    await _storageService.saveShoppingListForCurrentMenu(_shoppingList);
   }
 
   Future<void> _resetShoppingChecks() async {
     if (_shoppingList.every((item) => !item.isChecked)) return;
     setState(() {
-      for (final item in _filteredShoppingList()) {
+      for (final item in _shoppingList) {
         item.isChecked = false;
       }
     });
@@ -2083,7 +2083,7 @@ ${MenuAiContract.jsonShape}
     );
     if (confirmed != true) return;
     final rebuilt = _storageService.buildShoppingListFromMenu(_weeklyMenu);
-    await _storageService.saveShoppingList(rebuilt);
+    await _storageService.saveShoppingListForCurrentMenu(rebuilt);
     if (!mounted) return;
     setState(() {
       _shoppingList = rebuilt;
