@@ -1,4 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <uses-permission android:name="android.permission.CAMERA"/>
     <application
         android:label="riparto_da_me"
         android:name="${applicationName}"
@@ -42,5 +43,4 @@
             <data android:mimeType="text/plain"/>
         </intent>
     </queries>
-    <uses-permission android:name="android.permission.CAMERA"/>
 </manifest>
