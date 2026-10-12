@@ -1,7 +1,5 @@
-import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:file_picker/file_picker.dart';
 import '../services/local_storage_service.dart';
@@ -27,12 +25,15 @@ class _ImpostazioniScreenState extends State<ImpostazioniScreen> {
       // 1. Genera l'archivio ZIP contenente database e file multimediali
       final zipPath = await _storageService.exportToZipFile();
 
+      if (!mounted) return;
       setState(() => _isLoading = false);
 
       // 2. Condivide il file ZIP tramite il pannello nativo
-      await Share.shareXFiles(
-        [XFile(zipPath)],
-        text: 'Backup dei dati di Riparto da Me',
+      await SharePlus.instance.share(
+        ShareParams(
+          text: 'Backup dei dati di Riparto da Me',
+          files: [XFile(zipPath)],
+        ),
       );
     } catch (e) {
       setState(() => _isLoading = false);
@@ -53,8 +54,9 @@ class _ImpostazioniScreenState extends State<ImpostazioniScreen> {
         type: FileType.custom,
         allowedExtensions: ['zip'],
       );
+      if (!mounted) return;
 
-      if (result != null && result.isNotEmpty && result.single.path != null) {
+      if (result.isNotEmpty && result.single.path != null) {
         // Conferma di sicurezza prima di sovrascrivere i dati
         bool? conferma = await showDialog<bool>(
           context: context,
@@ -530,7 +532,7 @@ class _ImpostazioniScreenState extends State<ImpostazioniScreen> {
             ),
             if (_isLoading)
               Container(
-                color: Colors.black.withOpacity(0.3),
+                color: Colors.black.withValues(alpha: 0.3),
                 child: const Center(
                   child: CircularProgressIndicator(),
                 ),

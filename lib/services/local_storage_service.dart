@@ -14,7 +14,6 @@ import '../models/body_measurement_entry.dart';
 import '../models/progress_photo_entry.dart';
 import '../models/bloodurine_test_entry.dart';
 import '../models/meal_entry_model.dart';
-import '../constants/app_assets.dart';
 
 /// Modello per rappresentare la singola misurazione del peso con la sua data
 class WeightEntry {
@@ -791,7 +790,7 @@ class LocalStorageService {
           }
         }
       } catch (e) {
-        print(
+        debugPrint(
             "⚠️ Trovata entry corrotta nel box bloodTestsBox con chiave $key, la rimuovo: $e");
         _bloodTestsBox.delete(key);
       }
@@ -963,7 +962,7 @@ class LocalStorageService {
           return MealEntryModel.fromMap(stringKeyMap);
         }).toList();
       } catch (e) {
-        print("⚠️ Errore di decodifica pasti da Hive: $e");
+        debugPrint('⚠️ Errore di decodifica pasti da Hive: $e');
       }
     }
 

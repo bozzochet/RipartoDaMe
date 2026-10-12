@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../services/local_storage_service.dart';
 import '../models/user_model.dart';
 import '../theme/app_theme.dart';
-import '../theme/cozy_styles.dart';
 import '../widgets/cozy_background.dart';
 import '../widgets/cozy_widgets.dart';
 
@@ -37,7 +36,8 @@ class ShopScreen extends StatefulWidget {
   State<ShopScreen> createState() => _ShopScreenState();
 }
 
-class _ShopScreenState extends State<ShopScreen> with SingleTickerProviderStateMixin {
+class _ShopScreenState extends State<ShopScreen>
+    with SingleTickerProviderStateMixin {
   final LocalStorageService _storageService = LocalStorageService();
   late UserModel _user;
   late TabController _tabController;
@@ -128,10 +128,10 @@ class _ShopScreenState extends State<ShopScreen> with SingleTickerProviderStateM
   void didChangeDependencies() {
     super.didChangeDependencies();
     setState(() {
-        _user = _storageService.getUser();
+      _user = _storageService.getUser();
     });
   }
-  
+
   void _buyItem(ShopItem item) async {
     if (item.isPurchased) return;
 
@@ -140,7 +140,8 @@ class _ShopScreenState extends State<ShopScreen> with SingleTickerProviderStateM
     if (item.currency == CurrencyType.rupees && _user.coins >= item.price) {
       canAfford = true;
       _user.coins -= item.price;
-    } else if (item.currency == CurrencyType.hearts && _user.currentHearts >= item.price) {
+    } else if (item.currency == CurrencyType.hearts &&
+        _user.currentHearts >= item.price) {
       canAfford = true;
       _user.currentHearts -= item.price;
     }
@@ -213,7 +214,8 @@ class _ShopScreenState extends State<ShopScreen> with SingleTickerProviderStateM
                     const Text(
                       'La cassa si è aperta rivelando un abito o un arredo a sorpresa per la tua collezione!',
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                      style: TextStyle(
+                          fontSize: 13, color: AppColors.textSecondary),
                     ),
                     const SizedBox(height: 20),
                     Center(
@@ -233,7 +235,8 @@ class _ShopScreenState extends State<ShopScreen> with SingleTickerProviderStateM
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           backgroundColor: Color(0xFFC62828),
-          content: Text('❌ Non hai casse dorate disponibili! Completa le attività nella sezione Cura di me.'),
+          content: Text(
+              '❌ Non hai casse dorate disponibili! Completa le attività nella sezione Cura di me.'),
         ),
       );
     }
@@ -287,9 +290,10 @@ class _ShopScreenState extends State<ShopScreen> with SingleTickerProviderStateM
               top: MediaQuery.of(context).padding.top - 18,
               right: 42.0,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
                 decoration: BoxDecoration(
-                  color: AppColors.background.withOpacity(0.88),
+                  color: AppColors.background.withValues(alpha: 0.88),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Row(
@@ -309,9 +313,10 @@ class _ShopScreenState extends State<ShopScreen> with SingleTickerProviderStateM
               top: MediaQuery.of(context).padding.top - 18,
               left: 42.0,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
                 decoration: BoxDecoration(
-                  color: AppColors.background.withOpacity(0.88),
+                  color: AppColors.background.withValues(alpha: 0.88),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Row(
@@ -333,7 +338,8 @@ class _ShopScreenState extends State<ShopScreen> with SingleTickerProviderStateM
   }
 
   Widget _buildShopGrid(String category) {
-    final items = _catalog.where((element) => element.category == category).toList();
+    final items =
+        _catalog.where((element) => element.category == category).toList();
 
     return GridView.builder(
       padding: const EdgeInsets.all(16),
@@ -341,14 +347,18 @@ class _ShopScreenState extends State<ShopScreen> with SingleTickerProviderStateM
         crossAxisCount: 2,
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
-        childAspectRatio: 0.88, // Ottimizzato per ridurre lo spazio verticale in eccesso
+        childAspectRatio:
+            0.88, // Ottimizzato per ridurre lo spazio verticale in eccesso
       ),
       itemCount: items.length,
       itemBuilder: (context, index) {
         final item = items[index];
 
         return CozyWoodCard(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), // Padding interno super compatto per eliminare spazi vuoti
+          padding: const EdgeInsets.symmetric(
+              horizontal: 8,
+              vertical:
+                  4), // Padding interno super compatto per eliminare spazi vuoti
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
@@ -371,9 +381,13 @@ class _ShopScreenState extends State<ShopScreen> with SingleTickerProviderStateM
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(
-                    item.currency == CurrencyType.rupees ? Icons.diamond : Icons.favorite,
+                    item.currency == CurrencyType.rupees
+                        ? Icons.diamond
+                        : Icons.favorite,
                     size: 13,
-                    color: item.currency == CurrencyType.rupees ? const Color(0xFF00E676) : Colors.redAccent,
+                    color: item.currency == CurrencyType.rupees
+                        ? const Color(0xFF00E676)
+                        : Colors.redAccent,
                   ),
                   const SizedBox(width: 4),
                   Text(
@@ -393,27 +407,28 @@ class _ShopScreenState extends State<ShopScreen> with SingleTickerProviderStateM
                   maxHeight: 36,
                 ),
                 child: item.isPurchased
-                ? Container(
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: AppColors.woodAccent.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppColors.woodAccent, width: 1),
-                  ),
-                  child: const Text(
-                    'Sbloccato',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.woodAccent,
-                    ),
-                  ),
-                )
-                : CozyButton(
-                  verticalPadding: 4,
-                  text: 'Acquista',
-                  onPressed: () => _buyItem(item),
-                ),
+                    ? Container(
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: AppColors.woodAccent.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(8),
+                          border:
+                              Border.all(color: AppColors.woodAccent, width: 1),
+                        ),
+                        child: const Text(
+                          'Sbloccato',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.woodAccent,
+                          ),
+                        ),
+                      )
+                    : CozyButton(
+                        verticalPadding: 4,
+                        text: 'Acquista',
+                        onPressed: () => _buyItem(item),
+                      ),
               ),
             ],
           ),
@@ -451,7 +466,8 @@ class _ShopScreenState extends State<ShopScreen> with SingleTickerProviderStateM
               width: 220,
               child: CozyButton(
                 text: 'Casse disponibili: ${_user.goldenChests}',
-                onPressed: () {}, // Pulsante puramente informativo o disattivabile all'occorrenza
+                onPressed:
+                    () {}, // Pulsante puramente informativo o disattivabile all'occorrenza
               ),
             ),
             const SizedBox(height: 28),
@@ -460,37 +476,47 @@ class _ShopScreenState extends State<ShopScreen> with SingleTickerProviderStateM
               child: Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: _user.goldenChests > 0 ? Colors.amber[200] : Colors.grey[300],
+                  color: _user.goldenChests > 0
+                      ? Colors.amber[200]
+                      : Colors.grey[300],
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: _user.goldenChests > 0 ? Colors.amber[800]! : Colors.grey,
+                    color: _user.goldenChests > 0
+                        ? Colors.amber[800]!
+                        : Colors.grey,
                     width: 3,
                   ),
                   boxShadow: _user.goldenChests > 0
-                  ? [
-                    BoxShadow(
-                      color: Colors.amber.withOpacity(0.4),
-                      blurRadius: 12,
-                      spreadRadius: 4,
-                    )
-                  ]
-                  : [],
+                      ? [
+                          BoxShadow(
+                            color: Colors.amber.withValues(alpha: 0.4),
+                            blurRadius: 12,
+                            spreadRadius: 4,
+                          )
+                        ]
+                      : [],
                 ),
                 child: Icon(
                   Icons.card_giftcard,
                   size: 64,
-                  color: _user.goldenChests > 0 ? Colors.amber[900] : Colors.grey[600],
+                  color: _user.goldenChests > 0
+                      ? Colors.amber[900]
+                      : Colors.grey[600],
                 ),
               ),
             ),
             const SizedBox(height: 16),
             Text(
-              _user.goldenChests > 0 ? 'Tocca la cassa per aprirla!' : 'Nessuna cassa da aprire',
+              _user.goldenChests > 0
+                  ? 'Tocca la cassa per aprirla!'
+                  : 'Nessuna cassa da aprire',
               style: TextStyle(
                 fontFamily: 'Serif',
                 fontWeight: FontWeight.bold,
                 fontSize: 14,
-                color: _user.goldenChests > 0 ? AppColors.woodAccent : AppColors.textSecondary,
+                color: _user.goldenChests > 0
+                    ? AppColors.woodAccent
+                    : AppColors.textSecondary,
               ),
             ),
           ],
@@ -498,5 +524,4 @@ class _ShopScreenState extends State<ShopScreen> with SingleTickerProviderStateM
       ),
     );
   }
-
 }

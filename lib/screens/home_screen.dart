@@ -65,7 +65,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     // Definizione della posizione assoluta dall'alto (in pixel)
     // Puoi regolare questa costante se vuoi alzare o abbassare la box rispetto allo sfondo
-    const double avatarTopPosition = 145.0; 
+    const double avatarTopPosition = 145.0;
     const double avatarCardHeight = 175.0; // Altezza stimata della card avatar
 
     return Scaffold(
@@ -93,9 +93,11 @@ class _HomeScreenState extends State<HomeScreen> {
             SafeArea(
               child: Padding(
                 // Il top padding garantisce che la griglia inizi SOTTO la box dell'avatar fissa
-                padding: EdgeInsets.only(top: avatarTopPosition + avatarCardHeight - 120.0),
+                padding: EdgeInsets.only(
+                    top: avatarTopPosition + avatarCardHeight - 120.0),
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 38.0, vertical: 8.0),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 38.0, vertical: 8.0),
                   child: Column(
                     children: [
                       const Align(
@@ -111,7 +113,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                       const SizedBox(height: 12),
-
                       GridView.count(
                         crossAxisCount: 2,
                         shrinkWrap: true,
@@ -127,7 +128,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             onTap: () async {
                               await Navigator.push(
                                 context,
-                                MaterialPageRoute(builder: (context) => const IlMioCorpoScreen()),
+                                MaterialPageRoute(
+                                    builder: (context) =>
+                                        const IlMioCorpoScreen()),
                               );
                               _refreshData();
                             },
@@ -139,7 +142,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             onTap: () async {
                               await Navigator.push(
                                 context,
-                                MaterialPageRoute(builder: (context) => const CuraDiMeScreen()),
+                                MaterialPageRoute(
+                                    builder: (context) =>
+                                        const CuraDiMeScreen()),
                               );
                               _refreshData();
                             },
@@ -151,7 +156,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             onTap: () {
                               Navigator.push(
                                 context,
-                                MaterialPageRoute(builder: (context) => const LaMiaCasaScreen()),
+                                MaterialPageRoute(
+                                    builder: (context) =>
+                                        const LaMiaCasaScreen()),
                               );
                             },
                           ),
@@ -162,7 +169,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             onTap: () async {
                               await Navigator.push(
                                 context,
-                                MaterialPageRoute(builder: (context) => const LaMiaMappaScreen()),
+                                MaterialPageRoute(
+                                    builder: (context) =>
+                                        const LaMiaMappaScreen()),
                               );
                               _refreshData();
                             },
@@ -174,7 +183,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             onTap: () async {
                               await Navigator.push(
                                 context,
-                                MaterialPageRoute(builder: (context) => const ShopScreen()),
+                                MaterialPageRoute(
+                                    builder: (context) => const ShopScreen()),
                               );
                               _refreshData();
                             },
@@ -186,7 +196,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             onTap: () async {
                               await Navigator.push(
                                 context,
-                                MaterialPageRoute(builder: (context) => const IlMioDiarioScreen()),
+                                MaterialPageRoute(
+                                    builder: (context) =>
+                                        const IlMioDiarioScreen()),
                               );
                               _refreshData();
                             },
@@ -198,7 +210,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             onTap: () async {
                               await Navigator.push(
                                 context,
-                                MaterialPageRoute(builder: (context) => const IlMioMenuScreen()),
+                                MaterialPageRoute(
+                                    builder: (context) =>
+                                        const IlMioMenuScreen()),
                               );
                               _refreshData();
                             },
@@ -210,7 +224,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             onTap: () async {
                               await Navigator.push(
                                 context,
-                                MaterialPageRoute(builder: (context) => const CharacterEditorScreen()),
+                                MaterialPageRoute(
+                                    builder: (context) =>
+                                        const CharacterEditorScreen()),
                               );
                               _refreshData();
                             },
@@ -222,7 +238,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             onTap: () async {
                               await Navigator.push(
                                 context,
-                                MaterialPageRoute(builder: (context) => const ImpostazioniScreen()),
+                                MaterialPageRoute(
+                                    builder: (context) =>
+                                        const ImpostazioniScreen()),
                               );
                               _refreshData();
                             },
@@ -245,7 +263,8 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Opacity(
                 opacity: 0.68,
                 child: CozyCard(
-                  padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -255,7 +274,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         onTap: () async {
                           await Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (context) => const CharacterEditorScreen()),
+                            MaterialPageRoute(
+                                builder: (context) =>
+                                    const CharacterEditorScreen()),
                           );
                           _refreshData();
                         },
@@ -277,12 +298,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                                 decoration: const InputDecoration(
                                   isDense: true,
-                                  contentPadding: EdgeInsets.symmetric(vertical: 2),
+                                  contentPadding:
+                                      EdgeInsets.symmetric(vertical: 2),
                                 ),
                               ),
                             ),
                             IconButton(
-                              icon: const Icon(Icons.check_circle, color: AppColors.success, size: 20),
+                              icon: const Icon(Icons.check_circle,
+                                  color: AppColors.success, size: 20),
                               onPressed: _saveName,
                             ),
                           ],
@@ -303,7 +326,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             IconButton(
                               constraints: const BoxConstraints(),
                               padding: const EdgeInsets.only(left: 4),
-                              icon: const Icon(Icons.edit_outlined, size: 16, color: AppColors.textSecondary),
+                              icon: const Icon(Icons.edit_outlined,
+                                  size: 16, color: AppColors.textSecondary),
                               onPressed: () {
                                 setState(() {
                                   _isEditingName = true;
@@ -324,7 +348,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ),
-            ),                    
+            ),
 
             // -------------------------------------------------------------
             // 3. CONTATORI IN ALTO A DESTRA (FISSI CON BOX SFONDO)
@@ -333,9 +357,10 @@ class _HomeScreenState extends State<HomeScreen> {
               top: MediaQuery.of(context).padding.top - 18,
               right: 42.0,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
                 decoration: BoxDecoration(
-                  color: AppColors.background.withOpacity(0.88),
+                  color: AppColors.background.withValues(alpha: 0.88),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Row(
@@ -362,9 +387,10 @@ class _HomeScreenState extends State<HomeScreen> {
               top: MediaQuery.of(context).padding.top - 18,
               left: 42.0,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
                 decoration: BoxDecoration(
-                  color: AppColors.background.withOpacity(0.88),
+                  color: AppColors.background.withValues(alpha: 0.88),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Row(

@@ -3,7 +3,6 @@ import 'package:audioplayers/audioplayers.dart';
 import '../services/local_storage_service.dart';
 import '../models/user_model.dart';
 import '../theme/app_theme.dart';
-import '../theme/cozy_styles.dart';
 import '../widgets/cozy_widgets.dart';
 
 class MappaStage {
@@ -31,7 +30,8 @@ class LaMiaMappaScreen extends StatefulWidget {
   State<LaMiaMappaScreen> createState() => _LaMiaMappaScreenState();
 }
 
-class _LaMiaMappaScreenState extends State<LaMiaMappaScreen> with SingleTickerProviderStateMixin {
+class _LaMiaMappaScreenState extends State<LaMiaMappaScreen>
+    with SingleTickerProviderStateMixin {
   final LocalStorageService _storageService = LocalStorageService();
   final AudioPlayer _audioPlayer = AudioPlayer();
   late UserModel _user;
@@ -41,12 +41,25 @@ class _LaMiaMappaScreenState extends State<LaMiaMappaScreen> with SingleTickerPr
 
   List<MappaStage> _generateDynamicStages() {
     final double startWeight = _user.startWeight > 0 ? _user.startWeight : 95.0;
-    final double targetWeight = _user.targetWeight > 0 ? _user.targetWeight : 75.0;
+    final double targetWeight =
+        _user.targetWeight > 0 ? _user.targetWeight : 75.0;
 
     if (startWeight <= targetWeight) {
       return [
-        MappaStage(id: '1', title: 'Partenza', targetWeight: startWeight, xRatio: 0.65, yRatio: 0.75, rewardCoins: 0),
-        MappaStage(id: '2', title: 'Obiettivo', targetWeight: targetWeight, xRatio: 0.35, yRatio: 0.25, rewardCoins: 5),
+        MappaStage(
+            id: '1',
+            title: 'Partenza',
+            targetWeight: startWeight,
+            xRatio: 0.65,
+            yRatio: 0.75,
+            rewardCoins: 0),
+        MappaStage(
+            id: '2',
+            title: 'Obiettivo',
+            targetWeight: targetWeight,
+            xRatio: 0.35,
+            yRatio: 0.25,
+            rewardCoins: 5),
       ];
     }
 
@@ -70,7 +83,8 @@ class _LaMiaMappaScreenState extends State<LaMiaMappaScreen> with SingleTickerPr
     List<MappaStage> stages = [];
 
     for (int i = 0; i < 4; i++) {
-      double stageWeight = double.parse((startWeight - (step * i)).toStringAsFixed(1));
+      double stageWeight =
+          double.parse((startWeight - (step * i)).toStringAsFixed(1));
       if (i == 3) stageWeight = targetWeight;
 
       stages.add(
@@ -125,7 +139,9 @@ class _LaMiaMappaScreenState extends State<LaMiaMappaScreen> with SingleTickerPr
 
     bool justClaimed = false;
 
-    if (isUnlocked && stage.rewardCoins > 0 && !_user.claimedStageIds.contains(stage.id)) {
+    if (isUnlocked &&
+        stage.rewardCoins > 0 &&
+        !_user.claimedStageIds.contains(stage.id)) {
       await _storageService.addReward(coinsGained: stage.rewardCoins);
       _user.claimedStageIds.add(stage.id);
       await _storageService.saveUser(_user);
@@ -173,28 +189,33 @@ class _LaMiaMappaScreenState extends State<LaMiaMappaScreen> with SingleTickerPr
             children: [
               Text(
                 'Obiettivo peso: ${stage.targetWeight} kg',
-                style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold, color: AppColors.textPrimary),
               ),
               const SizedBox(height: 8),
               Text(
                 isUnlocked
-                    ? (justClaimed 
-                        ? '🎉 Traguardo raggiunto! Hai ottenuto la tua ricompensa.' 
+                    ? (justClaimed
+                        ? '🎉 Traguardo raggiunto! Hai ottenuto la tua ricompensa.'
                         : '🎉 Traguardo già raggiunto e ricompensa riscossa!')
                     : '🔒 Continua il tuo percorso per sbloccare questa tappa!',
                 style: TextStyle(
-                  color: isUnlocked ? const Color(0xFF2E7D32) : AppColors.textSecondary,
+                  color: isUnlocked
+                      ? const Color(0xFF2E7D32)
+                      : AppColors.textSecondary,
                   fontSize: 13,
                 ),
               ),
               if (stage.rewardCoins > 0) ...[
                 const SizedBox(height: 15),
                 CozyWoodCard(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.diamond_outlined, color: Colors.purpleAccent, size: 26),
+                      const Icon(Icons.diamond_outlined,
+                          color: Colors.purpleAccent, size: 26),
                       const SizedBox(width: 8),
                       Text(
                         '+${stage.rewardCoins} Rupie',
@@ -256,7 +277,9 @@ class _LaMiaMappaScreenState extends State<LaMiaMappaScreen> with SingleTickerPr
             ),
           ],
         ),
-        actions: const [SizedBox(width: 48)], // Spazio per bilanciare l'AppBar se necessario
+        actions: const [
+          SizedBox(width: 48)
+        ], // Spazio per bilanciare l'AppBar se necessario
       ),
       body: Container(
         width: double.infinity,
@@ -282,7 +305,9 @@ class _LaMiaMappaScreenState extends State<LaMiaMappaScreen> with SingleTickerPr
                       painter: MapPathPainter(stages: stages),
                     ),
                     ...stages.map((stage) {
-                      bool isUnlocked = _user.currentWeight <= stage.targetWeight || stage.id == 'stage_0';
+                      bool isUnlocked =
+                          _user.currentWeight <= stage.targetWeight ||
+                              stage.id == 'stage_0';
 
                       return Positioned(
                         left: stage.xRatio * mapWidth - 40,
@@ -292,11 +317,14 @@ class _LaMiaMappaScreenState extends State<LaMiaMappaScreen> with SingleTickerPr
                           child: Column(
                             children: [
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 3),
                                 decoration: BoxDecoration(
-                                  color: AppColors.background.withOpacity(0.9),
+                                  color: AppColors.background
+                                      .withValues(alpha: 0.9),
                                   borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(color: AppColors.woodAccent),
+                                  border:
+                                      Border.all(color: AppColors.woodAccent),
                                 ),
                                 child: Text(
                                   '${stage.title}\n${stage.targetWeight} kg',
@@ -313,7 +341,9 @@ class _LaMiaMappaScreenState extends State<LaMiaMappaScreen> with SingleTickerPr
                                 animation: _pulseAnimation,
                                 builder: (context, child) {
                                   return Transform.scale(
-                                    scale: isUnlocked ? _pulseAnimation.value : 1.0,
+                                    scale: isUnlocked
+                                        ? _pulseAnimation.value
+                                        : 1.0,
                                     child: child,
                                   );
                                 },
@@ -322,21 +352,30 @@ class _LaMiaMappaScreenState extends State<LaMiaMappaScreen> with SingleTickerPr
                                   height: 44,
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
-                                    color: isUnlocked ? AppColors.woodAccent : AppColors.textSecondary,
-                                    border: Border.all(color: Colors.white, width: 2),
+                                    color: isUnlocked
+                                        ? AppColors.woodAccent
+                                        : AppColors.textSecondary,
+                                    border: Border.all(
+                                        color: Colors.white, width: 2),
                                     boxShadow: [
                                       BoxShadow(
                                         color: isUnlocked
-                                            ? Colors.amber.withOpacity(0.6)
-                                            : Colors.black.withOpacity(0.2),
+                                            ? Colors.amber
+                                                .withValues(alpha: 0.6)
+                                            : Colors.black
+                                                .withValues(alpha: 0.2),
                                         blurRadius: isUnlocked ? 12 : 4,
                                         spreadRadius: isUnlocked ? 2 : 0,
                                       ),
                                     ],
                                   ),
                                   child: Icon(
-                                    isUnlocked ? Icons.stars_rounded : Icons.lock_outline,
-                                    color: isUnlocked ? Colors.amber : Colors.white70,
+                                    isUnlocked
+                                        ? Icons.stars_rounded
+                                        : Icons.lock_outline,
+                                    color: isUnlocked
+                                        ? Colors.amber
+                                        : Colors.white70,
                                     size: 24,
                                   ),
                                 ),
@@ -356,9 +395,10 @@ class _LaMiaMappaScreenState extends State<LaMiaMappaScreen> with SingleTickerPr
               top: MediaQuery.of(context).padding.top - 18,
               right: 42.0,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
                 decoration: BoxDecoration(
-                  color: AppColors.background.withOpacity(0.88),
+                  color: AppColors.background.withValues(alpha: 0.88),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Row(
@@ -396,7 +436,7 @@ class MapPathPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = AppColors.woodAccent.withOpacity(0.6)
+      ..color = AppColors.woodAccent.withValues(alpha: 0.6)
       ..strokeWidth = 3
       ..style = PaintingStyle.stroke;
 

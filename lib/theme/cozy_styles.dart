@@ -7,7 +7,8 @@ class CozyStyles {
     Color borderColor = const Color(0xFF8B5A2B),
     double borderWidth = 1.5,
     double borderRadius = 16.0,
-    String imagePath = 'assets/images/wood_texture_verylight.png', // Il tuo asset
+    String imagePath =
+        'assets/images/wood_texture_verylight.png', // Il tuo asset
   }) {
     return BoxDecoration(
       borderRadius: BorderRadius.circular(borderRadius),
@@ -32,7 +33,7 @@ class CozyStyles {
       labelText: label,
       labelStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
       filled: true,
-      fillColor: Colors.white.withOpacity(0.85),
+      fillColor: Colors.white.withValues(alpha: 0.85),
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),

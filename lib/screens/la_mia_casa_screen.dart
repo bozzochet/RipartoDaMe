@@ -230,7 +230,7 @@ class _LaMiaCasaScreenState extends State<LaMiaCasaScreen> {
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                             decoration: BoxDecoration(
-                              color: AppColors.woodAccent.withOpacity(0.2),
+                              color: AppColors.woodAccent.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(color: AppColors.woodAccent),
                             ),
@@ -337,7 +337,7 @@ class _LaMiaCasaScreenState extends State<LaMiaCasaScreen> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
                 decoration: BoxDecoration(
-                  color: AppColors.background.withOpacity(0.88),
+                  color: AppColors.background.withValues(alpha: 0.88),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Row(
@@ -415,7 +415,7 @@ class _LaMiaCasaScreenState extends State<LaMiaCasaScreen> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.4),
+                      color: Colors.black.withValues(alpha: 0.4),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
@@ -457,7 +457,7 @@ class _LaMiaCasaScreenState extends State<LaMiaCasaScreen> {
                             padding: const EdgeInsets.all(4),
                             decoration: _selectedFurnitureId == furniture.itemId
                                 ? BoxDecoration(
-                                    color: Colors.white.withOpacity(0.4),
+                                    color: Colors.white.withValues(alpha: 0.4),
                                     borderRadius: BorderRadius.circular(12),
                                     border: Border.all(color: AppColors.woodAccent, width: 2),
                                   )
@@ -475,7 +475,7 @@ class _LaMiaCasaScreenState extends State<LaMiaCasaScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.8),
+                        color: Colors.white.withValues(alpha: 0.8),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Column(

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
-import '../theme/cozy_styles.dart';
 import '../widgets/cozy_widgets.dart';
 import '../widgets/cozy_background.dart';
 import '../widgets/avatar_view.dart';
@@ -15,7 +14,8 @@ class CharacterEditorScreen extends StatefulWidget {
   State<CharacterEditorScreen> createState() => _CharacterEditorScreenState();
 }
 
-class _CharacterEditorScreenState extends State<CharacterEditorScreen> with SingleTickerProviderStateMixin {
+class _CharacterEditorScreenState extends State<CharacterEditorScreen>
+    with SingleTickerProviderStateMixin {
   final LocalStorageService _storageService = LocalStorageService();
   late UserModel _user;
   late TabController _tabController;
@@ -31,29 +31,61 @@ class _CharacterEditorScreenState extends State<CharacterEditorScreen> with Sing
     {'id': 'body_4', 'name': 'Tono 4', 'asset': AppAssets.bodyBase4},
     {'id': 'body_5', 'name': 'Tono 5', 'asset': AppAssets.bodyBase5},
     {'id': 'body_6', 'name': 'Tono 6', 'asset': AppAssets.bodyBase6},
-  ];  
-  
+  ];
+
   final List<Map<String, String>> _outfits = [
-    {'id': 'outfit_1', 'name': 'Alchimista', 'asset': AppAssets.outfitAlchemist},
+    {
+      'id': 'outfit_1',
+      'name': 'Alchimista',
+      'asset': AppAssets.outfitAlchemist
+    },
     {'id': 'outfit_2', 'name': 'Hero', 'asset': AppAssets.outfitHero},
     {'id': 'outfit_3', 'name': 'Butterfly', 'asset': AppAssets.outfitButterfly},
-	  {'id': 'outfit_4', 'name': 'Fairy', 'asset': AppAssets.outfitFairy},
-	  {'id': 'outfit_5', 'name': 'Hunter', 'asset': AppAssets.outfitHunter},
-	  {'id': 'outfit_6', 'name': 'Princess', 'asset': AppAssets.outfitPrincess},
-	  {'id': 'outfit_7', 'name': 'Thief', 'asset': AppAssets.outfitThief},
-	  {'id': 'outfit_8', 'name': 'Witch', 'asset': AppAssets.outfitWitch},
+    {'id': 'outfit_4', 'name': 'Fairy', 'asset': AppAssets.outfitFairy},
+    {'id': 'outfit_5', 'name': 'Hunter', 'asset': AppAssets.outfitHunter},
+    {'id': 'outfit_6', 'name': 'Princess', 'asset': AppAssets.outfitPrincess},
+    {'id': 'outfit_7', 'name': 'Thief', 'asset': AppAssets.outfitThief},
+    {'id': 'outfit_8', 'name': 'Witch', 'asset': AppAssets.outfitWitch},
     {'id': 'outfit_9', 'name': 'Nudo / Intimo', 'asset': ''},
   ];
 
   final List<Map<String, String>> _hairs = [
-    {'id': 'hair_1', 'name': 'Trecce Bionde', 'asset': AppAssets.hairBlondeBraids},
-    {'id': 'hair_2', 'name': 'Caschetto Castani', 'asset': AppAssets.hairBrownBob},
+    {
+      'id': 'hair_1',
+      'name': 'Trecce Bionde',
+      'asset': AppAssets.hairBlondeBraids
+    },
+    {
+      'id': 'hair_2',
+      'name': 'Caschetto Castani',
+      'asset': AppAssets.hairBrownBob
+    },
     {'id': 'hair_3', 'name': 'Caschetto Rossi', 'asset': AppAssets.hairRedBob},
-    {'id': 'hair_4', 'name': 'Coda Castani', 'asset': AppAssets.hairBrunettePonytail},
-    {'id': 'hair_5', 'name': 'Mossi Biondi', 'asset': AppAssets.hairBlondeWaves},
-    {'id': 'hair_6', 'name': 'Mossi Castani', 'asset': AppAssets.hairBrownWaves},
-    {'id': 'hair_7', 'name': 'Classici Biondi', 'asset': AppAssets.hairBlondeClassic},
-    {'id': 'hair_8', 'name': 'Nonna Argentati', 'asset': AppAssets.hairSilverGranny},
+    {
+      'id': 'hair_4',
+      'name': 'Coda Castani',
+      'asset': AppAssets.hairBrunettePonytail
+    },
+    {
+      'id': 'hair_5',
+      'name': 'Mossi Biondi',
+      'asset': AppAssets.hairBlondeWaves
+    },
+    {
+      'id': 'hair_6',
+      'name': 'Mossi Castani',
+      'asset': AppAssets.hairBrownWaves
+    },
+    {
+      'id': 'hair_7',
+      'name': 'Classici Biondi',
+      'asset': AppAssets.hairBlondeClassic
+    },
+    {
+      'id': 'hair_8',
+      'name': 'Nonna Argentati',
+      'asset': AppAssets.hairSilverGranny
+    },
     {'id': 'hair_9', 'name': 'Nessuno', 'asset': ''},
   ];
 
@@ -98,7 +130,9 @@ class _CharacterEditorScreenState extends State<CharacterEditorScreen> with Sing
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
-          title: const Text('Specchio Magico', style: TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold)),
+          title: const Text('Specchio Magico',
+              style:
+                  TextStyle(fontFamily: 'Serif', fontWeight: FontWeight.bold)),
           actions: [
             Center(
               child: Padding(
@@ -120,7 +154,6 @@ class _CharacterEditorScreenState extends State<CharacterEditorScreen> with Sing
         body: Column(
           children: [
             const SizedBox(height: 12),
-
             Center(
               child: CozyWoodCard(
                 padding: const EdgeInsets.all(12),
@@ -135,9 +168,7 @@ class _CharacterEditorScreenState extends State<CharacterEditorScreen> with Sing
                 ),
               ),
             ),
-
             const SizedBox(height: 12),
-
             TabBar(
               controller: _tabController,
               indicatorColor: AppColors.woodAccent,
@@ -149,14 +180,16 @@ class _CharacterEditorScreenState extends State<CharacterEditorScreen> with Sing
                 Tab(icon: Icon(Icons.face), text: 'Capelli'),
               ],
             ),
-
             Expanded(
               child: TabBarView(
                 controller: _tabController,
                 children: [
-                  _buildAssetGrid(_bodies, _selectedBody, (asset) => setState(() => _selectedBody = asset)),
-                  _buildAssetGrid(_outfits, _selectedOutfit, (asset) => setState(() => _selectedOutfit = asset)),
-                  _buildAssetGrid(_hairs, _selectedHair, (asset) => setState(() => _selectedHair = asset)),
+                  _buildAssetGrid(_bodies, _selectedBody,
+                      (asset) => setState(() => _selectedBody = asset)),
+                  _buildAssetGrid(_outfits, _selectedOutfit,
+                      (asset) => setState(() => _selectedOutfit = asset)),
+                  _buildAssetGrid(_hairs, _selectedHair,
+                      (asset) => setState(() => _selectedHair = asset)),
                 ],
               ),
             ),
@@ -166,7 +199,8 @@ class _CharacterEditorScreenState extends State<CharacterEditorScreen> with Sing
     );
   }
 
-  Widget _buildAssetGrid(List<Map<String, String>> items, String currentSelected, Function(String) onSelect) {
+  Widget _buildAssetGrid(List<Map<String, String>> items,
+      String currentSelected, Function(String) onSelect) {
     return GridView.builder(
       padding: const EdgeInsets.all(16),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -201,7 +235,8 @@ class _CharacterEditorScreenState extends State<CharacterEditorScreen> with Sing
                       padding: const EdgeInsets.all(6.0),
                       child: assetPath.isNotEmpty
                           ? Image.asset(assetPath, fit: BoxFit.contain)
-                          : const Icon(Icons.block, color: AppColors.textSecondary),
+                          : const Icon(Icons.block,
+                              color: AppColors.textSecondary),
                     ),
                   ),
                   Text(
@@ -209,8 +244,11 @@ class _CharacterEditorScreenState extends State<CharacterEditorScreen> with Sing
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 11,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                      color: isSelected ? AppColors.woodAccent : AppColors.textPrimary,
+                      fontWeight:
+                          isSelected ? FontWeight.bold : FontWeight.normal,
+                      color: isSelected
+                          ? AppColors.woodAccent
+                          : AppColors.textPrimary,
                     ),
                   ),
                 ],

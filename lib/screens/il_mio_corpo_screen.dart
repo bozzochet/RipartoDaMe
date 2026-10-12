@@ -10,7 +10,6 @@ import 'package:path_provider/path_provider.dart' as path_provider;
 import 'package:path/path.dart' as path;
 import 'package:saver_gallery/saver_gallery.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:http/http.dart' as http;
 import 'package:google_generative_ai/google_generative_ai.dart';
 import '../theme/app_theme.dart';
 import '../widgets/cozy_widgets.dart';
@@ -349,8 +348,8 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen>
                   });
                   await _storageService.saveUser(_user);
                   if (!mounted) return;
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  Navigator.pop(this.context);
+                  ScaffoldMessenger.of(this.context).showSnackBar(
                     const SnackBar(
                       backgroundColor: AppColors.success,
                       content: Text('🎯 Obiettivo aggiornato!'),
@@ -516,7 +515,7 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen>
         allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
       );
 
-      if (result != null && result.isNotEmpty && result.single.path != null) {
+      if (result.isNotEmpty && result.single.path != null) {
         final filePath = result.single.path!;
         final fileBytes = await File(filePath).readAsBytes();
         final extension =
@@ -762,115 +761,159 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen>
 
         setState(() {
           _tempBloodTestDate = extractedDate;
-          if (parsedValues['glycemia'] != null)
+          if (parsedValues['glycemia'] != null) {
             _glycemiaController.text = parsedValues['glycemia'].toString();
-          if (parsedValues['hba1c'] != null)
+          }
+          if (parsedValues['hba1c'] != null) {
             _hba1cController.text = parsedValues['hba1c'].toString();
-          if (parsedValues['insulin'] != null)
+          }
+          if (parsedValues['insulin'] != null) {
             _insulinController.text = parsedValues['insulin'].toString();
-          if (parsedValues['iron'] != null)
+          }
+          if (parsedValues['iron'] != null) {
             _ironController.text = parsedValues['iron'].toString();
-          if (parsedValues['ferritin'] != null)
+          }
+          if (parsedValues['ferritin'] != null) {
             _ferritinController.text = parsedValues['ferritin'].toString();
-          if (parsedValues['potassium'] != null)
+          }
+          if (parsedValues['potassium'] != null) {
             _potassiumController.text = parsedValues['potassium'].toString();
-          if (parsedValues['vitaminD'] != null)
+          }
+          if (parsedValues['vitaminD'] != null) {
             _vitaminDController.text = parsedValues['vitaminD'].toString();
-          if (parsedValues['vitaminB12'] != null)
+          }
+          if (parsedValues['vitaminB12'] != null) {
             _vitaminB12Controller.text = parsedValues['vitaminB12'].toString();
-          if (parsedValues['ast'] != null)
+          }
+          if (parsedValues['ast'] != null) {
             _astController.text = parsedValues['ast'].toString();
-          if (parsedValues['alt'] != null)
+          }
+          if (parsedValues['alt'] != null) {
             _altController.text = parsedValues['alt'].toString();
-          if (parsedValues['ggt'] != null)
+          }
+          if (parsedValues['ggt'] != null) {
             _ggtController.text = parsedValues['ggt'].toString();
-          if (parsedValues['hemoglobin'] != null)
+          }
+          if (parsedValues['hemoglobin'] != null) {
             _hemoglobinController.text = parsedValues['hemoglobin'].toString();
-          if (parsedValues['redBloodCells'] != null)
+          }
+          if (parsedValues['redBloodCells'] != null) {
             _redBloodCellsController.text =
                 parsedValues['redBloodCells'].toString();
-          if (parsedValues['whiteBloodCells'] != null)
+          }
+          if (parsedValues['whiteBloodCells'] != null) {
             _whiteBloodCellsController.text =
                 parsedValues['whiteBloodCells'].toString();
-          if (parsedValues['platelets'] != null)
+          }
+          if (parsedValues['platelets'] != null) {
             _plateletsController.text = parsedValues['platelets'].toString();
-          if (parsedValues['hematocrit'] != null)
+          }
+          if (parsedValues['hematocrit'] != null) {
             _hematocritController.text = parsedValues['hematocrit'].toString();
-          if (parsedValues['mcv'] != null)
+          }
+          if (parsedValues['mcv'] != null) {
             _mcvController.text = parsedValues['mcv'].toString();
-          if (parsedValues['neutrophils'] != null)
+          }
+          if (parsedValues['neutrophils'] != null) {
             _neutrophilsController.text =
                 parsedValues['neutrophils'].toString();
-          if (parsedValues['lymphocytes'] != null)
+          }
+          if (parsedValues['lymphocytes'] != null) {
             _lymphocytesController.text =
                 parsedValues['lymphocytes'].toString();
-          if (parsedValues['totalCholesterol'] != null)
+          }
+          if (parsedValues['totalCholesterol'] != null) {
             _totalCholesterolController.text =
                 parsedValues['totalCholesterol'].toString();
-          if (parsedValues['hdlCholesterol'] != null)
+          }
+          if (parsedValues['hdlCholesterol'] != null) {
             _hdlCholesterolController.text =
                 parsedValues['hdlCholesterol'].toString();
-          if (parsedValues['ldlCholesterol'] != null)
+          }
+          if (parsedValues['ldlCholesterol'] != null) {
             _ldlCholesterolController.text =
                 parsedValues['ldlCholesterol'].toString();
-          if (parsedValues['triglycerides'] != null)
+          }
+          if (parsedValues['triglycerides'] != null) {
             _triglyceridesController.text =
                 parsedValues['triglycerides'].toString();
-          if (parsedValues['creatinine'] != null)
+          }
+          if (parsedValues['creatinine'] != null) {
             _creatinineController.text = parsedValues['creatinine'].toString();
-          if (parsedValues['gfr'] != null)
+          }
+          if (parsedValues['gfr'] != null) {
             _gfrController.text = parsedValues['gfr'].toString();
-          if (parsedValues['pt'] != null)
+          }
+          if (parsedValues['pt'] != null) {
             _ptController.text = parsedValues['pt'].toString();
-          if (parsedValues['aptt'] != null)
+          }
+          if (parsedValues['aptt'] != null) {
             _apttController.text = parsedValues['aptt'].toString();
-          if (parsedValues['fibrinogen'] != null)
+          }
+          if (parsedValues['fibrinogen'] != null) {
             _fibrinogenController.text = parsedValues['fibrinogen'].toString();
-          if (parsedValues['ves'] != null)
+          }
+          if (parsedValues['ves'] != null) {
             _vesController.text = parsedValues['ves'].toString();
-          if (parsedValues['urineSpecificGravity'] != null)
+          }
+          if (parsedValues['urineSpecificGravity'] != null) {
             _urineSpecificGravityController.text =
                 parsedValues['urineSpecificGravity'].toString();
-          if (parsedValues['urinePh'] != null)
+          }
+          if (parsedValues['urinePh'] != null) {
             _urinePhController.text = parsedValues['urinePh'].toString();
-          if (parsedValues['urineProteins'] != null)
+          }
+          if (parsedValues['urineProteins'] != null) {
             _urineProteinsController.text =
                 parsedValues['urineProteins'].toString();
-          if (parsedValues['urineGlucose'] != null)
+          }
+          if (parsedValues['urineGlucose'] != null) {
             _urineGlucoseController.text =
                 parsedValues['urineGlucose'].toString();
-          if (parsedValues['urineKetones'] != null)
+          }
+          if (parsedValues['urineKetones'] != null) {
             _urineKetonesController.text =
                 parsedValues['urineKetones'].toString();
-          if (parsedValues['urineHemoglobin'] != null)
+          }
+          if (parsedValues['urineHemoglobin'] != null) {
             _urineHemoglobinController.text =
                 parsedValues['urineHemoglobin'].toString();
-          if (parsedValues['urineBilirubin'] != null)
+          }
+          if (parsedValues['urineBilirubin'] != null) {
             _urineBilirubinController.text =
                 parsedValues['urineBilirubin'].toString();
-          if (parsedValues['urineUrobilinogen'] != null)
+          }
+          if (parsedValues['urineUrobilinogen'] != null) {
             _urineUrobilinogenController.text =
                 parsedValues['urineUrobilinogen'].toString();
-          if (parsedValues['urineNitrites'] != null)
+          }
+          if (parsedValues['urineNitrites'] != null) {
             _urineNitritesController.text =
                 parsedValues['urineNitrites'].toString();
-          if (parsedValues['leukocyteEsterase'] != null)
+          }
+          if (parsedValues['leukocyteEsterase'] != null) {
             _urineLeukocytesController.text =
                 parsedValues['leukocyteEsterase'].toString();
-          if (parsedValues['urineRedBloodCells'] != null)
+          }
+          if (parsedValues['urineRedBloodCells'] != null) {
             _urineRedBloodCellsController.text =
                 parsedValues['urineRedBloodCells'].toString();
-          if (parsedValues['urineWhiteBloodCells'] != null)
+          }
+          if (parsedValues['urineWhiteBloodCells'] != null) {
             _urineWhiteBloodCellsController.text =
                 parsedValues['urineWhiteBloodCells'].toString();
-          if (parsedValues['casts'] != null)
+          }
+          if (parsedValues['casts'] != null) {
             _urineCastsController.text = parsedValues['casts'].toString();
-          if (parsedValues['epithelialCells'] != null)
+          }
+          if (parsedValues['epithelialCells'] != null) {
             _urineEpithelialCellsController.text =
                 parsedValues['epithelialCells'].toString();
-          if (parsedValues['urineSediment'] != null)
+          }
+          if (parsedValues['urineSediment'] != null) {
             _urineSedimentController.text =
                 parsedValues['urineSediment'].toString();
+          }
         });
 
         _tempBloodFilePath = fileName;
@@ -1064,7 +1107,7 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen>
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
                 decoration: BoxDecoration(
-                  color: AppColors.background.withOpacity(0.88),
+                  color: AppColors.background.withValues(alpha: 0.88),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Row(
@@ -1669,10 +1712,11 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen>
                       child: Text('Urine - Cellule Epiteliali')),
                 ],
                 onChanged: (val) {
-                  if (val != null)
+                  if (val != null) {
                     setState(() {
                       _selectedBloodChartMetric = val;
                     });
+                  }
                 },
               ),
             ],
@@ -2123,7 +2167,7 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen>
                             child: Container(
                               padding: const EdgeInsets.symmetric(
                                   vertical: 6, horizontal: 8),
-                              color: Colors.black.withOpacity(0.7),
+                              color: Colors.black.withValues(alpha: 0.7),
                               child: Row(
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
@@ -2334,7 +2378,7 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen>
         ),
         borderData: FlBorderData(
           show: true,
-          border: Border.all(color: AppColors.disabled.withOpacity(0.3)),
+          border: Border.all(color: AppColors.disabled.withValues(alpha: 0.3)),
         ),
         lineBarsData: [
           LineChartBarData(
@@ -2346,7 +2390,7 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen>
             dotData: const FlDotData(show: true),
             belowBarData: BarAreaData(
               show: true,
-              color: AppColors.woodAccent.withOpacity(0.15),
+              color: AppColors.woodAccent.withValues(alpha: 0.15),
             ),
           ),
         ],
@@ -2478,7 +2522,7 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen>
         ),
         borderData: FlBorderData(
           show: true,
-          border: Border.all(color: AppColors.disabled.withOpacity(0.3)),
+          border: Border.all(color: AppColors.disabled.withValues(alpha: 0.3)),
         ),
         lineBarsData: [
           LineChartBarData(
@@ -2490,7 +2534,7 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen>
             dotData: const FlDotData(show: true),
             belowBarData: BarAreaData(
               show: true,
-              color: AppColors.woodAccent.withOpacity(0.15),
+              color: AppColors.woodAccent.withValues(alpha: 0.15),
             ),
           ),
         ],
@@ -2735,7 +2779,7 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen>
                         child: Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: AppColors.woodAccent.withOpacity(0.1),
+                            color: AppColors.woodAccent.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(color: AppColors.woodAccent),
                           ),

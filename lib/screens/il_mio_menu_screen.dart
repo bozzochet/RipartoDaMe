@@ -175,7 +175,7 @@ class _IlMioMenuScreenState extends State<IlMioMenuScreen>
         type: FileType.custom,
         allowedExtensions: ['pdf', 'jpg', 'png', 'jpeg'],
       );
-      final selectedPath = result?.single.path;
+      final selectedPath = result.single.path;
       if (selectedPath == null) return;
       _setSelectedDietFile(File(selectedPath));
     } catch (e) {
@@ -1754,9 +1754,7 @@ ${MenuAiContract.jsonShape}
   }
 
   Widget _buildGeneratorCard() {
-    final selectedName = _selectedDietFile == null
-        ? null
-        : _selectedDietFile!.path.split(Platform.pathSeparator).last;
+    final selectedName = _selectedDietFile?.path.split(Platform.pathSeparator).last;
 
     return CozyWoodCard(
       child: Padding(
@@ -1902,7 +1900,7 @@ ${MenuAiContract.jsonShape}
             ),
             const SizedBox(height: 10),
             DropdownButtonFormField<String>(
-              value: _dietStyle,
+              initialValue: _dietStyle,
               decoration: CozyStyles.cozyInputDecoration('Stile alimentare'),
               items: const [
                 DropdownMenuItem(value: 'Standard', child: Text('Standard')),

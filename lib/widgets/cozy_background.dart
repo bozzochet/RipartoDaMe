@@ -25,7 +25,7 @@ class CozyBackground extends StatelessWidget {
       ),
       child: opacity < 1.0
           ? Container(
-              color: Colors.white.withOpacity(1.0 - opacity),
+              color: Colors.white.withValues(alpha: 1.0 - opacity),
               child: child,
             )
           : child,

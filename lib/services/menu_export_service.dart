@@ -534,8 +534,9 @@ class MenuExportService {
   }
 
   String _formatQuantity(double? quantity, String? unit) {
-    if (quantity == null)
+    if (quantity == null) {
       return unit?.trim().isNotEmpty == true ? unit!.trim() : '-';
+    }
     final quantityText = _formatNumber(quantity);
     final unitText = unit?.trim() ?? '';
     return '$quantityText${unitText.isEmpty ? '' : ' $unitText'}';

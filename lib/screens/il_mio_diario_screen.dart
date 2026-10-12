@@ -11,7 +11,6 @@ import '../services/local_storage_service.dart';
 import '../models/user_model.dart';
 import '../models/meal_entry_model.dart';
 import '../theme/app_theme.dart';
-import '../theme/cozy_styles.dart';
 import '../widgets/cozy_background.dart';
 import '../widgets/cozy_widgets.dart';
 
@@ -79,8 +78,7 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
   // --- TOTALI GIORNALIERI SICURI ---
   int get _totalDailyCalories {
     try {
-      return _currentMealsList.fold(
-          0, (sum, meal) => sum + (meal.totalCalories ?? 0));
+      return _currentMealsList.fold(0, (sum, meal) => sum + meal.totalCalories);
     } catch (_) {
       return 0;
     }
@@ -92,7 +90,7 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
         return sum +
             meal.items.fold(0, (itemSum, item) {
               try {
-                return itemSum + (item.proteins ?? 0).toInt();
+                return itemSum + item.proteins.toInt();
               } catch (_) {
                 return itemSum;
               }
@@ -109,7 +107,7 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
         return sum +
             meal.items.fold(0, (itemSum, item) {
               try {
-                return itemSum + (item.carbs ?? 0).toInt();
+                return itemSum + item.carbs.toInt();
               } catch (_) {
                 return itemSum;
               }
@@ -126,7 +124,7 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
         return sum +
             meal.items.fold(0, (itemSum, item) {
               try {
-                return itemSum + (item.fats ?? 0).toInt();
+                return itemSum + item.fats.toInt();
               } catch (_) {
                 return itemSum;
               }
@@ -140,10 +138,12 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
   int _getMetricForDate(DateTime date, String metric) {
     try {
       final meals = _storageService.getMealsForDate(date);
-      if (meals.isEmpty) return 0;
+      if (meals.isEmpty) {
+        return 0;
+      }
 
       if (metric == 'calories') {
-        return meals.fold(0, (sum, meal) => sum + (meal.totalCalories ?? 0));
+        return meals.fold(0, (sum, meal) => sum + meal.totalCalories);
       } else {
         return meals.fold(
             0,
@@ -151,11 +151,13 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
                 sum +
                 meal.items.fold(0, (iSum, item) {
                   try {
-                    if (metric == 'proteins')
-                      return iSum + (item.proteins ?? 0).toInt();
-                    if (metric == 'carbs')
-                      return iSum + (item.carbs ?? 0).toInt();
-                    return iSum + (item.fats ?? 0).toInt();
+                    if (metric == 'proteins') {
+                      return iSum + item.proteins.toInt();
+                    }
+                    if (metric == 'carbs') {
+                      return iSum + item.carbs.toInt();
+                    }
+                    return iSum + item.fats.toInt();
                   } catch (_) {
                     return iSum;
                   }
@@ -167,7 +169,9 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
   }
 
   List<String> _getMealPhotos(MealEntryModel meal) {
-    if (meal.photoPath == null || meal.photoPath!.isEmpty) return [];
+    if (meal.photoPath == null || meal.photoPath!.isEmpty) {
+      return [];
+    }
     if (meal.photoPath!.contains('|')) {
       return meal.photoPath!.split('|').where((s) => s.isNotEmpty).toList();
     }
@@ -183,7 +187,9 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
   }
 
   void _addFoodItemToMeal(MealEntryModel meal) {
-    if (_foodController.text.trim().isEmpty) return;
+    if (_foodController.text.trim().isEmpty) {
+      return;
+    }
 
     final int cals = int.tryParse(_caloriesController.text) ?? 0;
     final double prot = double.tryParse(_proteinsController.text) ?? 0.0;
@@ -236,11 +242,10 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
     final calsController =
         TextEditingController(text: foodItem.calories.toString());
     final protController =
-        TextEditingController(text: (foodItem.proteins ?? 0).toString());
+        TextEditingController(text: foodItem.proteins.toString());
     final carbController =
-        TextEditingController(text: (foodItem.carbs ?? 0).toString());
-    final fatController =
-        TextEditingController(text: (foodItem.fats ?? 0).toString());
+        TextEditingController(text: foodItem.carbs.toString());
+    final fatController = TextEditingController(text: foodItem.fats.toString());
 
     showDialog(
       context: context,
@@ -381,7 +386,9 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
     final XFile? image =
         await _picker.pickImage(source: source, imageQuality: 85);
     if (image != null) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       _processImageFile(meal, image.path);
     }
   }
@@ -394,6 +401,9 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
     if (File(fullPath).existsSync()) {
       _processImageFile(meal, fullPath, existingFileName: fileName);
     } else {
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('Impossibile trovare il file immagine.')));
     }
@@ -479,7 +489,9 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
 
       final response = await model.generateContent(content);
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       if (Navigator.canPop(context)) {
         Navigator.of(context).pop();
@@ -498,7 +510,9 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
         );
       }
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       if (Navigator.canPop(context)) {
         Navigator.of(context).pop();
@@ -527,18 +541,21 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
                   key == 'calorie' ? 'calorie_totali_stimate' : '${key}_totali';
               int totale = 0;
               final val = risultatoIA[realKey];
-              if (val is num)
+              if (val is num) {
                 totale = val.toInt();
-              else if (val is String) totale = int.tryParse(val) ?? 0;
+              } else if (val is String) {
+                totale = int.tryParse(val) ?? 0;
+              }
 
               if (risultatoIA['domande_per_utente'] != null) {
                 for (var d in risultatoIA['domande_per_utente']) {
                   if (d['selezionato'] == true) {
                     final impatto = d['impatto_$key'];
-                    if (impatto is num)
+                    if (impatto is num) {
                       totale += impatto.toInt();
-                    else if (impatto is String)
+                    } else if (impatto is String) {
                       totale += int.tryParse(impatto) ?? 0;
+                    }
                   }
                 }
               }
@@ -627,8 +644,9 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
                     try {
                       setState(() {
                         final photos = _getMealPhotos(meal);
-                        if (!photos.contains(photoFileName))
+                        if (!photos.contains(photoFileName)) {
                           photos.add(photoFileName);
+                        }
                         _saveMealPhotos(meal, photos);
 
                         final newItem = FoodItemModel(
@@ -659,7 +677,7 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
                             content: Text(
                                 '✨ Piatto analizzato aggiunto con successo! +5 Rupie! 💎')),
                       );
-                    } catch (e, stackTrace) {
+                    } catch (e) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                             backgroundColor: Colors.red[700],
@@ -958,7 +976,9 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
                                                               photoToDelete,
                                                         );
 
-                                                        if (!mounted) return;
+                                                        if (!mounted) {
+                                                          return;
+                                                        }
 
                                                         setState(() {
                                                           _loadMealsForSelectedDate();
@@ -995,8 +1015,9 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
                                                           decoration: BoxDecoration(
                                                               color: AppColors
                                                                   .woodAccent
-                                                                  .withOpacity(
-                                                                      0.9),
+                                                                  .withValues(
+                                                                      alpha:
+                                                                          0.9),
                                                               shape: BoxShape
                                                                   .circle),
                                                           child: const Icon(
@@ -1021,9 +1042,9 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
                                   ...meal.items.asMap().entries.map((entry) {
                                     final itemIndex = entry.key;
                                     final foodItem = entry.value;
-                                    final p = foodItem.proteins ?? 0;
-                                    final c = foodItem.carbs ?? 0;
-                                    final f = foodItem.fats ?? 0;
+                                    final p = foodItem.proteins;
+                                    final c = foodItem.carbs;
+                                    final f = foodItem.fats;
 
                                     return Padding(
                                       padding:
@@ -1032,8 +1053,8 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
                                         padding: const EdgeInsets.symmetric(
                                             horizontal: 8, vertical: 6),
                                         decoration: BoxDecoration(
-                                            color:
-                                                Colors.white.withOpacity(0.5),
+                                            color: Colors.white
+                                                .withValues(alpha: 0.5),
                                             borderRadius:
                                                 BorderRadius.circular(8)),
                                         child: Row(
@@ -1072,11 +1093,12 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
                                 Container(
                                   padding: const EdgeInsets.all(8),
                                   decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.3),
+                                      color:
+                                          Colors.white.withValues(alpha: 0.3),
                                       borderRadius: BorderRadius.circular(10),
                                       border: Border.all(
                                           color: AppColors.border
-                                              .withOpacity(0.5))),
+                                              .withValues(alpha: 0.5))),
                                   child: Column(
                                     children: [
                                       TextField(
@@ -1231,7 +1253,7 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
                 decoration: BoxDecoration(
-                    color: AppColors.background.withOpacity(0.88),
+                    color: AppColors.background.withValues(alpha: 0.88),
                     borderRadius: BorderRadius.circular(16)),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -1256,15 +1278,23 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
     int maxVal = _selectedChartMetric == 'calories' ? 2000 : 150;
     for (var day in pastDays) {
       final val = _getMetricForDate(day, _selectedChartMetric);
-      if (val > maxVal) maxVal = val;
+      if (val > maxVal) {
+        maxVal = val;
+      }
     }
 
     String getDateKey(DateTime d) =>
         "${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}";
     String metricTitle = 'Calorie';
-    if (_selectedChartMetric == 'proteins') metricTitle = 'Proteine (g)';
-    if (_selectedChartMetric == 'carbs') metricTitle = 'Carboidrati (g)';
-    if (_selectedChartMetric == 'fats') metricTitle = 'Grassi (g)';
+    if (_selectedChartMetric == 'proteins') {
+      metricTitle = 'Proteine (g)';
+    }
+    if (_selectedChartMetric == 'carbs') {
+      metricTitle = 'Carboidrati (g)';
+    }
+    if (_selectedChartMetric == 'fats') {
+      metricTitle = 'Grassi (g)';
+    }
 
     return CozyWoodCard(
       padding: const EdgeInsets.all(16),
@@ -1302,10 +1332,11 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
                   DropdownMenuItem(value: 'fats', child: Text('Grassi')),
                 ],
                 onChanged: (val) {
-                  if (val != null)
+                  if (val != null) {
                     setState(() {
                       _selectedChartMetric = val;
                     });
+                  }
                 },
               ),
             ],

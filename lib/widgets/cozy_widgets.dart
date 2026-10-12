@@ -15,14 +15,14 @@ class CozyButton extends StatelessWidget {
   final double verticalPadding; // Per regolare l'altezza verticale
 
   const CozyButton({
-      super.key,
-      required this.text,
-      this.onPressed,
-      this.icon,
-      this.isSecondary = false,
-      this.isSelected = false,
-      this.woodAsset,
-      this.verticalPadding = 12, // Default standard
+    super.key,
+    required this.text,
+    this.onPressed,
+    this.icon,
+    this.isSecondary = false,
+    this.isSelected = false,
+    this.woodAsset,
+    this.verticalPadding = 12, // Default standard
   });
 
   @override
@@ -38,7 +38,8 @@ class CozyButton extends StatelessWidget {
             foregroundColor: AppColors.textPrimary,
             backgroundColor: AppColors.surface,
             side: const BorderSide(color: AppColors.border, width: 1.5),
-            padding: EdgeInsets.symmetric(horizontal: 20, vertical: verticalPadding),
+            padding:
+                EdgeInsets.symmetric(horizontal: 20, vertical: verticalPadding),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
@@ -66,17 +67,19 @@ class CozyButton extends StatelessWidget {
     }
 
     // Determiniamo l'asset, il bordo e il colore del testo in base allo stato "isSelected"
-    final String activeWood = woodAsset ?? (isSelected 
-      ? 'assets/images/wood_texture_dark.png' 
-      : 'assets/images/wood_texture_verylight.png');
+    final String activeWood = woodAsset ??
+        (isSelected
+            ? 'assets/images/wood_texture_dark.png'
+            : 'assets/images/wood_texture_verylight.png');
 
-    final Color borderColor = isSelected 
-    ? const Color(0xFFDAA520) // Bordo dorato se selezionato
-    : const Color(0xFF8B5A2B); // Bordo marrone scuro se inattivo
+    final Color borderColor = isSelected
+        ? const Color(0xFFDAA520) // Bordo dorato se selezionato
+        : const Color(0xFF8B5A2B); // Bordo marrone scuro se inattivo
 
-    final Color textColor = isSelected 
-    ? const Color(0xFFFFF8DC) // Testo panna/oro chiaro
-    : const Color(0xFF3E2723); // Testo marrone scuro per leggibilità sul chiaro
+    final Color textColor = isSelected
+        ? const Color(0xFFFFF8DC) // Testo panna/oro chiaro
+        : const Color(
+            0xFF3E2723); // Testo marrone scuro per leggibilità sul chiaro
 
     return Opacity(
       opacity: isDisabled ? 0.6 : 1.0,
@@ -107,36 +110,37 @@ class CozyButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
             child: Container(
               alignment: Alignment.center,
-              padding: EdgeInsets.symmetric(horizontal: 8, vertical: verticalPadding),
+              padding: EdgeInsets.symmetric(
+                  horizontal: 8, vertical: verticalPadding),
               child: icon != null
-              ? Row(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(icon, color: textColor, size: 18),
-                  const SizedBox(width: 8),
-                  Text(
-                    text,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontFamily: 'Serif',
-                      fontWeight: FontWeight.bold,
-                      color: textColor,
-                      fontSize: 14,
+                  ? Row(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(icon, color: textColor, size: 18),
+                        const SizedBox(width: 8),
+                        Text(
+                          text,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontFamily: 'Serif',
+                            fontWeight: FontWeight.bold,
+                            color: textColor,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    )
+                  : Text(
+                      text,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontFamily: 'Serif',
+                        fontWeight: FontWeight.bold,
+                        color: textColor,
+                        fontSize: 14,
+                      ),
                     ),
-                  ),
-                ],
-              )
-              : Text(
-                text,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: 'Serif',
-                  fontWeight: FontWeight.bold,
-                  color: textColor,
-                  fontSize: 14,
-                ),
-              ),
             ),
           ),
         ),
@@ -166,7 +170,7 @@ class CozyCard extends StatelessWidget {
           border: Border.all(color: AppColors.border, width: 1.5),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.03),
+              color: Colors.black.withValues(alpha: 0.03),
               blurRadius: 6,
               offset: const Offset(0, 3),
             ),
@@ -267,6 +271,7 @@ class CozyWoodCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry? padding;
   final EdgeInsetsGeometry? margin;
+
   /// Opacità dello strato panna sopra il legno (0.0 = legno puro, 1.0 = panna solido)
   final double overlayOpacity;
 
@@ -275,7 +280,8 @@ class CozyWoodCard extends StatelessWidget {
     required this.child,
     this.padding,
     this.margin,
-    this.overlayOpacity = 0.65, // Bilanciamento ideale tra trama visibile e leggibilità
+    this.overlayOpacity =
+        0.65, // Bilanciamento ideale tra trama visibile e leggibilità
   });
 
   @override
@@ -287,7 +293,7 @@ class CozyWoodCard extends StatelessWidget {
       child: Container(
         padding: padding ?? const EdgeInsets.all(16.0),
         // 📄 Sfondo 2: Overlay effetto pergamena/panna semi-trasparente
-        color: const Color(0xFFFDF6E3).withOpacity(overlayOpacity),
+        color: const Color(0xFFFDF6E3).withValues(alpha: overlayOpacity),
         child: child,
       ),
     );
