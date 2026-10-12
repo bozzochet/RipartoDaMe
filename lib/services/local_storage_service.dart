@@ -247,6 +247,64 @@ class LocalStorageService {
     await _writeMenuHistory(history);
   }
 
+  Future<void> renameMenuHistoryEntry(String id, String? customName) async {
+    final history = await getMenuHistory();
+    final index = history.indexWhere((entry) => entry.id == id);
+    if (index < 0) return;
+
+    final current = history[index];
+    final normalizedName = customName?.trim();
+    history[index] = MenuHistoryEntry(
+      id: current.id,
+      menu: current.menu,
+      shoppingList: current.shoppingList,
+      generationInfo: current.generationInfo,
+      customName: normalizedName == null || normalizedName.isEmpty
+          ? null
+          : normalizedName,
+      sourceMenuId: current.sourceMenuId,
+      modifiedAt: current.modifiedAt,
+    );
+    await _writeMenuHistory(history);
+  }
+
+  Future<MenuHistoryEntry> saveEditedMenu({
+    required MenuHistoryEntry source,
+    required List<DailyMenuModel> menu,
+    String? customName,
+  }) async {
+    final savedAt = DateTime.now();
+    final sourceInfo = source.generationInfo;
+    final editedInfo = MenuGenerationInfo(
+      targetCalories: sourceInfo.targetCalories,
+      dietStyle: sourceInfo.dietStyle,
+      excludedFoods: List<String>.from(sourceInfo.excludedFoods),
+      halal: sourceInfo.halal,
+      kosher: sourceInfo.kosher,
+      dietDocumentName: sourceInfo.dietDocumentName,
+      dietDocumentPath: sourceInfo.dietDocumentPath,
+      generatedAt: savedAt,
+    );
+    final shoppingList = buildShoppingListFromMenu(menu);
+    final entry = MenuHistoryEntry(
+      id: savedAt.microsecondsSinceEpoch.toString(),
+      menu: menu,
+      shoppingList: shoppingList,
+      generationInfo: editedInfo,
+      customName:
+          customName?.trim().isEmpty == true ? null : customName?.trim(),
+      sourceMenuId: source.id,
+      modifiedAt: savedAt,
+    );
+
+    final history = await getMenuHistory();
+    history.removeWhere((item) => item.id == entry.id);
+    history.insert(0, entry);
+    await _writeMenuHistory(history);
+    await activateMenuHistoryEntry(entry);
+    return entry;
+  }
+
   Future<void> activateMenuHistoryEntry(MenuHistoryEntry entry) async {
     await saveWeeklyMenu(entry.menu);
     await saveShoppingList(

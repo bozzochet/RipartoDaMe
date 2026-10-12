@@ -424,12 +424,18 @@ class MenuHistoryEntry {
   final List<DailyMenuModel> menu;
   final List<ShoppingItemModel> shoppingList;
   final MenuGenerationInfo generationInfo;
+  final String? customName;
+  final String? sourceMenuId;
+  final DateTime? modifiedAt;
 
   MenuHistoryEntry({
     required this.id,
     required this.menu,
     required this.shoppingList,
     required this.generationInfo,
+    this.customName,
+    this.sourceMenuId,
+    this.modifiedAt,
   });
 
   Map<String, dynamic> toMap() => {
@@ -437,6 +443,9 @@ class MenuHistoryEntry {
         'menu': menu.map((day) => day.toMap()).toList(),
         'shoppingList': shoppingList.map((item) => item.toMap()).toList(),
         'generationInfo': generationInfo.toMap(),
+        'customName': customName,
+        'sourceMenuId': sourceMenuId,
+        'modifiedAt': modifiedAt?.toIso8601String(),
       };
 
   factory MenuHistoryEntry.fromMap(Map<String, dynamic> map) {
@@ -464,6 +473,9 @@ class MenuHistoryEntry {
           : <ShoppingItemModel>[],
       generationInfo:
           MenuGenerationInfo.fromMap(Map<String, dynamic>.from(rawInfo)),
+      customName: map['customName']?.toString(),
+      sourceMenuId: map['sourceMenuId']?.toString(),
+      modifiedAt: DateTime.tryParse(map['modifiedAt']?.toString() ?? ''),
     );
   }
 }

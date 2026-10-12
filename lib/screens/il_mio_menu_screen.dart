@@ -8,11 +8,14 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:open_filex/open_filex.dart';
 import '../services/local_storage_service.dart';
+import '../services/menu_export_service.dart';
 import '../models/app_menu_models.dart';
 import '../theme/app_theme.dart';
 import '../theme/cozy_styles.dart';
 import '../widgets/cozy_background.dart';
 import '../widgets/cozy_widgets.dart';
+
+enum _ShoppingFilter { all, pending, purchased }
 
 class IlMioMenuScreen extends StatefulWidget {
   const IlMioMenuScreen({super.key});
@@ -25,6 +28,7 @@ class _IlMioMenuScreenState extends State<IlMioMenuScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final LocalStorageService _storageService = LocalStorageService();
+  final MenuExportService _exportService = MenuExportService();
   final ImagePicker _imagePicker = ImagePicker();
 
   bool _isLoading = false;
@@ -42,6 +46,7 @@ class _IlMioMenuScreenState extends State<IlMioMenuScreen>
 
   List<DailyMenuModel> _weeklyMenu = [];
   List<ShoppingItemModel> _shoppingList = [];
+  _ShoppingFilter _shoppingFilter = _ShoppingFilter.all;
   MenuGenerationInfo? _menuGenerationInfo;
   List<MenuHistoryEntry> _menuHistory = [];
 
@@ -697,6 +702,341 @@ ${MenuAiContract.jsonShape}
     );
   }
 
+  MenuHistoryEntry? _currentHistoryEntry() {
+    final info = _menuGenerationInfo;
+    if (info == null) return null;
+    for (final entry in _menuHistory) {
+      if (entry.generationInfo.generatedAt == info.generatedAt) return entry;
+    }
+    return null;
+  }
+
+  Future<void> _renameMenu(MenuHistoryEntry entry) async {
+    final controller = TextEditingController(text: entry.customName ?? '');
+    final newName = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.background,
+        title: const Text('Rinomina menu'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLength: 60,
+          decoration: const InputDecoration(
+            labelText: 'Nome personalizzato',
+            hintText: 'Es. Menu chetogenico ottobre',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Annulla'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(controller.text),
+            child: const Text('Salva'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (newName == null) return;
+    await _storageService.renameMenuHistoryEntry(entry.id, newName);
+    final updatedHistory = await _storageService.getMenuHistory();
+    if (!mounted) return;
+    setState(() => _menuHistory = updatedHistory);
+  }
+
+  String _ingredientsToEditableText(List<MenuIngredientModel> ingredients) {
+    return ingredients.map((item) {
+      final quantity = item.quantity.toStringAsFixed(
+        item.quantity % 1 == 0 ? 0 : 1,
+      );
+      return '${item.name} | $quantity | ${item.unit} | ${item.category}';
+    }).join('\n');
+  }
+
+  List<MenuIngredientModel> _parseEditableIngredients(String value) {
+    final result = <MenuIngredientModel>[];
+    for (final rawLine in value.split('\n')) {
+      final line = rawLine.trim();
+      if (line.isEmpty) continue;
+      final parts = line.split('|').map((item) => item.trim()).toList();
+      if (parts.length < 3 || parts[0].isEmpty) {
+        throw const FormatException(
+          'Ogni ingrediente deve usare: nome | quantità | unità | categoria.',
+        );
+      }
+      final quantity = double.tryParse(parts[1].replaceAll(',', '.'));
+      if (quantity == null || quantity <= 0 || parts[2].isEmpty) {
+        throw FormatException('Ingrediente non valido: "$line".');
+      }
+      result.add(
+        MenuIngredientModel(
+          name: parts[0],
+          quantity: quantity,
+          unit: parts[2],
+          category:
+              parts.length > 3 && parts[3].isNotEmpty ? parts[3] : 'Generale',
+        ),
+      );
+    }
+    return result;
+  }
+
+  Future<void> _editMenuAsNewEntry(MenuHistoryEntry source) async {
+    final descriptions = <String, String>{};
+    final calories = <String, String>{};
+    final ingredients = <String, String>{};
+    for (var dayIndex = 0; dayIndex < source.menu.length; dayIndex++) {
+      final day = source.menu[dayIndex];
+      for (var mealIndex = 0; mealIndex < day.meals.length; mealIndex++) {
+        final key = '$dayIndex:$mealIndex';
+        final meal = day.meals[mealIndex];
+        descriptions[key] = meal.description;
+        calories[key] = meal.calories?.toStringAsFixed(0) ?? '';
+        ingredients[key] = _ingredientsToEditableText(meal.ingredients);
+      }
+    }
+    final nameController = TextEditingController(
+      text: source.customName == null || source.customName!.isEmpty
+          ? 'Copia modificata'
+          : '${source.customName} · Modificato',
+    );
+
+    final shouldSave = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => Dialog(
+        insetPadding: const EdgeInsets.all(12),
+        child: SafeArea(
+          child: SizedBox(
+            width: double.maxFinite,
+            height: MediaQuery.of(dialogContext).size.height * 0.9,
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.edit_note, color: AppColors.woodAccent),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'Modifica menu',
+                          style: TextStyle(
+                            fontFamily: 'Serif',
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(false),
+                        icon: const Icon(Icons.close),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    children: [
+                      TextField(
+                        controller: nameController,
+                        maxLength: 60,
+                        decoration: const InputDecoration(
+                          labelText: 'Nome della nuova versione',
+                        ),
+                      ),
+                      const Text(
+                        'Ingredienti: una riga per elemento nel formato '
+                        'nome | quantità | unità | categoria.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      for (var dayIndex = 0;
+                          dayIndex < source.menu.length;
+                          dayIndex++)
+                        ExpansionTile(
+                          initiallyExpanded: dayIndex == 0,
+                          title: Text(
+                            source.menu[dayIndex].dayName,
+                            style: const TextStyle(
+                              fontFamily: 'Serif',
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          children: [
+                            for (var mealIndex = 0;
+                                mealIndex < source.menu[dayIndex].meals.length;
+                                mealIndex++)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 14),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      source.menu[dayIndex].meals[mealIndex]
+                                          .mealType,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.woodAccent,
+                                      ),
+                                    ),
+                                    TextFormField(
+                                      initialValue:
+                                          descriptions['$dayIndex:$mealIndex'],
+                                      maxLines: 2,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Descrizione',
+                                      ),
+                                      onChanged: (value) =>
+                                          descriptions['$dayIndex:$mealIndex'] =
+                                              value,
+                                    ),
+                                    TextFormField(
+                                      initialValue:
+                                          calories['$dayIndex:$mealIndex'],
+                                      keyboardType: TextInputType.number,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Calorie (facoltative)',
+                                      ),
+                                      onChanged: (value) =>
+                                          calories['$dayIndex:$mealIndex'] =
+                                              value,
+                                    ),
+                                    TextFormField(
+                                      initialValue:
+                                          ingredients['$dayIndex:$mealIndex'],
+                                      minLines: 2,
+                                      maxLines: 6,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Ingredienti',
+                                      ),
+                                      onChanged: (value) =>
+                                          ingredients['$dayIndex:$mealIndex'] =
+                                              value,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                          ],
+                        ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () =>
+                              Navigator.of(dialogContext).pop(false),
+                          child: const Text('Annulla'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () =>
+                              Navigator.of(dialogContext).pop(true),
+                          icon: const Icon(Icons.save_as),
+                          label: const Text('Salva come nuovo'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    if (shouldSave != true) {
+      nameController.dispose();
+      return;
+    }
+
+    try {
+      final editedMenu = <DailyMenuModel>[];
+      for (var dayIndex = 0; dayIndex < source.menu.length; dayIndex++) {
+        final sourceDay = source.menu[dayIndex];
+        final editedMeals = <MenuMealModel>[];
+        for (var mealIndex = 0;
+            mealIndex < sourceDay.meals.length;
+            mealIndex++) {
+          final key = '$dayIndex:$mealIndex';
+          final description = descriptions[key]?.trim() ?? '';
+          if (description.isEmpty) {
+            throw FormatException(
+              '${sourceDay.dayName}: la descrizione del pasto è vuota.',
+            );
+          }
+          final caloriesText = calories[key]?.trim() ?? '';
+          final parsedCalories = caloriesText.isEmpty
+              ? null
+              : double.tryParse(caloriesText.replaceAll(',', '.'));
+          if (caloriesText.isNotEmpty &&
+              (parsedCalories == null || parsedCalories < 0)) {
+            throw FormatException(
+              '${sourceDay.dayName}: valore calorie non valido.',
+            );
+          }
+          final sourceMeal = sourceDay.meals[mealIndex];
+          editedMeals.add(
+            MenuMealModel(
+              mealType: sourceMeal.mealType,
+              description: description,
+              calories: parsedCalories,
+              ingredients: _parseEditableIngredients(
+                ingredients[key] ?? '',
+              ),
+            ),
+          );
+        }
+        editedMenu.add(
+          DailyMenuModel(dayName: sourceDay.dayName, meals: editedMeals),
+        );
+      }
+
+      final newEntry = await _storageService.saveEditedMenu(
+        source: source,
+        menu: editedMenu,
+        customName: nameController.text,
+      );
+      final updatedHistory = await _storageService.getMenuHistory();
+      if (!mounted) return;
+      setState(() {
+        _weeklyMenu = newEntry.menu;
+        _shoppingList = newEntry.shoppingList;
+        _menuGenerationInfo = newEntry.generationInfo;
+        _menuHistory = updatedHistory;
+        _showGenerator = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Versione modificata salvata nello storico e resa corrente.',
+          ),
+        ),
+      );
+    } on FormatException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message.toString())),
+      );
+    } finally {
+      nameController.dispose();
+    }
+  }
+
   Future<void> _showMenuHistoryEntry(MenuHistoryEntry entry) async {
     final info = entry.generationInfo;
     final isCurrent = _menuGenerationInfo?.generatedAt == info.generatedAt;
@@ -717,7 +1057,9 @@ ${MenuAiContract.jsonShape}
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                _formatMenuDate(info.generatedAt),
+                entry.customName?.isNotEmpty == true
+                    ? entry.customName!
+                    : _formatMenuDate(info.generatedAt),
                 style: const TextStyle(
                   fontFamily: 'Serif',
                   color: AppColors.textPrimary,
@@ -747,6 +1089,17 @@ ${MenuAiContract.jsonShape}
                     '${entry.shoppingList.length} elementi nella spesa',
                     style: const TextStyle(color: AppColors.textSecondary),
                   ),
+                  if (entry.modifiedAt != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      'Modificato manualmente il '
+                      '${_formatMenuDate(entry.modifiedAt!)}',
+                      style: const TextStyle(
+                        color: AppColors.woodAccent,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                   if (info.excludedFoods.isNotEmpty) ...[
                     const SizedBox(height: 8),
                     Text(
@@ -792,6 +1145,22 @@ ${MenuAiContract.jsonShape}
           ),
         ),
         actions: [
+          TextButton.icon(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              _renameMenu(entry);
+            },
+            icon: const Icon(Icons.drive_file_rename_outline),
+            label: const Text('Rinomina'),
+          ),
+          TextButton.icon(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              _editMenuAsNewEntry(entry);
+            },
+            icon: const Icon(Icons.edit_note),
+            label: const Text('Modifica'),
+          ),
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
             child: const Text('Chiudi'),
@@ -880,6 +1249,7 @@ ${MenuAiContract.jsonShape}
                   '${date.month.toString().padLeft(2, '0')}/${date.year}';
               final isCurrent = _menuGenerationInfo?.generatedAt == date;
               final preview = <String>[
+                if (entry.modifiedAt != null) 'Modificato manualmente',
                 if (info.targetCalories != null) '${info.targetCalories} kcal',
                 info.dietStyle,
                 '${entry.menu.length} giorni',
@@ -899,7 +1269,9 @@ ${MenuAiContract.jsonShape}
                       children: [
                         Flexible(
                           child: Text(
-                            'Menu del $dateStr',
+                            entry.customName?.isNotEmpty == true
+                                ? entry.customName!
+                                : 'Menu del $dateStr',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
@@ -952,6 +1324,179 @@ ${MenuAiContract.jsonShape}
             },
           ),
       ],
+    );
+  }
+
+  String? _currentMenuName() {
+    final entry = _currentHistoryEntry();
+    final customName = entry?.customName?.trim();
+    return customName == null || customName.isEmpty
+        ? 'Menu della Settimana'
+        : customName;
+  }
+
+  Future<void> _runExportAction(
+    Future<void> Function() action, {
+    required String errorLabel,
+  }) async {
+    try {
+      await action();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$errorLabel: $error')),
+      );
+    }
+  }
+
+  Widget _buildExportAction({
+    required String text,
+    required IconData icon,
+    required VoidCallback onPressed,
+  }) {
+    return Expanded(
+      child: CozyButton(
+        text: text,
+        icon: icon,
+        verticalPadding: 10,
+        onPressed: onPressed,
+      ),
+    );
+  }
+
+  Widget _buildMenuExportCard() {
+    final entry = _currentHistoryEntry();
+    if (entry == null) return const SizedBox.shrink();
+    return CozyWoodCard(
+      padding: const EdgeInsets.all(12),
+      overlayOpacity: 0.78,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.picture_as_pdf, color: AppColors.woodAccent),
+              SizedBox(width: 8),
+              Text(
+                'Esporta menu in PDF',
+                style: TextStyle(
+                  fontFamily: 'Serif',
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              _buildExportAction(
+                text: 'Condividi',
+                icon: Icons.ios_share,
+                onPressed: () => _runExportAction(
+                  () => _exportService.shareMenuPdf(entry),
+                  errorLabel: 'Impossibile condividere il PDF',
+                ),
+              ),
+              const SizedBox(width: 8),
+              _buildExportAction(
+                text: 'Stampa',
+                icon: Icons.print_outlined,
+                onPressed: () => _runExportAction(
+                  () => _exportService.printMenu(entry),
+                  errorLabel: 'Impossibile stampare il PDF',
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          CozyButton(
+            text: 'Salva su File',
+            icon: Icons.folder_open,
+            verticalPadding: 10,
+            onPressed: () => _runExportAction(
+              () => _exportService.saveMenuPdf(entry),
+              errorLabel: 'Impossibile salvare il PDF',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildShoppingExportCard() {
+    if (_shoppingList.isEmpty) return const SizedBox.shrink();
+    return CozyWoodCard(
+      padding: const EdgeInsets.all(12),
+      overlayOpacity: 0.78,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.share_outlined, color: AppColors.woodAccent),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Esporta lista della spesa',
+                  style: TextStyle(
+                    fontFamily: 'Serif',
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'La condivisione usa un testo semplice; la stampa crea una '
+            'versione PDF ordinata per categoria.',
+            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              _buildExportAction(
+                text: 'Condividi',
+                icon: Icons.ios_share,
+                onPressed: () => _runExportAction(
+                  () => _exportService.shareShoppingText(
+                    _filteredShoppingList(),
+                    menuName: _currentMenuName(),
+                  ),
+                  errorLabel: 'Impossibile condividere la lista',
+                ),
+              ),
+              const SizedBox(width: 8),
+              _buildExportAction(
+                text: 'Stampa',
+                icon: Icons.print_outlined,
+                onPressed: () => _runExportAction(
+                  () => _exportService.printShoppingList(
+                    _filteredShoppingList(),
+                    menuName: _currentMenuName(),
+                  ),
+                  errorLabel: 'Impossibile stampare la lista',
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          CozyButton(
+            text: 'Salva su File',
+            icon: Icons.folder_open,
+            verticalPadding: 10,
+            onPressed: () => _runExportAction(
+              () => _exportService.saveShoppingText(
+                _filteredShoppingList(),
+                menuName: _currentMenuName(),
+              ),
+              errorLabel: 'Impossibile salvare la lista',
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1027,6 +1572,10 @@ ${MenuAiContract.jsonShape}
           const SizedBox(height: 14),
           ..._weeklyMenu.map(_buildDayCard),
         ],
+        if (_weeklyMenu.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          _buildMenuExportCard(),
+        ],
         _buildMenuHistorySection(),
       ],
     );
@@ -1099,6 +1648,30 @@ ${MenuAiContract.jsonShape}
           verticalPadding: 16,
           onPressed: () {},
         ),
+        if (_currentHistoryEntry() != null) ...[
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: CozyButton(
+                  text: 'Rinomina',
+                  icon: Icons.drive_file_rename_outline,
+                  verticalPadding: 10,
+                  onPressed: () => _renameMenu(_currentHistoryEntry()!),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: CozyButton(
+                  text: 'Modifica menu',
+                  icon: Icons.edit_note,
+                  verticalPadding: 10,
+                  onPressed: () => _editMenuAsNewEntry(_currentHistoryEntry()!),
+                ),
+              ),
+            ],
+          ),
+        ],
         if (info != null) ...[
           const SizedBox(height: 10),
           CozyWoodCard(
@@ -1172,8 +1745,7 @@ ${MenuAiContract.jsonShape}
           child: CozyButton(
             text: 'Rigenera',
             icon: Icons.auto_awesome,
-            isSecondary: true,
-            verticalPadding: 8,
+            verticalPadding: 10,
             onPressed: () => setState(() => _showGenerator = true),
           ),
         ),
@@ -1455,11 +2027,324 @@ ${MenuAiContract.jsonShape}
     );
   }
 
+  List<ShoppingItemModel> _filteredShoppingList() {
+    return switch (_shoppingFilter) {
+      _ShoppingFilter.pending =>
+        _shoppingList.where((item) => !item.isChecked).toList(),
+      _ShoppingFilter.purchased =>
+        _shoppingList.where((item) => item.isChecked).toList(),
+      _ShoppingFilter.all => List<ShoppingItemModel>.from(_shoppingList),
+    };
+  }
+
+  String _shoppingFilterLabel() {
+    return switch (_shoppingFilter) {
+      _ShoppingFilter.pending => 'Solo da acquistare',
+      _ShoppingFilter.purchased => 'Solo acquistati',
+      _ShoppingFilter.all => 'Lista completa',
+    };
+  }
+
+  Future<void> _saveShoppingChanges() async {
+    await _storageService.saveShoppingList(_shoppingList);
+  }
+
+  Future<void> _resetShoppingChecks() async {
+    if (_shoppingList.every((item) => !item.isChecked)) return;
+    setState(() {
+      for (final item in _filteredShoppingList()) {
+        item.isChecked = false;
+      }
+    });
+    await _saveShoppingChanges();
+  }
+
+  Future<void> _rebuildShoppingListFromMenu() async {
+    if (_weeklyMenu.isEmpty) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Aggiornare la lista dal menu?'),
+        content: const Text(
+          'La lista attuale, comprese le modifiche manuali e le spunte, '
+          'verrà sostituita con gli ingredienti del menu corrente.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Annulla'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Aggiorna'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    final rebuilt = _storageService.buildShoppingListFromMenu(_weeklyMenu);
+    await _storageService.saveShoppingList(rebuilt);
+    if (!mounted) return;
+    setState(() {
+      _shoppingList = rebuilt;
+      _shoppingFilter = _ShoppingFilter.all;
+    });
+  }
+
+  Future<void> _editShoppingItem([ShoppingItemModel? existing]) async {
+    final nameController = TextEditingController(text: existing?.name ?? '');
+    final quantityController = TextEditingController(
+      text: existing?.quantity == null
+          ? ''
+          : existing!.quantity! % 1 == 0
+              ? existing.quantity!.toInt().toString()
+              : existing.quantity!.toStringAsFixed(1),
+    );
+    final unitController = TextEditingController(text: existing?.unit ?? '');
+    String category = existing?.category.trim().isNotEmpty == true
+        ? existing!.category
+        : 'Generale';
+    const categories = [
+      'Frigo',
+      'Carne e Pesce',
+      'Frutta',
+      'Verdura',
+      'Dispensa',
+      'Pane',
+      'Generale',
+    ];
+    if (!categories.contains(category)) category = 'Generale';
+
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(
+              existing == null ? 'Aggiungi prodotto' : 'Modifica prodotto'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  autofocus: true,
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: const InputDecoration(labelText: 'Prodotto'),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: quantityController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        decoration:
+                            const InputDecoration(labelText: 'Quantità'),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: TextField(
+                        controller: unitController,
+                        decoration: const InputDecoration(
+                          labelText: 'Unità',
+                          hintText: 'g, kg, ml...',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String>(
+                  initialValue: category,
+                  decoration: const InputDecoration(labelText: 'Categoria'),
+                  items: categories
+                      .map((value) => DropdownMenuItem(
+                            value: value,
+                            child: Text(value),
+                          ))
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null) setDialogState(() => category = value);
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Annulla'),
+            ),
+            FilledButton(
+              onPressed: () {
+                if (nameController.text.trim().isEmpty) return;
+                Navigator.of(dialogContext).pop(true);
+              },
+              child: const Text('Salva'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (saved != true) return;
+    final normalizedQuantity =
+        quantityController.text.trim().replaceAll(',', '.');
+    final quantity =
+        normalizedQuantity.isEmpty ? null : double.tryParse(normalizedQuantity);
+    setState(() {
+      if (existing == null) {
+        _shoppingList.add(
+          ShoppingItemModel(
+            id: 'manual_${DateTime.now().microsecondsSinceEpoch}',
+            name: nameController.text.trim(),
+            category: category,
+            quantity: quantity,
+            unit: unitController.text.trim(),
+          ),
+        );
+      } else {
+        existing.name = nameController.text.trim();
+        existing.category = category;
+        existing.quantity = quantity;
+        existing.unit = unitController.text.trim();
+      }
+      _shoppingList.sort((a, b) {
+        final categoryOrder = a.category.compareTo(b.category);
+        return categoryOrder != 0
+            ? categoryOrder
+            : a.name.toLowerCase().compareTo(b.name.toLowerCase());
+      });
+    });
+    await _saveShoppingChanges();
+  }
+
+  Future<void> _deleteShoppingItem(ShoppingItemModel item) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Eliminare il prodotto?'),
+        content: Text('${item.name} verrà rimosso dalla lista della spesa.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Annulla'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Elimina'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    setState(() => _shoppingList.removeWhere((entry) => entry.id == item.id));
+    await _saveShoppingChanges();
+  }
+
+  Widget _buildShoppingControls() {
+    return CozyWoodCard(
+      padding: const EdgeInsets.all(12),
+      overlayOpacity: 0.78,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SegmentedButton<_ShoppingFilter>(
+            style: ButtonStyle(
+              padding: const WidgetStatePropertyAll(
+                EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+              ),
+              visualDensity: VisualDensity.compact,
+              textStyle: const WidgetStatePropertyAll(
+                TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+              ),
+            ),
+            segments: const [
+              ButtonSegment(
+                value: _ShoppingFilter.all,
+                label: Text(
+                  'Tutti',
+                  maxLines: 1,
+                  softWrap: false,
+                  overflow: TextOverflow.visible,
+                ),
+              ),
+              ButtonSegment(
+                value: _ShoppingFilter.pending,
+                label: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    'Da comprare',
+                    maxLines: 1,
+                    softWrap: false,
+                  ),
+                ),
+              ),
+              ButtonSegment(
+                value: _ShoppingFilter.purchased,
+                label: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    'Acquistati',
+                    maxLines: 1,
+                    softWrap: false,
+                  ),
+                ),
+              ),
+            ],
+            selected: {_shoppingFilter},
+            showSelectedIcon: false,
+            onSelectionChanged: (selection) {
+              setState(() => _shoppingFilter = selection.first);
+            },
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: CozyButton(
+                  text: 'Aggiungi',
+                  icon: Icons.add_shopping_cart,
+                  verticalPadding: 9,
+                  onPressed: () => _editShoppingItem(),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: CozyButton(
+                  text: 'Azzera spunte',
+                  icon: Icons.restart_alt,
+                  verticalPadding: 9,
+                  onPressed: _resetShoppingChecks,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          CozyButton(
+            text: 'Aggiorna dal menu',
+            icon: Icons.sync,
+            verticalPadding: 9,
+            onPressed: _rebuildShoppingListFromMenu,
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildShoppingTab() {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
       children: [
         _buildShoppingHeaderCard(),
+        if (_shoppingList.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          _buildShoppingControls(),
+          const SizedBox(height: 14),
+          _buildShoppingExportCard(),
+        ],
         const SizedBox(height: 14),
         if (_shoppingList.isEmpty)
           CozyWoodCard(
@@ -1473,6 +2358,17 @@ ${MenuAiContract.jsonShape}
                   Text('La lista della spesa e vuota.',
                       style: TextStyle(color: AppColors.textSecondary)),
                 ],
+              ),
+            ),
+          )
+        else if (_filteredShoppingList().isEmpty)
+          CozyWoodCard(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Text(
+                'Nessun prodotto in: ${_shoppingFilterLabel()}.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: AppColors.textSecondary),
               ),
             ),
           )
@@ -1533,7 +2429,7 @@ ${MenuAiContract.jsonShape}
   List<Widget> _buildShoppingSections() {
     final grouped = <String, List<ShoppingItemModel>>{};
 
-    for (final item in _shoppingList) {
+    for (final item in _filteredShoppingList()) {
       grouped.putIfAbsent(item.category, () => []).add(item);
     }
 
@@ -1560,30 +2456,54 @@ ${MenuAiContract.jsonShape}
               ),
               const Divider(height: 12),
               ...entry.value.map((item) {
-                return CheckboxListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 2),
-                  dense: true,
-                  controlAffinity: ListTileControlAffinity.trailing,
-                  title: Text(
-                    item.name,
-                    style: TextStyle(
-                      color: AppColors.textPrimary,
-                      decoration:
-                          item.isChecked ? TextDecoration.lineThrough : null,
-                    ),
-                  ),
-                  subtitle: item.quantity == null
-                      ? null
-                      : Text(
-                          '${item.quantity!.toStringAsFixed(item.quantity! % 1 == 0 ? 0 : 1)} ${item.unit ?? ''}'
-                              .trim(),
-                          style: const TextStyle(fontSize: 11),
+                return Row(
+                  children: [
+                    Expanded(
+                      child: CheckboxListTile(
+                        contentPadding:
+                            const EdgeInsets.symmetric(horizontal: 2),
+                        dense: true,
+                        controlAffinity: ListTileControlAffinity.leading,
+                        title: Text(
+                          item.name,
+                          style: TextStyle(
+                            color: AppColors.textPrimary,
+                            decoration: item.isChecked
+                                ? TextDecoration.lineThrough
+                                : null,
+                          ),
                         ),
-                  value: item.isChecked,
-                  onChanged: (value) async {
-                    setState(() => item.isChecked = value ?? false);
-                    await _storageService.saveShoppingList(_shoppingList);
-                  },
+                        subtitle: item.quantity == null
+                            ? null
+                            : Text(
+                                '${item.quantity!.toStringAsFixed(item.quantity! % 1 == 0 ? 0 : 1)} ${item.unit ?? ''}'
+                                    .trim(),
+                                style: const TextStyle(fontSize: 11),
+                              ),
+                        value: item.isChecked,
+                        onChanged: (value) async {
+                          setState(() => item.isChecked = value ?? false);
+                          await _saveShoppingChanges();
+                        },
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Modifica',
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () => _editShoppingItem(item),
+                      icon: const Icon(Icons.edit_outlined, size: 19),
+                    ),
+                    IconButton(
+                      tooltip: 'Elimina',
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () => _deleteShoppingItem(item),
+                      icon: const Icon(
+                        Icons.delete_outline,
+                        size: 19,
+                        color: Colors.redAccent,
+                      ),
+                    ),
+                  ],
                 );
               }),
             ],
