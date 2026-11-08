@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../screens/ai_settings_screen.dart';
 
 class AiDialogs {
   static Future<void> showDemoLimitDialog(
@@ -37,10 +38,15 @@ class AiDialogs {
             child: const Text('Non ora'),
           ),
           FilledButton.icon(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
-              
-              // TODO: aprire schermata AI settings
+
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const AiSettingsScreen(),
+                ),
+              );
             },
             icon: const Icon(Icons.key_outlined),
             label: const Text('Configura Gemini'),

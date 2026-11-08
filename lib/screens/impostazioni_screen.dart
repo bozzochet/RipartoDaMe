@@ -6,6 +6,7 @@ import '../services/local_storage_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/cozy_background.dart';
 import '../widgets/cozy_widgets.dart';
+import 'ai_settings_screen.dart';
 
 class ImpostazioniScreen extends StatefulWidget {
   const ImpostazioniScreen({super.key});
@@ -378,6 +379,75 @@ class _ImpostazioniScreenState extends State<ImpostazioniScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  const Text(
+                    'Intelligenza Artificiale',
+                    style: TextStyle(
+                      fontFamily: 'Serif',
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Configura la tua API Key Gemini personale per continuare ad utilizzare le funzionalità AI.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  CozyWoodCard(
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Row(
+                            children: [
+                              Text('✨', style: TextStyle(fontSize: 24)),
+                              SizedBox(width: 12),
+                              Text(
+                                'Gemini AI',
+                                style: TextStyle(
+                                  fontFamily: 'Serif',
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Gestisci la tua API Key Gemini personale e continua ad utilizzare menu, diario e analisi assistite dall\'Intelligenza Artificiale.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: CozyButton(
+                              text: 'Configura Gemini',
+                              icon: Icons.key_outlined,
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const AiSettingsScreen(),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
                   const Text(
                     'Gestione Dati & Backup',
                     style: TextStyle(
