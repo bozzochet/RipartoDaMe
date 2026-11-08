@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/ai/gemini_settings_service.dart';
+import '../services/ai/gemini_service.dart';
 import '../widgets/cozy_widgets.dart';
 import '../widgets/cozy_background.dart';
 
@@ -18,6 +19,7 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
   bool _isLoading = true;
   bool _hasApiKey = false;
   bool _obscureApiKey = true;
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -44,34 +46,66 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
     });
   }
 
-  Future<void> _saveApiKey() async {
+  Future<void> _validateAndSaveApiKey() async {
     final apiKey = _apiKeyController.text.trim();
 
     if (apiKey.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Inserisci una API Key valida.'),
+          content: Text(
+            'Inserisci una API Key valida.',
+          ),
         ),
       );
       return;
     }
 
-    await GeminiSettingsService.instance
-        .savePersonalApiKey(apiKey);
-
-    if (!mounted) return;
-
     setState(() {
-      _hasApiKey = true;
+        _isSaving = true;
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('✅ API Key salvata con successo.'),
-      ),
-    );
-  }
+    try {
+      await GeminiService.instance.validateApiKey(
+        apiKey,
+      );
 
+      await GeminiSettingsService.instance
+      .savePersonalApiKey(apiKey);
+
+      if (!mounted) return;
+
+      setState(() {
+          _hasApiKey = true;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: Colors.green,
+          content: Text(
+            '✅ API Key verificata e salvata.',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: Colors.red,
+          content: Text(
+            '❌ API Key non valida: $e',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+            _isSaving = false;
+        });
+      }
+    }
+  }
+  
   Future<void> _removeApiKey() async {
     final confirm = await showDialog<bool>(
           context: context,
@@ -234,20 +268,29 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
             runSpacing: 8,
             children: [
               FilledButton.icon(
-                onPressed: _saveApiKey,
-                icon: const Icon(Icons.save),
+                onPressed:
+                _isSaving ? null : _validateAndSaveApiKey,
+                icon: _isSaving
+                ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                  ),
+                )
+                : const Icon(Icons.verified),
                 label: Text(
                   _hasApiKey
-                      ? 'Aggiorna chiave'
-                      : 'Salva chiave',
+                  ? 'Verifica e aggiorna'
+                  : 'Verifica e salva'
                 ),
               ),
               if (_hasApiKey)
-                OutlinedButton.icon(
-                  onPressed: _removeApiKey,
-                  icon: const Icon(Icons.delete_outline),
-                  label: const Text('Rimuovi'),
-                ),
+              OutlinedButton.icon(
+                onPressed: _removeApiKey,
+                icon: const Icon(Icons.delete_outline),
+                label: const Text('Rimuovi'),
+              ),
             ],
           ),
         ],

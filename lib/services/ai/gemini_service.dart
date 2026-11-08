@@ -15,6 +15,37 @@ class GeminiService {
   
   static final GeminiService instance = GeminiService._();
 
+  GenerativeModel _buildModel({
+      required String apiKey,
+      required AiFeature feature,
+      GenerationConfig? generationConfig,
+  }) {
+    return GenerativeModel(
+      model: _modelFor(feature),
+      apiKey: apiKey,
+      generationConfig: generationConfig,
+    );
+  }
+  
+  Future<void> validateApiKey(String apiKey) async {
+    final model = _buildModel(
+      apiKey: apiKey.trim(),
+      feature: AiFeature.menuGeneration,
+    );
+
+    final response = await model.generateContent([
+        Content.text('Reply only with OK'),
+    ]).timeout(
+      const Duration(seconds: 30),
+    );
+
+    final text = response.text?.trim();
+
+    if (text == null || text.isEmpty) {
+      throw Exception('Risposta vuota da Gemini');
+    }
+  }
+  
   Future<String> _resolveApiKey(AiFeature feature) async {
     final personalKey =
         await GeminiSettingsService.instance.getPersonalApiKey();
