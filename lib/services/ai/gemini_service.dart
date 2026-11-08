@@ -94,6 +94,9 @@ class GeminiService {
 
   String _modelFor(AiFeature feature) {
     switch (feature) {
+      case AiFeature.dietPlanAnalysis:
+      return 'gemini-3.6-flash';
+      
       case AiFeature.menuGeneration:
       return 'gemini-3.6-flash';
 
@@ -107,6 +110,8 @@ class GeminiService {
   
   String _featureLabel(AiFeature feature) {
     switch (feature) {
+      case AiFeature.dietPlanAnalysis:
+        return 'Analisi piano alimentare';
       case AiFeature.menuGeneration:
         return 'Generazione menu';
       case AiFeature.diaryAnalysis:

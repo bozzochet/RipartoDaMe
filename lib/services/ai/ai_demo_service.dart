@@ -11,6 +11,8 @@ class AiDemoService {
 
   String _keyFor(AiFeature feature) {
     switch (feature) {
+      case AiFeature.dietPlanAnalysis:
+        return '${_prefix}diet_plan_analysis';
       case AiFeature.menuGeneration:
         return '${_prefix}menu_generation';
       case AiFeature.diaryAnalysis:

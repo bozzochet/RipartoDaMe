@@ -4,8 +4,11 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
+import '../services/ai/ai_dialogs.dart';
+import '../services/ai/ai_exceptions.dart';
+import '../services/ai/ai_feature.dart';
+import '../services/ai/gemini_service.dart';
 import 'package:open_filex/open_filex.dart';
 import '../services/local_storage_service.dart';
 import '../services/menu_export_service.dart';
@@ -53,10 +56,11 @@ class _IlMioMenuScreenState extends State<IlMioMenuScreen>
   @override
   void initState() {
     super.initState();
+    
     _tabController = TabController(length: 2, vsync: this);
     _loadSavedData();
   }
-
+    
   @override
   void dispose() {
     _tabController.dispose();
@@ -209,15 +213,6 @@ class _IlMioMenuScreenState extends State<IlMioMenuScreen>
       return;
     }
 
-    final apiKey = dotenv.env['GEMINI_API_KEY']?.trim() ?? '';
-    if (apiKey.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Gemini non è configurato: manca GEMINI_API_KEY.')),
-      );
-      return;
-    }
-
     setState(() => _isAnalyzingDiet = true);
 
     try {
@@ -272,15 +267,18 @@ Regole:
 - Non aggiungere spiegazioni, markdown o testo fuori dal JSON.
 ''';
 
-      final model = GenerativeModel(
-        model: 'gemini-3.6-flash',
-        apiKey: apiKey,
-        generationConfig:
-            GenerationConfig(responseMimeType: 'application/json'),
+      final response = await GeminiService.instance.generateContent(
+        feature: AiFeature.dietPlanAnalysis,
+        generationConfig: GenerationConfig(
+          responseMimeType: 'application/json',
+        ),
+        contents: [
+          Content.multi([
+              TextPart(prompt),
+              DataPart(mimeType, bytes),
+          ]),
+        ],
       );
-      final response = await model.generateContent([
-        Content.multi([TextPart(prompt), DataPart(mimeType, bytes)]),
-      ]);
       final responseText = response.text?.trim();
       if (responseText == null || responseText.isEmpty) {
         throw const MenuAiValidationException(
@@ -354,6 +352,12 @@ Regole:
           ),
         ),
       );
+    } on AiDemoLimitReachedException {
+      if (!mounted) return;
+      
+      setState(() => _isAnalyzingDiet = false);
+      
+      await AiDialogs.showDemoLimitDialog(context);
     } on FormatException catch (e) {
       if (!mounted) return;
       setState(() => _isAnalyzingDiet = false);
@@ -370,17 +374,6 @@ Regole:
   }
 
   Future<void> _generateMenuWithAI() async {
-    final apiKey = dotenv.env['GEMINI_API_KEY']?.trim() ?? '';
-
-    if (apiKey.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Gemini non è configurato: manca GEMINI_API_KEY.'),
-        ),
-      );
-      return;
-    }
-
     final caloriesText = _caloriesController.text.trim();
     final calories = caloriesText.isEmpty ? null : int.tryParse(caloriesText);
     if (caloriesText.isNotEmpty && (calories == null || calories <= 0)) {
@@ -470,12 +463,6 @@ Restituisci esclusivamente un oggetto JSON conforme a questa struttura:
 ${MenuAiContract.jsonShape}
 ''';
 
-      final model = GenerativeModel(
-        model: 'gemini-3.6-flash',
-        apiKey: apiKey,
-        generationConfig:
-            GenerationConfig(responseMimeType: 'application/json'),
-      );
       final List<Content> content;
       if (dietDocumentBytes != null && dietDocumentMimeType != null) {
         content = [
@@ -488,7 +475,13 @@ ${MenuAiContract.jsonShape}
         content = [Content.text(prompt)];
       }
 
-      final response = await model.generateContent(content);
+      final response = await GeminiService.instance.generateContent(
+        feature: AiFeature.menuGeneration,
+        generationConfig: GenerationConfig(
+          responseMimeType: 'application/json',
+        ),
+        contents: content,
+      );
       final responseText = response.text?.trim();
       if (responseText == null || responseText.isEmpty) {
         throw const MenuAiValidationException(
@@ -550,6 +543,12 @@ ${MenuAiContract.jsonShape}
           ),
         ),
       );
+    } on AiDemoLimitReachedException {
+      if (!mounted) return;
+      
+      setState(() => _isLoading = false);
+      
+      await AiDialogs.showDemoLimitDialog(context);
     } on MenuAiValidationException catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);

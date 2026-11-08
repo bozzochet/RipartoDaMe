@@ -14,7 +14,6 @@ import '../services/ai/gemini_service.dart';
 import '../services/ai/ai_feature.dart';
 import '../services/ai/ai_exceptions.dart';
 import '../services/ai/ai_dialogs.dart';
-import '../services/ai/ai_demo_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/cozy_widgets.dart';
 import '../widgets/cozy_background.dart';
@@ -134,12 +133,6 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen>
   void initState() {
     super.initState();
 
-    
-    AiDemoService.instance.resetDemo(
-      AiFeature.bodyAnalysis,
-    );
-    
-    
     _user = _storageService.getUser();
     _weightController.text =
         _user.currentWeight > 0 ? _user.currentWeight.toString() : '';
