@@ -2,11 +2,14 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
+import '../services/ai/ai_feature.dart';
+import '../services/ai/ai_exceptions.dart';
+import '../services/ai/ai_dialogs.dart';
+import '../services/ai/gemini_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart' as path_provider;
 import 'package:path/path.dart' as path;
 import 'package:gal/gal.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../services/local_storage_service.dart';
 import '../models/user_model.dart';
 import '../models/meal_entry_model.dart';
@@ -42,9 +45,6 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
 
   // Tipo di metrica selezionata per il grafico settimanale ('calories', 'proteins', 'carbs', 'fats')
   String _selectedChartMetric = 'calories';
-
-  // Chiave API Gemini
-  final String _apiKey = dotenv.env['GEMINI_API_KEY'] ?? '';
 
   @override
   void initState() {
@@ -455,14 +455,6 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
       final File targetFile = File('${appDir.path}/$fileName');
       final bytes = await targetFile.readAsBytes();
 
-      // Utilizzo del pacchetto ufficiale google_generative_ai con gemini-3.6-flash
-      final model = GenerativeModel(
-        model: 'gemini-3.6-flash',
-        apiKey: _apiKey,
-        generationConfig:
-            GenerationConfig(responseMimeType: 'application/json'),
-      );
-
       final prompt = '''
       Analizza questa foto di cibo. Restituisci unicamente un oggetto JSON valido con questa struttura esatta:
       {
@@ -475,7 +467,7 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
       {"nome": "Nome ingrediente", "peso_grammi": 100, "calorie": 150, "proteine": 10, "carboidrati": 20, "grassi": 5}
     ],
       "domande_per_utente": [
-      {"domanda": "Hai aggiunto olio d'oliva o burro?", "impatto_calorie": 90, "impatto_proteine": 0, "impatto_carboidrati": 0, "impatto_grassi": 10, "selezionato": false}
+      {"domanda": "Hai aggiunto olio d oliva o burro?", "impatto_calorie": 90, "impatto_proteine": 0, "impatto_carboidrati": 0, "impatto_grassi": 10, "selezionato": false}
     ]
     }
       ''';
@@ -487,7 +479,14 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
         ])
       ];
 
-      final response = await model.generateContent(content);
+      final response =
+      await GeminiService.instance.generateContent(
+        feature: AiFeature.diaryAnalysis,
+        generationConfig: GenerationConfig(
+          responseMimeType: 'application/json',
+        ),
+        contents: content,
+      );
 
       if (!mounted) {
         return;
@@ -505,10 +504,21 @@ class _IlMioDiarioScreenState extends State<IlMioDiarioScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             backgroundColor: Colors.red[700],
-            content: const Text('Risposta vuota ricevuta dall\'IA. Riprova.'),
+            content: const Text('Risposta vuota ricevuta dall IA. Riprova.'),
           ),
         );
       }
+    } on AiDemoLimitReachedException {
+      if (!mounted) {
+        return;
+      }
+      
+      if (Navigator.canPop(context)) {
+        Navigator.of(context).pop();
+      }
+      
+      await AiDialogs.showDemoLimitDialog(context);
+      
     } catch (e) {
       if (!mounted) {
         return;
