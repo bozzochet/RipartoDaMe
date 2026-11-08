@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-
+import 'package:url_launcher/url_launcher.dart';
 import '../services/ai/gemini_settings_service.dart';
 import '../services/ai/gemini_service.dart';
 import '../services/ai/ai_demo_service.dart';
@@ -40,6 +40,27 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
     super.dispose();
   }
 
+  Future<void> _openAiStudio() async {
+    final uri = Uri.parse(
+      'https://aistudio.google.com/apikey',
+    );
+
+    if (!await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+    )) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Impossibile aprire Google AI Studio.',
+          ),
+        ),
+      );
+    }
+  }
+  
   Future<void> _loadSettings() async {
     final apiKey =
     await GeminiSettingsService.instance.getPersonalApiKey();
@@ -375,25 +396,32 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
     return CozyCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          Text(
+        children: [
+          const Text(
             'Informazioni',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
             ),
           ),
-          SizedBox(height: 12),
-          Text(
-            'Le funzionalità AI di RipartoDaMe utilizzano '
-            'Gemini di Google.\n\n'
-            'Puoi ottenere gratuitamente una API Key personale '
-            'tramite Google AI Studio.\n\n'
-            'RipartoDaMe non applica costi aggiuntivi e non '
-            'riceve compensi dall\'utilizzo della tua API Key.\n\n'
-            'Se vorrai aumentare i limiti disponibili potrai '
-            'eventualmente aggiungere credito direttamente al '
-            'tuo account Google, ma non è necessario per iniziare.',
+          const SizedBox(height: 12),
+          const Text(
+            'Le funzionalità AI di RipartoDaMe utilizzano Gemini di Google.\n\n'
+            'RipartoDaMe non applica costi aggiuntivi e non riceve compensi dall\'utilizzo della tua API Key.\n\n'
+            'Premendo il pulsante qui sotto verrà aperto Google AI Studio nel browser.\n\n'
+            'Dopo l\'accesso con il tuo account Google sarà disponibile una API Key gratuita già pronta da copiare oppure potrai crearne una nuova in pochi secondi.\n\n'
+            'Per iniziare non è necessario associare credito o attivare piani a pagamento.\n\n'
+            'Chiaramente Gemini gratuito è limitato a poche \'chiamate\' al giorno e in caso di utilizzo intensivo (ad esempio scansione di ogni pasto durante la giornata oltre alla generazione settimanale o mensile della dieta e all\'analisi mensile, trimestrale o semestrale di analisi e esami) sarà necessario associare un credito all\'account google. Tipicamente pochi centesimi al giorno (massimo 1 euro al mese) sono sufficienti.\n\n'
+            'Torna quindi su RipartoDaMe, incolla la chiave e premi "Verifica e salva".'
+          ),
+          
+          const SizedBox(height: 16),
+          FilledButton.icon(
+            onPressed: _openAiStudio,
+            icon: const Icon(Icons.open_in_new),
+            label: const Text(
+              'Ottieni una API Key gratuita',
+            ),
           ),
         ],
       ),
