@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../services/ai/gemini_settings_service.dart';
 import '../services/ai/gemini_service.dart';
+import '../services/ai/ai_demo_service.dart';
+import '../services/ai/ai_feature.dart';
 import '../widgets/cozy_widgets.dart';
 import '../widgets/cozy_background.dart';
 
@@ -21,6 +23,11 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
   bool _obscureApiKey = true;
   bool _isSaving = false;
 
+  bool _dietPlanDemoUsed = false;
+  bool _menuDemoUsed = false;
+  bool _diaryDemoUsed = false;
+  bool _bodyDemoUsed = false;
+
   @override
   void initState() {
     super.initState();
@@ -35,14 +42,40 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
 
   Future<void> _loadSettings() async {
     final apiKey =
-        await GeminiSettingsService.instance.getPersonalApiKey();
+    await GeminiSettingsService.instance.getPersonalApiKey();
+
+    final dietPlanDemoUsed =
+    await AiDemoService.instance.hasConsumedDemo(
+      AiFeature.dietPlanAnalysis,
+    );
+
+    final menuDemoUsed =
+    await AiDemoService.instance.hasConsumedDemo(
+      AiFeature.menuGeneration,
+    );
+
+    final diaryDemoUsed =
+    await AiDemoService.instance.hasConsumedDemo(
+      AiFeature.diaryAnalysis,
+    );
+
+    final bodyDemoUsed =
+    await AiDemoService.instance.hasConsumedDemo(
+      AiFeature.bodyAnalysis,
+    );
 
     if (!mounted) return;
 
     setState(() {
-      _apiKeyController.text = apiKey ?? '';
-      _hasApiKey = apiKey != null && apiKey.isNotEmpty;
-      _isLoading = false;
+        _apiKeyController.text = apiKey ?? '';
+        _hasApiKey = apiKey != null && apiKey.isNotEmpty;
+
+        _dietPlanDemoUsed = dietPlanDemoUsed;
+        _menuDemoUsed = menuDemoUsed;
+        _diaryDemoUsed = diaryDemoUsed;
+        _bodyDemoUsed = bodyDemoUsed;
+
+        _isLoading = false;
     });
   }
 
@@ -177,6 +210,8 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                           children: [
                             _buildStatusCard(),
                             const SizedBox(height: 16),
+                            _buildDemoStatusCard(),
+                            const SizedBox(height: 16),
                             _buildApiKeyCard(),
                             const SizedBox(height: 16),
                             _buildInfoCard(),
@@ -228,6 +263,44 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
     );
   }
 
+  Widget _buildDemoStatusCard() {
+    return CozyCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Prove gratuite',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          _buildDemoRow(
+            'Analisi piano alimentare',
+            _dietPlanDemoUsed,
+          ),
+
+          _buildDemoRow(
+            'Generazione menu',
+            _menuDemoUsed,
+          ),
+
+          _buildDemoRow(
+            'Analisi diario',
+            _diaryDemoUsed,
+          ),
+
+          _buildDemoRow(
+            'Analisi referti',
+            _bodyDemoUsed,
+          ),
+        ],
+      ),
+    );
+  }
+  
   Widget _buildApiKeyCard() {
     return CozyCard(
       child: Column(
@@ -326,4 +399,33 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
       ),
     );
   }
+
+  Widget _buildDemoRow(
+    String label,
+    bool used,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        vertical: 4,
+      ),
+      child: Row(
+        children: [
+          Icon(
+            used
+            ? Icons.check_circle
+            : Icons.radio_button_unchecked,
+            color:
+            used ? Colors.green : Colors.orange,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '$label ${used ? '✅ usata' : '❌ disponibile'}',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
 }
