@@ -9,8 +9,12 @@ import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart' as path_provider;
 import 'package:path/path.dart' as path;
 import 'package:saver_gallery/saver_gallery.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
+import '../services/ai/gemini_service.dart';
+import '../services/ai/ai_feature.dart';
+import '../services/ai/ai_exceptions.dart';
+import '../services/ai/ai_dialogs.dart';
+import '../services/ai/ai_demo_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/cozy_widgets.dart';
 import '../widgets/cozy_background.dart';
@@ -129,6 +133,13 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen>
   @override
   void initState() {
     super.initState();
+
+    
+    AiDemoService.instance.resetDemo(
+      AiFeature.bodyAnalysis,
+    );
+    
+    
     _user = _storageService.getUser();
     _weightController.text =
         _user.currentWeight > 0 ? _user.currentWeight.toString() : '';
@@ -595,8 +606,6 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen>
     String extension, {
     String? existingFileName,
   }) async {
-    final String apiKey = dotenv.env['GEMINI_API_KEY'] ?? '';
-
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -652,13 +661,6 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen>
           );
         }
       }
-
-      final model = GenerativeModel(
-        model: 'gemini-3.6-flash',
-        apiKey: apiKey,
-        generationConfig:
-            GenerationConfig(responseMimeType: 'application/json'),
-      );
 
       const prompt = '''
       Analizza questo documento (referto di analisi del sangue e/o delle urine).
@@ -729,37 +731,40 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen>
     }
       ''';
 
-      int maxAttempts = 4;
-      int delayMs = 1500;
-      GenerateContentResponse? response;
-
-      for (int attempt = 1; attempt <= maxAttempts; attempt++) {
-        try {
-          response = await model.generateContent([
-            Content.multi([
+      final response =
+      await GeminiService.instance.generateContent(
+        feature: AiFeature.bodyAnalysis,
+        generationConfig: GenerationConfig(
+          responseMimeType: 'application/json',
+        ),
+        contents: [
+          Content.multi([
               TextPart(prompt),
               DataPart(mimeType, bytes),
-            ])
-          ]);
-          break;
-        } catch (e) {
-          if (attempt == maxAttempts) rethrow;
-          await Future.delayed(Duration(milliseconds: delayMs));
-          delayMs *= 2;
-        }
-      }
-
+          ]),
+        ],
+      );
+      
       if (!mounted) return;
       if (Navigator.canPop(context)) Navigator.of(context).pop();
 
-      if (response != null && response.text != null) {
-        final jsonString = response.text!;
-        final Map<String, dynamic> parsedValues = jsonDecode(jsonString);
-        final extractedDate = _parseAiBloodTestDate(parsedValues['testDate']);
-
-        _clearBloodTestControllers();
-
-        setState(() {
+      final text = response.text;
+      if (text == null || text.isEmpty) {
+        throw const FormatException(
+          'Gemini ha restituito una risposta vuota.',
+        );
+      }
+      
+      debugPrint('Gemini response: $text');
+      
+      final Map<String, dynamic> parsedValues =
+      jsonDecode(text);
+      
+      final extractedDate = _parseAiBloodTestDate(parsedValues['testDate']);
+      
+      _clearBloodTestControllers();
+      
+      setState(() {
           _tempBloodTestDate = extractedDate;
           if (parsedValues['glycemia'] != null) {
             _glycemiaController.text = parsedValues['glycemia'].toString();
@@ -799,11 +804,11 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen>
           }
           if (parsedValues['redBloodCells'] != null) {
             _redBloodCellsController.text =
-                parsedValues['redBloodCells'].toString();
+            parsedValues['redBloodCells'].toString();
           }
           if (parsedValues['whiteBloodCells'] != null) {
             _whiteBloodCellsController.text =
-                parsedValues['whiteBloodCells'].toString();
+            parsedValues['whiteBloodCells'].toString();
           }
           if (parsedValues['platelets'] != null) {
             _plateletsController.text = parsedValues['platelets'].toString();
@@ -816,27 +821,27 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen>
           }
           if (parsedValues['neutrophils'] != null) {
             _neutrophilsController.text =
-                parsedValues['neutrophils'].toString();
+            parsedValues['neutrophils'].toString();
           }
           if (parsedValues['lymphocytes'] != null) {
             _lymphocytesController.text =
-                parsedValues['lymphocytes'].toString();
+            parsedValues['lymphocytes'].toString();
           }
           if (parsedValues['totalCholesterol'] != null) {
             _totalCholesterolController.text =
-                parsedValues['totalCholesterol'].toString();
+            parsedValues['totalCholesterol'].toString();
           }
           if (parsedValues['hdlCholesterol'] != null) {
             _hdlCholesterolController.text =
-                parsedValues['hdlCholesterol'].toString();
+            parsedValues['hdlCholesterol'].toString();
           }
           if (parsedValues['ldlCholesterol'] != null) {
             _ldlCholesterolController.text =
-                parsedValues['ldlCholesterol'].toString();
+            parsedValues['ldlCholesterol'].toString();
           }
           if (parsedValues['triglycerides'] != null) {
             _triglyceridesController.text =
-                parsedValues['triglycerides'].toString();
+            parsedValues['triglycerides'].toString();
           }
           if (parsedValues['creatinine'] != null) {
             _creatinineController.text = parsedValues['creatinine'].toString();
@@ -858,92 +863,105 @@ class _IlMioCorpoScreenState extends State<IlMioCorpoScreen>
           }
           if (parsedValues['urineSpecificGravity'] != null) {
             _urineSpecificGravityController.text =
-                parsedValues['urineSpecificGravity'].toString();
+            parsedValues['urineSpecificGravity'].toString();
           }
           if (parsedValues['urinePh'] != null) {
             _urinePhController.text = parsedValues['urinePh'].toString();
           }
           if (parsedValues['urineProteins'] != null) {
             _urineProteinsController.text =
-                parsedValues['urineProteins'].toString();
+            parsedValues['urineProteins'].toString();
           }
           if (parsedValues['urineGlucose'] != null) {
             _urineGlucoseController.text =
-                parsedValues['urineGlucose'].toString();
+            parsedValues['urineGlucose'].toString();
           }
           if (parsedValues['urineKetones'] != null) {
             _urineKetonesController.text =
-                parsedValues['urineKetones'].toString();
+            parsedValues['urineKetones'].toString();
           }
           if (parsedValues['urineHemoglobin'] != null) {
             _urineHemoglobinController.text =
-                parsedValues['urineHemoglobin'].toString();
+            parsedValues['urineHemoglobin'].toString();
           }
           if (parsedValues['urineBilirubin'] != null) {
             _urineBilirubinController.text =
-                parsedValues['urineBilirubin'].toString();
+            parsedValues['urineBilirubin'].toString();
           }
           if (parsedValues['urineUrobilinogen'] != null) {
             _urineUrobilinogenController.text =
-                parsedValues['urineUrobilinogen'].toString();
+            parsedValues['urineUrobilinogen'].toString();
           }
           if (parsedValues['urineNitrites'] != null) {
             _urineNitritesController.text =
-                parsedValues['urineNitrites'].toString();
+            parsedValues['urineNitrites'].toString();
           }
           if (parsedValues['leukocyteEsterase'] != null) {
             _urineLeukocytesController.text =
-                parsedValues['leukocyteEsterase'].toString();
+            parsedValues['leukocyteEsterase'].toString();
           }
           if (parsedValues['urineRedBloodCells'] != null) {
             _urineRedBloodCellsController.text =
-                parsedValues['urineRedBloodCells'].toString();
+            parsedValues['urineRedBloodCells'].toString();
           }
           if (parsedValues['urineWhiteBloodCells'] != null) {
             _urineWhiteBloodCellsController.text =
-                parsedValues['urineWhiteBloodCells'].toString();
+            parsedValues['urineWhiteBloodCells'].toString();
           }
           if (parsedValues['casts'] != null) {
             _urineCastsController.text = parsedValues['casts'].toString();
           }
           if (parsedValues['epithelialCells'] != null) {
             _urineEpithelialCellsController.text =
-                parsedValues['epithelialCells'].toString();
+            parsedValues['epithelialCells'].toString();
           }
           if (parsedValues['urineSediment'] != null) {
             _urineSedimentController.text =
-                parsedValues['urineSediment'].toString();
+            parsedValues['urineSediment'].toString();
           }
-        });
+      });
 
-        _tempBloodFilePath = fileName;
+      _tempBloodFilePath = fileName;
 
-        final extractedDateLabel = _tempBloodTestDate != null
-            ? '${_tempBloodTestDate!.day.toString().padLeft(2, '0')}/'
-                '${_tempBloodTestDate!.month.toString().padLeft(2, '0')}/'
-                '${_tempBloodTestDate!.year}'
-            : null;
+      final extractedDateLabel = _tempBloodTestDate != null
+      ? '${_tempBloodTestDate!.day.toString().padLeft(2, '0')}/'
+      '${_tempBloodTestDate!.month.toString().padLeft(2, '0')}/'
+      '${_tempBloodTestDate!.year}'
+      : null;
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: AppColors.success,
-            content: Text(
-              extractedDateLabel != null
-                  ? '✨ Valori letti! Data referto: $extractedDateLabel. '
-                      'Controlla i dati e premi Salva Analisi.'
-                  : '✨ Valori letti! Data del referto non identificata: '
-                      'verrà usata la data odierna.',
-            ),
-          ),
-        );
-      }
-    } catch (e) {
-      if (!mounted) return;
-      if (Navigator.canPop(context)) Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            backgroundColor: Colors.red,
-            content: Text('Errore di connessione: $e')),
+          backgroundColor: AppColors.success,
+          content: Text(
+            extractedDateLabel != null
+            ? '✨ Valori letti! Data referto: $extractedDateLabel. '
+            'Controlla i dati e premi Salva Analisi.'
+            : '✨ Valori letti! Data del referto non identificata: '
+            'verrà usata la data odierna.',
+          ),
+        ),
+      );
+    }
+    on AiDemoLimitReachedException {
+      if (!mounted) return;
+      
+      if (Navigator.canPop(context)) {
+        Navigator.of(context).pop();
+      }
+      
+      await AiDialogs.showDemoLimitDialog(context);
+    } catch (e) {
+      if (!mounted) return;
+      
+      if (Navigator.canPop(context)) {
+        Navigator.of(context).pop();
+      }
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: Colors.red,
+          content: Text('Errore di connessione: $e'),
+        ),
       );
     }
   }
